@@ -1,0 +1,277 @@
+GUÍA PARA INSTALAR Y EJECUTAR EL PROYECTO (Django + SQL Server) — MiCasa_VersionWeb
+Fecha: 2026-04-14
+
+Objetivo
+- Que cualquier compañero pueda clonar el proyecto, crear su entorno virtual, instalar dependencias,
+  configurar la conexión a SQL Server (ODBC Driver 17) y ejecutar el servidor con la misma base “Ferreteria”.
+
+Requisitos (Windows)
+1) Python 3.x instalado (recomendado 3.11+; en este proyecto se usó Python 3.13.x)
+   - Confirmar:
+     python --version
+
+2) Git instalado
+   - Confirmar:
+     git --version
+
+3) SQL Server instalado (local en cada PC)
+   - Puede ser SQL Server Express o Developer.
+   - Recomendada instancia: SQLEXPRESS (ej: PC\SQLEXPRESS)
+
+4) SQL Server Management Studio (SSMS) recomendado (para correr el script de la base y revisar tablas)
+
+5) ODBC Driver 17 for SQL Server (OBLIGATORIO)
+   - Nombre del driver que debe existir:
+     "ODBC Driver 17 for SQL Server"
+
+   Verificar drivers instalados (opción A - PowerShell):
+     Get-OdbcDriver -Name "*SQL Server*"
+
+   Si NO lo tienen, instalar:
+   - “Microsoft ODBC Driver 17 for SQL Server” (descarga oficial Microsoft)
+
+6) (Recomendado) Microsoft Visual C++ Redistributable (si su PC lo pide para ODBC)
+
+------------------------------------------------------------
+1) Clonar el repositorio
+En una carpeta de trabajo:
+
+  git clone <URL_DEL_REPO>
+  cd micasa_versionweb
+
+IMPORTANTE:
+- El proyecto debe contener el archivo manage.py en la raíz.
+- La estructura típica:
+  micasa_versionweb/
+    manage.py
+    requirements.txt
+    ferreteria/
+    apps/
+    templates/
+    static/
+
+------------------------------------------------------------
+2) Crear y activar el entorno virtual (venv)
+Crear:
+  python -m venv venv
+
+Activar (PowerShell):
+  .\venv\Scripts\Activate.ps1
+
+Si PowerShell no deja activar (ExecutionPolicy):
+  Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+
+Confirmar que estás en venv:
+  where python
+Debe apuntar a ...\micasa_versionweb\venv\Scripts\python.exe
+
+------------------------------------------------------------
+3) Instalar dependencias
+Actualizar pip (recomendado):
+  python -m pip install --upgrade pip
+
+Instalar requirements:
+  pip install -r requirements.txt
+
+NOTA:
+- Si falta “python-dotenv”:
+  pip install python-dotenv
+
+------------------------------------------------------------
+4) Crear la base de datos Ferreteria en SQL Server (si aún no existe)
+Abrir SSMS y conectarse a su servidor local.
+
+Ejemplos de “Server name” típicos:
+- MSI\SQLEXPRESS
+- TU_PC\SQLEXPRESS
+- TU_PC (si es instancia default)
+- .\SQLEXPRESS (local)
+
+Luego ejecutar el script SQL (el que creó las tablas):
+- Crear database Ferreteria
+- Crear tablas: usuario, categoria, proveedor, cliente, producto, inventario, compra, venta, etc.
+
+IMPORTANTE:
+- La base se llama: Ferreteria
+- Las tablas están en minúsculas (ej: producto, venta, detalle_venta, etc.)
+
+------------------------------------------------------------
+5) Configurar variables de entorno (.env) para conexión
+En la RAÍZ del proyecto (mismo nivel que manage.py), crear un archivo llamado:
+  .env
+
+Contenido (ejemplo):
+  DB_HOST=TU_PC\SQLEXPRESS
+  DB_NAME=Ferreteria
+
+Ejemplos de DB_HOST:
+- DB_HOST=MSI\SQLEXPRESS
+- DB_HOST=.\SQLEXPRESS
+- DB_HOST=MSI  (si instancia default)
+
+IMPORTANTE:
+- Cada compañero debe poner SU host correcto.
+- El archivo .env NO se debe subir al repo.
+  Agregar a .gitignore:
+    .env
+
+------------------------------------------------------------
+6) Configurar settings.py para SQL Server
+En ferreteria/settings.py debe existir:
+- import os
+- (opcional) dotenv:
+    from dotenv import load_dotenv
+    load_dotenv()
+
+- DATABASES configurado para SQL Server usando ODBC Driver 17:
+
+  import os
+  from dotenv import load_dotenv
+  load_dotenv()
+
+  DATABASES = {
+      "default": {
+          "ENGINE": "mssql",
+          "NAME": os.getenv("DB_NAME", "Ferreteria"),
+          "HOST": os.getenv("DB_HOST", r".\SQLEXPRESS"),
+          "OPTIONS": {
+              "driver": "ODBC Driver 17 for SQL Server",
+              "TrustServerCertificate": "yes",
+          },
+      }
+  }
+
+NOTA:
+- Esto asume autenticación de Windows (Trusted connection).
+- Si alguien usa SQL Authentication (usuario/clave), hay que ajustar OPTIONS (consultar).
+
+------------------------------------------------------------
+7) Verificar que la app "core" esté instalada (para usar modelos legacy)
+En ferreteria/settings.py, dentro de INSTALLED_APPS debe estar:
+
+  "apps.core.apps.CoreConfig",
+
+Y debe existir el archivo:
+  apps/core/apps.py
+
+con:
+  from django.apps import AppConfig
+
+  class CoreConfig(AppConfig):
+      default_auto_field = "django.db.models.BigAutoField"
+      name = "apps.core"
+
+------------------------------------------------------------
+8) Modelos desde base existente (inspectdb)
+Este proyecto usa tablas ya existentes en SQL Server, por eso se generó:
+  apps/core/models_legacy.py
+
+Regla importante:
+- En models_legacy.py NO deben estar los modelos de tablas de Django (auth_*, django_*, sessions, etc.)
+  porque causan errores de app_label.
+
+Para regenerar models_legacy.py (si es necesario):
+  python manage.py inspectdb | Out-File -FilePath apps/core/models_legacy.py -Encoding utf8
+
+Luego limpiar del archivo las clases de:
+- auth_*
+- django_*
+- sessions
+y dejar solo tus tablas: producto, venta, detalle_venta, etc.
+
+En apps/core/models.py debe estar:
+  from .models_legacy import *  # noqa
+
+Y NUNCA poner dentro de apps/core/models.py:
+  from apps.core.models import Producto   (eso crea import circular)
+
+------------------------------------------------------------
+9) Migraciones de Django (solo si van a usar admin/auth/sessions)
+IMPORTANTE:
+- Como la BD es existente, NO queremos que Django cree tus tablas de negocio.
+- Tus modelos legacy deben tener:
+  class Meta:
+      managed = False
+      db_table = 'nombre_tabla'
+
+Pero sí puede ser útil que Django cree sus tablas internas (admin/auth/sessions):
+
+Ejecutar:
+  python manage.py migrate
+
+Esto crea tablas como:
+- auth_user
+- django_migrations
+- django_session
+- etc.
+
+Si NO quieren esas tablas en la misma base “Ferreteria”, se debe usar otra base o router (avanzado).
+
+------------------------------------------------------------
+10) Crear usuario para entrar al admin (opcional)
+Si van a usar /admin:
+  python manage.py createsuperuser
+
+Luego entrar:
+  http://127.0.0.1:8000/admin/
+
+NOTA:
+- Django no puede “mostrar” contraseñas existentes (son hasheadas).
+- Si olvidan contraseña, se resetea.
+
+------------------------------------------------------------
+11) Ejecutar el proyecto
+Levantar servidor:
+  python manage.py runserver
+
+Abrir:
+  http://127.0.0.1:8000/
+
+Para permitir acceso desde la red (opcional):
+  python manage.py runserver 0.0.0.0:8000
+
+------------------------------------------------------------
+12) Pruebas rápidas para confirmar conexión y modelos
+Check Django:
+  python manage.py check
+
+Probar conexión:
+  python manage.py shell -c "from django.db import connection; connection.ensure_connection(); print('OK')"
+
+Probar que el modelo Producto funciona y trae datos:
+  python manage.py shell -c "from apps.core.models import Producto; print(Producto.objects.count())"
+
+Si count() da 0:
+- La tabla está vacía o están apuntando a otra base.
+
+------------------------------------------------------------
+Errores comunes y solución
+1) Error: “ODBC Driver 17 for SQL Server not found”
+- Instalar ODBC Driver 17
+- Revisar que el nombre del driver sea exacto en settings.py
+
+2) Error: “Login failed” o “Cannot open database”
+- Revisar DB_HOST y DB_NAME en .env
+- Verificar que SQL Server esté corriendo y permita conexiones
+- Confirmar el nombre exacto de instancia en SSMS
+
+3) Error: “Model class ... doesn't declare an explicit app_label...”
+- Asegurarse que "apps.core.apps.CoreConfig" esté en INSTALLED_APPS
+- Asegurarse que models_legacy.py no incluya modelos de auth_*/django_*
+
+4) Error: “source code string cannot contain null bytes”
+- Regenerar models_legacy.py usando Out-File con -Encoding utf8
+
+------------------------------------------------------------
+Qué deben configurar tus compañeros (resumen)
+- Instalar: Python, Git, SQL Server, ODBC Driver 17
+- Crear venv e instalar requirements.txt
+- Crear la base “Ferreteria” ejecutando el script SQL en su SQL Server local
+- Crear su .env con:
+    DB_HOST=SU_PC\SQLEXPRESS (o su instancia)
+    DB_NAME=Ferreteria
+- Correr:
+    python manage.py migrate   (si usarán admin/auth/sessions)
+    python manage.py runserver
+
+Fin.

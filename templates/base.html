@@ -1,0 +1,72 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Ferretería Mi Casa{% endblock %}</title>
+
+  <link rel="stylesheet" href="{% static 'css/shell.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+  <div class="app">
+
+    <aside id="sidebar" class="sidebar">
+      <div class="brand">
+        <img class="brand__logo" src="{% static 'assets/Ferreteria.png' %}" alt="Ferretería Mi Casa" />
+        <div class="brand__text">
+          <div class="brand__title">Ferretería</div>
+          <div class="brand__subtitle">Mi Casa</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <button id="btnToggleMenu" class="toggle" title="Plegar menú" aria-label="Plegar menú">≡</button>
+
+      <div class="menu-title">Menú principal</div>
+
+      <nav class="menu">
+        <a class="menu-link" href="{% url 'compras:index' %}" data-permission="compras">
+          <span class="menu-link__icon">🛒</span><span class="menu-link__text">Compras</span>
+        </a>
+
+        <a class="menu-link" href="{% url 'ventas:index' %}" data-permission="ventas">
+          <span class="menu-link__icon">💵</span><span class="menu-link__text">Ventas</span>
+        </a>
+
+        <a class="menu-link" href="{% url 'devolucion:index' %}" data-permission="devolucion">
+          <span class="menu-link__icon">↩️</span><span class="menu-link__text">Devolución</span>
+        </a>
+
+        <a class="menu-link" href="{% url 'registro:index' %}" data-permission="registro">
+          <span class="menu-link__icon">📁</span><span class="menu-link__text">Registro</span>
+        </a>
+
+        <div class="divider"></div>
+
+        <a class="menu-link menu-link--gray" href="{% url 'accounts:logout' %}" id="linkCerrarSeccion">
+          <form method="post" action="{% url 'accounts:logout' %}" style="margin:0;">
+  {% csrf_token %}
+  <button type="submit" class="menu-link menu-link--gray" id="linkCerrarSesion" style="width:100%; background:none; border:0; padding:0; text-align:left;">
+    <span class="menu-link__icon">🔒</span><span class="menu-link__text">Cerrar sesión</span>
+  </button>
+</form>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <div class="content">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+
+  </div>
+
+  <script src="{% static 'js/shell.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

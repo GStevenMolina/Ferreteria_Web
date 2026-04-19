@@ -47,8 +47,8 @@
 
         <div class="divider"></div>
 
-        <a class="menu-link menu-link--gray" href="{% url 'accounts:logout' %}" id="linkCerrarSeccion">
-          <form method="post" action="{% url 'accounts:logout' %}" style="margin:0;">
+        <a class="menu-link menu-link--gray" href="{% url 'logout' %}" id="linkCerrarSeccion">
+          <form method="post" action="{% url 'logout' %}" style="margin:0;">
   {% csrf_token %}
   <button type="submit" class="menu-link menu-link--gray" id="linkCerrarSesion" style="width:100%; background:none; border:0; padding:0; text-align:left;">
     <span class="menu-link__icon">🔒</span><span class="menu-link__text">Cerrar sesión</span>

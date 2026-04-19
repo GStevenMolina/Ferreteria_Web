@@ -1,79 +1,53 @@
 {% load static %}
 <!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Iniciar sesión</title>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login</title>
+  <link rel="stylesheet" href="{% static 'css/login.css' %}">
+</head>
 
-    <link rel="stylesheet" href="{% static 'css/login.css' %}">
-  </head>
+<body>
+  <div class="login__wrap">
+    <div class="login__card">
+      <div class="login__header">
+        <!-- opcional: logo -->
+        <!-- <img class="login__logo" src="{% static 'img/logo.png' %}" alt="Logo" /> -->
+        <div>
+          <h1 class="login__title">Iniciar sesión</h1>
+          <p class="login__subtitle">Ingresa tu correo y contraseña para continuar</p>
+        </div>
+      </div>
 
-  <body class="login">
-    <div class="login__bg"></div>
+      {% if messages %}
+        {% for message in messages %}
+          <div class="login__alert">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
 
-    <main class="login__wrap">
-      <section class="login__card" aria-label="Formulario de inicio de sesión">
-        <header class="login__header">
-          <!-- Cambia la ruta si tu logo está en otro lugar -->
-          <img class="login__logo" src="{% static 'assets/Ferreteria.png' %}" alt="Ferretería Mi Casa" />
-          <div class="login__titles">
-            <h1 class="login__title">Ferretería Mi Casa</h1>
-            <p class="login__subtitle">Acceso al sistema</p>
-          </div>
-        </header>
+      <form class="login__form" method="post" action="{% url 'login' %}">
+        {% csrf_token %}
 
-        {% if form.errors %}
-          <div class="login__alert" role="alert">
-            Usuario o contraseña incorrectos.
-          </div>
-        {% endif %}
+        <div>
+          <label class="field__label">Email</label>
+          <input class="field__input" type="email" name="email" value="{{ email|default:'' }}" required />
+        </div>
 
-        <form class="login__form" method="post" novalidate>
-          {% csrf_token %}
+        <div>
+          <label class="field__label">Contraseña</label>
+          <input class="field__input" type="password" name="password" required />
+        </div>
 
-          <!-- Soporta ?next=/ -->
-          {% if next %}
-            <input type="hidden" name="next" value="{{ next }}">
-          {% endif %}
+        <button class="login__btn" type="submit">Entrar</button>
 
-          <label class="field">
-            <span class="field__label">Usuario</span>
-            <input
-              class="field__input"
-              type="text"
-              name="username"
-              autocomplete="username"
-              autofocus
-              required
-              value="{{ form.username.value|default:'' }}"
-            />
-          </label>
+        <p class="login__hint">Si tienes problemas para entrar, revisa tu correo y contraseña.</p>
+      </form>
+    </div>
 
-          <label class="field">
-            <span class="field__label">Contraseña</span>
-            <input
-              class="field__input"
-              type="password"
-              name="password"
-              autocomplete="current-password"
-              required
-            />
-          </label>
-
-          <button class="login__btn" type="submit">
-            Entrar
-          </button>
-
-          <p class="login__hint">
-            Si no tienes acceso, solicita tu usuario al administrador.
-          </p>
-        </form>
-      </section>
-
-      <footer class="login__footer">
-        <small>© {{ now|date:"Y" }} Ferretería Mi Casa</small>
-      </footer>
-    </main>
-  </body>
+    <div class="login__footer">
+      Ferretería • Panel de acceso
+    </div>
+  </div>
+</body>
 </html>

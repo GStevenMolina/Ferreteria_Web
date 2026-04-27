@@ -1,0 +1,161 @@
+/* 🎯 BASE */
+body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+.main-content {
+    padding: 25px;
+}
+
+/* CONTENEDOR */
+.container-devolucion {
+    display: flex;
+    gap: 25px;
+    align-items: flex-start;
+}
+
+/* 🟦 FORMULARIO */
+.form-card {
+    background: #f8fafc;
+    padding: 25px;
+    border-radius: 18px;
+    width: 340px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e2e8f0;
+    transition: 0.2s;
+}
+
+.form-card:hover {
+    transform: translateY(-3px);
+}
+
+.form-card h3 {
+    color: #2563eb;
+    margin-bottom: 20px;
+    font-size: 20px;
+}
+
+/* LABELS */
+.form-card label {
+    display: block;
+    margin-top: 12px;
+    font-size: 13px;
+    color: #475569;
+}
+
+/* INPUTS */
+.form-card input,
+.form-card textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    margin-top: 6px;
+    background: #ffffff;
+    font-size: 14px;
+}
+
+/* FOCUS */
+.form-card input:focus,
+.form-card textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.form-card textarea {
+    height: 90px;
+    resize: none;
+}
+
+/* BOTÓN */
+.btn-orange {
+    margin-top: 18px;
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-orange:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(249, 115, 22, 0.4);
+}
+
+/* 🟫 TABLA CONTENEDOR */
+.tabla-card {
+    flex: 1;
+    background: #f8fafc;
+    border-radius: 18px;
+    padding: 15px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e2e8f0;
+    max-height: 520px;
+    overflow-y: auto;
+}
+
+/* TABLA */
+.tabla-card table {
+    width: 100%;
+    border-collapse: collapse;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* HEADER */
+.tabla-card th {
+    background: #1e293b;
+    color: #ffffff;
+    padding: 12px;
+    font-weight: 600;
+    font-size: 14px;
+    text-align: center;
+}
+
+/* 🔥 CELDAS (CORREGIDO) */
+.tabla-card td {
+    color: #111827 !important;        /* negro visible */
+    background-color: #ffffff !important; /* sin fondo azul */
+    padding: 10px;
+    text-align: center;
+    font-size: 13px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* 🔥 ELIMINAR CUALQUIER FONDO RARO */
+.tabla-card td span {
+    background: transparent !important;
+    color: #111827 !important;
+}
+
+/* ZEBRA */
+.tabla-card tr:nth-child(even) td {
+    background-color: #f9fafb !important;
+}
+
+/* HOVER */
+.tabla-card tr:hover td {
+    background-color: #e2e8f0 !important;
+}
+
+/* 🔴 SELECCIÓN DE TEXTO */
+::selection {
+    background: #93c5fd;
+    color: #000;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+    .container-devolucion {
+        flex-direction: column;
+    }
+
+    .form-card {
+        width: 100%;
+    }
+}

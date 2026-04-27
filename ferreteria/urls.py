@@ -1,18 +1,35 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 from apps.accounts.auth import login_required_custom
+
 
 @login_required_custom
 def dashboard(request):
     return render(request, "dashboard.html")
 
+
+def home(request):
+    # Si hay sesión, entra al dashboard
+    if request.session.get("id_usuario"):
+        return redirect("/dashboard/")
+
+    # Si no hay sesión, manda al login (ruta real en tu proyecto)
+    return redirect("/login/")
+
+
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("", dashboard, name="dashboard"),
+
+    # Root router + dashboard
+    path("", home, name="home"),
+    path("dashboard/", dashboard, name="dashboard"),
+
+    # Accounts en raíz (porque tu login está en /login/)
     path("", include("apps.accounts.urls")),
 
+    # Apps
     path("compras/", include("apps.compras.urls")),
     path("ventas/", include("apps.ventas.urls")),
     path("registro/", include("apps.registro.urls")),

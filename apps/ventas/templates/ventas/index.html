@@ -1,8 +1,157 @@
 {% extends "base.html" %}
 {% block title %}Ventas{% endblock %}
 {% block content %}
-  <div class="card">
-    <h1 class="page-title">Ventas</h1>
-    <p class="page-subtitle">Página de ventas funcionando.</p>
-  </div>
+{% load static %}
+
+<link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+
+<div class="container">
+  <main class="main-content">
+
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+
+    <div class="form-sections">
+
+      <!-- 🔵 CLIENTE -->
+      <section class="form-card">
+
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="accion" value="buscar_cliente">
+
+          <h3>Cliente</h3>
+
+          <input type="text" name="nombre" placeholder="Buscar cliente">
+          <button type="submit" class="btn btn-blue-outline">Buscar</button>
+        </form>
+
+        <label>Teléfono</label>
+        <input type="text" value="{{ cliente.telefono }}" readonly>
+
+        <label>Dirección</label>
+        <input type="text" value="{{ cliente.direccion }}" readonly>
+
+        <!-- BOTÓN -->
+        <button type="button" class="btn btn-blue" onclick="toggleCliente(this)">
+          + Nuevo Cliente
+        </button>
+
+        <!-- FORMULARIO DESPLEGABLE -->
+        <div id="formNuevoCliente" class="cliente-form-hidden">
+
+          <form method="POST" class="cliente-form">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="agregar_cliente">
+
+            <h4>Nuevo Cliente</h4>
+
+            <div class="input-group">
+              <label>Nombre</label>
+              <input type="text" name="nombre" required>
+            </div>
+
+            <div class="input-group">
+              <label>Teléfono</label>
+              <input type="text" name="telefono">
+            </div>
+
+            <div class="input-group">
+              <label>Dirección</label>
+              <input type="text" name="direccion">
+            </div>
+
+            <div class="cliente-actions">
+              <button type="submit" class="btn btn-blue">Guardar</button>
+              <button type="button" class="btn btn-cancel" onclick="toggleCliente(this)">Cancelar</button>
+            </div>
+
+          </form>
+
+        </div>
+
+      </section>
+
+      <!-- 🟠 PRODUCTO -->
+      <section class="form-card product-card">
+
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="accion" value="agregar_producto">
+
+          <h3>Producto</h3>
+
+          <select name="producto_id">
+            {% for p in productos %}
+              <option value="{{ p.id_producto }}">
+                {{ p.nombre }} - {{ p.precio_venta }}
+              </option>
+            {% endfor %}
+          </select>
+
+          <input type="number" name="cantidad" placeholder="Cantidad" required>
+
+          <button type="submit" class="btn btn-orange">Agregar</button>
+        </form>
+
+      </section>
+
+    </div>
+
+    <!-- 🧾 TABLA -->
+    <section class="main-table">
+
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Cantidad</th>
+            <th>Precio</th>
+            <th>Subtotal</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for item in carrito %}
+          <tr>
+            <td>{{ item.nombre }}</td>
+            <td class="center">{{ item.cantidad }}</td>
+            <td class="right">{{ item.precio }}</td>
+            <td class="right">{{ item.subtotal }}</td>
+            <td>
+              <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="eliminar_producto">
+                <input type="hidden" name="index" value="{{ forloop.counter0 }}">
+                <button type="submit" class="btn-delete">🗑</button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5">No hay productos</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <span>Total: <strong>{{ total }}</strong></span>
+
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="accion" value="finalizar">
+          <button type="submit" class="btn btn-orange">Vender</button>
+        </form>
+      </div>
+
+    </section>
+
+  </main>
+</div>
+
+<script src="{% static 'js/ventas.js' %}"></script>
+
 {% endblock %}

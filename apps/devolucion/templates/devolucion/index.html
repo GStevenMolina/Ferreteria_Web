@@ -1,8 +1,78 @@
 {% extends "base.html" %}
-{% block title %}Devoluciones{% endblock %}
+{% block title %}Devolución{% endblock %}
+
 {% block content %}
-  <div class="card">
-    <h1 class="page-title">Devoluciones</h1>
-    <p class="page-subtitle">Página de devoluciones funcionando.</p>
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/devolucion.css' %}">
+
+<main class="main-content">
+
+  <div class="container-devolucion">
+
+    <!-- 🟦 FORMULARIO -->
+    <section class="form-card">
+
+      <h3>Devolución</h3>
+
+      <form method="POST">
+        {% csrf_token %}
+
+        <label>Fecha</label>
+        <input type="date" name="fecha">
+
+        <label>Plazo</label>
+        <input type="number" name="plazo">
+
+        <label>Condiciones</label>
+        <textarea name="condiciones"></textarea>
+
+        <label>Producto a Devolver</label>
+        <input type="text" name="producto">
+
+        <button type="submit" class="btn-orange">
+          Registrar devolución
+        </button>
+
+      </form>
+
+    </section>
+
+    <!-- 🟫 TABLA -->
+    <section class="tabla-card">
+
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Plazo</th>
+            <th>Condiciones</th>
+            <th>IDVenta</th>
+            <th>Producto</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for d in devoluciones %}
+          <tr>
+            <td>{{ d.fecha }}</td>
+            <td>{{ d.plazo }}</td>
+            <td>{{ d.condiciones }}</td>
+            <td>{{ d.id_venta.id_venta }}</td>
+            <td>{{ d.id_producto.nombre }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5">No hay devoluciones registradas</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+
+      </table>
+
+    </section>
+
   </div>
+
+</main>
+
 {% endblock %}

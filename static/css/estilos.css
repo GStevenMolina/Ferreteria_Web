@@ -1,0 +1,124 @@
+body {
+  margin: 0;
+  font-family: 'Segoe UI';
+  background: #f1f5f9;
+}
+
+.main-content {
+  background: #22245B;
+  padding: 25px;
+}
+
+/* CARDS */
+.form-sections {
+  display: flex;
+  gap: 20px;
+}
+
+.form-card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 15px;
+  flex: 1;
+}
+
+.product-card {
+  background: #fff7ed;
+}
+
+/* INPUTS */
+input, select {
+  width: 100%;
+  padding: 10px;
+  margin: 8px 0;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+}
+
+/* BOTONES */
+.btn {
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-blue { background: #3b82f6; color: white; }
+.btn-orange { background: #f97316; color: white; }
+
+.btn-blue-outline {
+  border: 1px solid #3b82f6;
+  background: white;
+  color: #3b82f6;
+}
+
+.btn-cancel {
+  background: #e2e8f0;
+}
+
+/* TABLA */
+.main-table {
+  margin-top: 20px;
+  background: white;
+  padding: 20px;
+  border-radius: 15px;
+}
+
+table {
+  width: 100%;
+  border-spacing: 0 10px;
+}
+
+th {
+  background: #1e293b;
+  color: white;
+  padding: 10px;
+}
+
+td {
+  background: #f8fafc;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.center { text-align: center; }
+.right { text-align: right; }
+
+/* ELIMINAR */
+.btn-delete {
+  background: red;
+  color: white;
+  border-radius: 8px;
+  padding: 5px;
+}
+
+/* TOTAL */
+.totals {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+}
+
+/* FORM CLIENTE */
+.cliente-form-hidden {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: all 0.4s ease;
+}
+
+.cliente-form-hidden.active {
+  max-height: 500px;
+  opacity: 1;
+  margin-top: 15px;
+}
+
+.cliente-form {
+  background: #eff6ff;
+  padding: 15px;
+  border-radius: 12px;
+}
+
+.input-group {
+  margin-bottom: 10px;
+}

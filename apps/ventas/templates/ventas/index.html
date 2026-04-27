@@ -17,24 +17,26 @@
       <!-- 🔵 CLIENTE -->
       <section class="form-card">
 
+        <!-- BUSCAR CLIENTE -->
         <form method="POST">
           {% csrf_token %}
           <input type="hidden" name="accion" value="buscar_cliente">
 
           <h3>Cliente</h3>
 
-          <input type="text" name="nombre" placeholder="Buscar cliente">
+          <input type="text" name="nombre" placeholder="Buscar cliente" required>
           <button type="submit" class="btn btn-blue-outline">Buscar</button>
         </form>
 
+        <!-- DATOS CLIENTE -->
         <label>Teléfono</label>
-        <input type="text" value="{{ cliente.telefono }}" readonly>
+        <input type="text" value="{{ cliente.telefono|default:'' }}" readonly>
 
         <label>Dirección</label>
-        <input type="text" value="{{ cliente.direccion }}" readonly>
+        <input type="text" value="{{ cliente.direccion|default:'' }}" readonly>
 
         <!-- BOTÓN -->
-        <button type="button" class="btn btn-blue" onclick="toggleCliente(this)">
+        <button type="button" class="btn btn-blue" onclick="toggleCliente()">
           + Nuevo Cliente
         </button>
 
@@ -64,7 +66,7 @@
 
             <div class="cliente-actions">
               <button type="submit" class="btn btn-blue">Guardar</button>
-              <button type="button" class="btn btn-cancel" onclick="toggleCliente(this)">Cancelar</button>
+              <button type="button" class="btn btn-cancel" onclick="toggleCliente()">Cancelar</button>
             </div>
 
           </form>
@@ -82,7 +84,8 @@
 
           <h3>Producto</h3>
 
-          <select name="producto_id">
+          <select name="producto_id" required>
+            <option value="">Seleccionar producto</option>
             {% for p in productos %}
               <option value="{{ p.id_producto }}">
                 {{ p.nombre }} - {{ p.precio_venta }}
@@ -90,7 +93,7 @@
             {% endfor %}
           </select>
 
-          <input type="number" name="cantidad" placeholder="Cantidad" required>
+          <input type="number" name="cantidad" placeholder="Cantidad" min="1" required>
 
           <button type="submit" class="btn btn-orange">Agregar</button>
         </form>
@@ -131,7 +134,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="5">No hay productos</td>
+            <td colspan="5" style="text-align:center;">No hay productos</td>
           </tr>
           {% endfor %}
         </tbody>

@@ -1,36 +1,58 @@
+/**
+ * compras.js (módulo Compras)
+ *
+ * Este script controla el flujo completo del módulo:
+ * - Carga proveedores y productos (por proveedor)
+ * - Agrega items (producto + cantidad + precio) a una lista
+ * - Calcula subtotal, IVA y total en tiempo real
+ * - Guarda la compra (POST /compras/nueva/) siempre en NIO
+ * - Maneja cambio de moneda VISUAL (NIO <-> USD) usando tasa de cambio manual
+ * - Incluye un modal para crear un producto (con proveedor y categoría)
+ * - Incluye autocomplete de proveedor dentro del modal
+ */
 (() => {
+  // State global del módulo (en memoria)
   const state = {
-    productosMap: new Map(),
-    items: [],
-    currency: "NIO", // Moneda de visualización (lo guardado SIEMPRE será NIO)
+    productosMap: new Map(), // cache: id_producto(string) -> {id_producto, nombre, precio_compra, precio_venta, ...}
+    items: [],               // items agregados a la compra actual: [{id_producto, nombre, cantidad, precio_unitario}, ...]
+    currency: "NIO",         // moneda de visualización (lo que se guarda en BD siempre será NIO)
   };
 
-  // ===== Autocomplete proveedor =====
-  let provAcSelected = null; // objeto proveedor seleccionado del autocomplete
-  let provAcTimer = null;
-  let provAcLastItems = [];
+  // Variables de Autocomplete para proveedor (en modal)
+  let provAcSelected = null; // proveedor seleccionado del autocomplete (objeto)
+  let provAcTimer = null;    // timer para debounce al escribir
+  let provAcLastItems = [];  // últimos resultados mostrados
 
+  // Helper para acceder por ID
   function $(id) { return document.getElementById(id); }
 
+  // Helpers de moneda y formato
   function currencySymbol() {
+    // Símbolo según moneda actual de visualización
     return state.currency === "USD" ? "$" : "C$";
   }
 
   function money(n) {
+    // Convierte a número y redondea a 2 decimales para mostrar (string con 2 decimales)
     return (Math.round((Number(n) + Number.EPSILON) * 100) / 100).toFixed(2);
   }
 
-  // ============================================================
   // Tipo de cambio manual (1 USD = X NIO)
-  // ============================================================
   function fxRate() {
+    // Lee el input #fx_rate (si existe). Si no es válido, devuelve null.
     const v = parseFloat($("fx_rate")?.value);
     if (!v || isNaN(v) || v <= 0) return null;
     return v;
   }
 
   function convertAmount(amount, from, to) {
+    /**
+     * Convierte un monto entre monedas usando el tipo de cambio manual.
+     * - NIO -> USD: divide entre la tasa
+     * - USD -> NIO: multiplica por la tasa
+     */
     if (from === to) return Number(amount);
+
     const r = fxRate();
     if (!r) throw new Error("Tipo de cambio inválido");
 
@@ -43,35 +65,43 @@
   }
 
   function tryConvertAll(toCurrency) {
+    /**
+     * Convierte TODOS los montos visibles del formulario a otra moneda:
+     * - Convierte cada item de state.items (precio_unitario)
+     * - Convierte los inputs de precio compra/venta (por si el usuario estaba editando)
+     * - Cambia state.currency y re-renderiza
+     *
+     * Nota: esta conversión es “visual” (estado UI). Al guardar, se envía siempre NIO.
+     */
     const fromCurrency = state.currency;
     if (fromCurrency === toCurrency) return;
 
-    // Requiere TC si hay conversión
+    // Si vamos a convertir, necesitamos un tipo de cambio válido
     const r = fxRate();
     if (!r) {
       toast("err", "Tipo de cambio", "Ingresa un tipo de cambio válido (USD→NIO).");
       return;
     }
 
-    // Convertir items (esto hace que totales cambien también)
+    // 1) Convertir items (esto afecta subtotal/total)
     state.items = state.items.map(it => ({
       ...it,
       precio_unitario: convertAmount(it.precio_unitario, fromCurrency, toCurrency),
     }));
 
-    // Convertir inputs visibles (por si el usuario estaba editando)
+    // 2) Convertir inputs visibles (si contienen algún valor actual)
     $("precio_compra").value = money(convertAmount($("precio_compra").value, fromCurrency, toCurrency));
     $("precio_venta").value = money(convertAmount($("precio_venta").value, fromCurrency, toCurrency));
 
+    // 3) Cambiar moneda actual y re-renderizar UI
     state.currency = toCurrency;
     setCurrencyUI();
     renderTable();
   }
 
-  // ============================================================
-  // UI helpers
-  // ============================================================
+  // Toast (mensajes rápidos)
   function toast(kind, title, body) {
+    // kind: "ok" o "err"
     const el = $("toast");
     el.className = "toast " + (kind === "ok" ? "ok" : "err");
     $("toastTitle").textContent = title;
@@ -81,38 +111,47 @@
     window.__t = setTimeout(() => (el.style.display = "none"), 3500);
   }
 
+  // UI: moneda
   function setCurrencyUI() {
+    // Actualiza la píldora de moneda
     $("currencyPill").textContent = state.currency === "USD" ? "$ USD" : "C$ NIO";
-    renderTable();
+    renderTable(); // recalcular tabla/totales con símbolo actualizado
   }
 
+  // Cálculo de IVA y totales
   function getIvaRate() {
+    // El usuario ingresa el IVA como % (por ejemplo "15"). Aquí lo convertimos a factor (0.15)
     const v = parseFloat($("iva_rate").value);
     if (isNaN(v) || v < 0) return 0;
     return v / 100;
   }
 
   function calc() {
+    // subtotal = sum(cantidad * precio_unitario)
     const subtotal = state.items.reduce((a, it) => a + it.cantidad * it.precio_unitario, 0);
     const impuesto = subtotal * getIvaRate();
     const total = subtotal + impuesto;
 
+    // Mostrar en UI usando símbolo de moneda actual
     const s = currencySymbol();
     $("sub").textContent = s + money(subtotal);
     $("tax").textContent = s + money(impuesto);
     $("tot").textContent = s + money(total);
   }
 
+  // Render de tabla de items
   function renderTable() {
     const tbody = $("tbody");
     const s = currencySymbol();
 
+    // Caso base: sin items
     if (state.items.length === 0) {
       tbody.innerHTML = `<tr><td colspan="5" class="note">No hay items todavía.</td></tr>`;
       calc();
       return;
     }
 
+    // Render de cada fila
     tbody.innerHTML = state.items.map((it, idx) => {
       const sub = it.cantidad * it.precio_unitario;
       return `
@@ -127,6 +166,7 @@
         </tr>`;
     }).join("");
 
+    // Bind de “Eliminar” por fila
     tbody.querySelectorAll("button[data-remove]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const idx = parseInt(btn.getAttribute("data-remove"), 10);
@@ -138,12 +178,20 @@
     calc();
   }
 
+  // CSRF y helpers de POST (Django)
   function getCsrf() {
+    // Obtiene el token CSRF del formulario oculto #csrfForm
     const el = document.querySelector("#csrfForm input[name=csrfmiddlewaretoken]");
     return el ? el.value : "";
   }
 
   async function postForm(url, data) {
+    /**
+     * Helper para POST a endpoints que reciben form-data (request.POST).
+     * Retorna { r, j }:
+     * - r: Response
+     * - j: JSON parseado (si se pudo)
+     */
     const csrfToken = getCsrf();
     const form = new FormData();
     Object.entries(data).forEach(([k, v]) => form.append(k, v ?? ""));
@@ -152,7 +200,9 @@
     return { r, j };
   }
 
+  // Carga de proveedores y productos
   async function loadProveedores() {
+    // GET /compras/api/proveedores/ => llena el select #proveedor
     const r = await fetch("/compras/api/proveedores/");
     const j = await r.json().catch(() => ({}));
     const sel = $("proveedor");
@@ -168,6 +218,11 @@
   }
 
   async function loadProductosByProveedor(id_proveedor) {
+    /**
+     * Carga productos del proveedor seleccionado:
+     * - limpia el cache productosMap
+     * - llena el select #producto
+     */
     const sel = $("producto");
     sel.innerHTML = `<option value="">Cargando productos...</option>`;
     state.productosMap.clear();
@@ -181,13 +236,17 @@
       return;
     }
 
+    // cache en memoria: id -> objeto producto
     j.data.forEach((p) => state.productosMap.set(String(p.id_producto), p));
+
+    // llenar dropdown
     sel.innerHTML =
       `<option value="">— Selecciona —</option>` +
       j.data.map((p) => `<option value="${p.id_producto}">${p.nombre}</option>`).join("");
   }
 
-  // ============ Modal: FORZAR A QUE SEA HIJO DIRECTO DE <body> ============
+  // Modal: forzar que el modal sea hijo directo de <body>
+  // (evita problemas de overflow/posición)
   function mountModalToBody() {
     const modal = $("modalNuevoProducto");
     if (!modal) return;
@@ -196,7 +255,9 @@
     }
   }
 
-  // ===== Bloqueo / desbloqueo campos proveedor =====
+  // Modal: bloqueo/desbloqueo campos de proveedor
+  // - Si seleccionas un proveedor del autocomplete, bloquea campos para evitar editarlo sin querer
+  // - Si escribes manual, quedan editables (para proveedor nuevo)
   function setProveedorFieldsLocked(locked) {
     const ids = [
       "np_prov_telefono",
@@ -213,8 +274,8 @@
     });
   }
 
-  // ===== Autocomplete helpers =====
   function fillProveedorFields(p) {
+    // Copia los datos del proveedor seleccionado hacia los inputs del modal
     $("np_prov_nombre").value = p.nombre || "";
     $("np_prov_telefono").value = p.telefono || "";
     $("np_prov_email").value = p.email || "";
@@ -223,6 +284,7 @@
     $("np_prov_tipo").value = p.tipo_proveedor || "";
   }
 
+  // Autocomplete: mostrar/ocultar lista y manejar selección
   function hideProvList() {
     const list = $("provAcList");
     if (!list) return;
@@ -241,6 +303,7 @@
       return;
     }
 
+    // Render de resultados (cada item clickable)
     list.innerHTML = provAcLastItems.map(p => `
       <div class="ac__item" data-id="${p.id_proveedor}">
         <div><b>${p.nombre}</b></div>
@@ -250,6 +313,7 @@
 
     list.style.display = "block";
 
+    // Bind click para seleccionar proveedor existente
     list.querySelectorAll(".ac__item").forEach(el => {
       el.addEventListener("click", () => {
         const id = Number(el.getAttribute("data-id"));
@@ -265,14 +329,16 @@
   }
 
   async function searchProveedores(q) {
+    // GET /compras/api/proveedores/buscar/?q=... (autocomplete)
     const r = await fetch("/compras/api/proveedores/buscar/?q=" + encodeURIComponent(q));
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) return [];
     return j.data || [];
   }
 
+  // Modal: limpiar / abrir / cerrar
   function clearNuevoProductoForm() {
-    // Proveedor
+    // Limpia inputs de Proveedor
     if ($("np_prov_nombre")) $("np_prov_nombre").value = "";
     if ($("np_prov_telefono")) $("np_prov_telefono").value = "";
     if ($("np_prov_email")) $("np_prov_email").value = "";
@@ -280,33 +346,36 @@
     if ($("np_prov_direccion")) $("np_prov_direccion").value = "";
     if ($("np_prov_tipo")) $("np_prov_tipo").value = "";
 
-    // Producto
+    // Limpia inputs de Producto
     if ($("np_prod_nombre")) $("np_prod_nombre").value = "";
     if ($("np_prod_desc")) $("np_prod_desc").value = "";
     if ($("np_prod_pc")) $("np_prod_pc").value = "0.00";
     if ($("np_prod_pv")) $("np_prod_pv").value = "0.00";
     if ($("np_prod_um")) $("np_prod_um").value = "";
 
-    // Categoría
+    // Limpia inputs de Categoría
     if ($("np_cat_nombre")) $("np_cat_nombre").value = "";
     if ($("np_cat_desc")) $("np_cat_desc").value = "";
 
-    // Autocomplete state
+    // Estado del autocomplete
     provAcSelected = null;
     hideProvList();
 
-    // Campos editables por defecto
+    // Campos editables por defecto (para proveedor nuevo)
     setProveedorFieldsLocked(false);
   }
 
   function openNuevoProducto() {
+    // Asegura que el modal sea hijo de body y lo prepara limpio
     mountModalToBody();
-    clearNuevoProductoForm(); // limpia siempre al abrir
+    clearNuevoProductoForm();
 
+    // Mostrar modal + bloquear scroll del body
     document.body.style.overflow = "hidden";
     $("modalNuevoProducto").style.display = "flex";
 
-    // Si en la compra principal ya hay proveedor seleccionado, lo colocamos en el modal y buscamos
+    // Si ya hay proveedor seleccionado en el formulario principal,
+    // pre-rellena el input del modal y dispara búsqueda para facilitar selección
     const idProvMain = $("proveedor")?.value;
     if (idProvMain) {
       const opt = $("proveedor").querySelector(`option[value="${idProvMain}"]`);
@@ -319,13 +388,16 @@
   }
 
   function closeNuevoProducto() {
+    // Ocultar modal + restaurar scroll del body y limpiar formulario
     $("modalNuevoProducto").style.display = "none";
     document.body.style.overflow = "";
     hideProvList();
-    clearNuevoProductoForm(); // limpia al cerrar
+    clearNuevoProductoForm();
   }
 
+  // Modal: Guardar proveedor/categoría/producto (secuencia de POST)
   async function guardarNuevoProducto() {
+    // Construir payloads desde inputs
     const prov = {
       nombre: $("np_prov_nombre").value,
       telefono: $("np_prov_telefono").value,
@@ -348,6 +420,7 @@
       unidad_medida: $("np_prod_um").value,
     };
 
+    // Validaciones rápidas de frontend
     if (!prov.nombre.trim()) return toast("err", "Proveedor", "Nombre de proveedor requerido.");
     if (!cat.nombre.trim()) return toast("err", "Categoría", "Nombre de categoría requerido.");
     if (!prod.nombre.trim()) return toast("err", "Producto", "Nombre de producto requerido.");
@@ -356,26 +429,29 @@
     btn.disabled = true;
 
     try {
+      // 1) upsert proveedor (crea o reutiliza)
       const a = await postForm("/compras/api/proveedor/upsert/", prov);
       if (!a.r.ok || !a.j.ok) return toast("err", "Proveedor", a.j.error || "Error al guardar proveedor.");
       const id_proveedor = a.j.data.id_proveedor;
 
+      // 2) upsert categoría (crea o reutiliza)
       const b = await postForm("/compras/api/categoria/upsert/", cat);
       if (!b.r.ok || !b.j.ok) return toast("err", "Categoría", b.j.error || "Error al guardar categoría.");
       const id_categoria = b.j.data.id_categoria;
 
+      // 3) crear producto (asociado a proveedor y categoría)
       const c = await postForm("/compras/api/producto/crear/", { id_proveedor, id_categoria, ...prod });
       if (!c.r.ok || !c.j.ok) return toast("err", "Producto", c.j.error || "Error al crear producto.");
 
       const newProd = c.j.data;
 
-      // Cerrar modal (también limpia)
+      // 4) cerrar modal
       closeNuevoProducto();
 
-      // 1) Recargar proveedores para que el nuevo exista en el <select>
+      // 5) refrescar proveedores en el select principal (para que aparezca el nuevo si se creó)
       await loadProveedores();
 
-      // 2) Fallback: si aún no existe como option, lo agregamos manualmente
+      // 6) si por alguna razón no existiera el option, lo agregamos manualmente
       const selProv = $("proveedor");
       const idStr = String(id_proveedor);
       if (selProv && !selProv.querySelector(`option[value="${idStr}"]`)) {
@@ -385,17 +461,17 @@
         selProv.appendChild(opt);
       }
 
-      // 3) Seleccionar proveedor (SIN dispatch change; evita resets)
+      // 7) seleccionar proveedor (sin disparar change para no borrar items existentes)
       $("proveedor").value = idStr;
 
-      // 4) NO borrar items ya agregados; solo preparar cantidad
+      // 8) preparar cantidad (sin limpiar items ya agregados)
       $("cantidad").value = "1";
 
-      // 5) Cargar productos y seleccionar el nuevo producto
+      // 9) cargar productos y seleccionar el nuevo
       await loadProductosByProveedor(idStr);
       $("producto").value = String(newProd.id_producto);
 
-      // Rellenar precios (en moneda actual de visualización)
+      // 10) rellenar precios del producto nuevo
       $("precio_compra").value = Number(newProd.precio_compra || 0).toFixed(2);
       $("precio_venta").value = Number(newProd.precio_venta || 0).toFixed(2);
 
@@ -407,23 +483,23 @@
     }
   }
 
+  // Bind de eventos de la UI principal
   function bindEvents() {
-    // Cambiar moneda (convierte montos usando TC manual)
+    // Toggle moneda: convierte montos usando tipo de cambio manual
     $("btnToggleCurrency").addEventListener("click", () => {
       const next = state.currency === "NIO" ? "USD" : "NIO";
       tryConvertAll(next);
     });
 
-    // Si el usuario cambia el TC mientras está en USD o NIO, no convertimos automáticamente
-    // (para evitar sorpresas). Solo se aplica al dar "Cambiar" o al guardar en USD.
-    // Si quieres auto-recalcular, se puede añadir luego.
-
+    // Recalcular totales cuando cambie IVA
     $("iva_rate").addEventListener("input", calc);
 
+    // Cambio de proveedor:
+    // - limpia items porque cambia el contexto de compra
+    // - recarga productos del proveedor
     $("proveedor").addEventListener("change", (e) => {
       const id_proveedor = e.target.value;
 
-      // Cambiar proveedor SÍ debe limpiar items (es otra compra/proveedor)
       state.items = [];
       renderTable();
 
@@ -438,6 +514,9 @@
       loadProductosByProveedor(id_proveedor);
     });
 
+    // Cambio de producto:
+    // - lee el producto desde productosMap
+    // - rellena inputs de precios
     $("producto").addEventListener("change", (e) => {
       const p = state.productosMap.get(String(e.target.value));
       if (!p) return;
@@ -445,6 +524,7 @@
       $("precio_venta").value = Number(p.precio_venta || 0).toFixed(2);
     });
 
+    // Agregar item a la lista
     $("btnAdd").addEventListener("click", () => {
       const id_producto = $("producto").value;
       const p = state.productosMap.get(String(id_producto));
@@ -456,6 +536,9 @@
       if (isNaN(precio_unitario) || precio_unitario < 0)
         return toast("err", "Precio inválido", "Revisa el precio de compra.");
 
+      // Si ya existe en la lista:
+      // - suma cantidad
+      // - reemplaza precio_unitario por el más reciente (último editado)
       const existing = state.items.find((x) => String(x.id_producto) === String(id_producto));
       if (existing) {
         existing.cantidad += cantidad;
@@ -467,6 +550,7 @@
       renderTable();
     });
 
+    // Guardar compra (POST)
     $("btnSave").addEventListener("click", async () => {
       const id_proveedor = $("proveedor").value;
       if (!id_proveedor) return toast("err", "Falta proveedor", "Selecciona un proveedor.");
@@ -478,7 +562,8 @@
 
       const csrfToken = getCsrf();
 
-      // Guardar SIEMPRE en NIO (C$)
+      // Guardar SIEMPRE en NIO:
+      // - Si la UI está en USD, convertimos antes de enviar
       let itemsToSend = state.items;
 
       if (state.currency === "USD") {
@@ -495,13 +580,11 @@
       form.append("id_proveedor", id_proveedor);
       form.append("iva_rate", $("iva_rate").value);
 
-      // OJO: ya no enviamos currency, porque DB se guarda en NIO siempre
-      // form.append("currency", state.currency);
-
+      // Enviar items como JSON string
       form.append("items", JSON.stringify(itemsToSend.map((it) => ({
         id_producto: it.id_producto,
         cantidad: it.cantidad,
-        precio_unitario: money(it.precio_unitario), // ya convertido a NIO si hacía falta
+        precio_unitario: money(it.precio_unitario),
       }))));
 
       const btn = $("btnSave");
@@ -516,6 +599,7 @@
           `Compra #${j.id_compra}. Factura ${j.numero_factura}. IVA ${j.iva_rate}%. Total C$${j.total}.`
         );
 
+        // Reset UI de compra
         state.items = [];
         renderTable();
         $("producto").innerHTML = `<option value="">— Selecciona proveedor primero —</option>`;
@@ -524,8 +608,7 @@
         $("cantidad").value = "1";
         $("proveedor").value = "";
 
-        // Al terminar, volvemos a NIO visualmente (opcional, pero suele ser lo más claro)
-        // Si quieres que conserve USD, quita esto:
+        // Volver a NIO visualmente (opcional)
         state.currency = "NIO";
         setCurrencyUI();
       } catch (e) {
@@ -535,20 +618,20 @@
       }
     });
 
-    // Modal open/close
+    // Modal: open/close
     $("btnNuevoProducto").addEventListener("click", openNuevoProducto);
     $("btnCloseModalNP").addEventListener("click", closeNuevoProducto);
     $("modalBackdrop").addEventListener("click", closeNuevoProducto);
     $("btnGuardarNuevoProducto").addEventListener("click", guardarNuevoProducto);
 
-    // Autocomplete: input proveedor
+    // Autocomplete proveedor: input handler con debounce
     if ($("np_prov_nombre")) {
       $("np_prov_nombre").setAttribute("autocomplete", "off");
 
       $("np_prov_nombre").addEventListener("input", () => {
         const q = $("np_prov_nombre").value.trim();
 
-        // El usuario está escribiendo: dejamos editable para proveedor nuevo
+        // Si el usuario escribe, asumimos proveedor nuevo hasta que seleccione uno
         provAcSelected = null;
         setProveedorFieldsLocked(false);
 
@@ -557,6 +640,7 @@
           return;
         }
 
+        // Debounce para no consultar en cada tecla
         clearTimeout(provAcTimer);
         provAcTimer = setTimeout(async () => {
           const items = await searchProveedores(q);
@@ -565,14 +649,14 @@
       });
     }
 
-    // Click fuera para cerrar lista
+    // Click fuera del wrapper para cerrar lista del autocomplete
     document.addEventListener("click", (e) => {
       const wrap = $("provAcWrap");
       if (!wrap) return;
       if (!wrap.contains(e.target)) hideProvList();
     });
 
-    // ESC
+    // ESC cierra el modal si está abierto
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && $("modalNuevoProducto")?.style.display === "flex") {
         closeNuevoProducto();
@@ -580,6 +664,7 @@
     });
   }
 
+  // Init del módulo
   document.addEventListener("DOMContentLoaded", async () => {
     mountModalToBody();
     bindEvents();

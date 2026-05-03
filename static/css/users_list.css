@@ -1,0 +1,137 @@
+/* Estilos SOLO para la pantalla de Usuarios (panel) */
+/* Úsalo junto con base.html/shell.css */
+
+.users-page .card{
+  padding: 18px;
+}
+
+.users-page__header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+}
+
+.users-page__titleWrap{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.users-page__actions{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+
+.users-page__tableWrap{
+  margin-top: 16px;
+  overflow:auto;
+  border: 1px solid var(--border, rgba(255,255,255,.10));
+  border-radius: 14px;
+  background: rgba(255,255,255,.03);
+}
+
+/* Tabla más “pro” */
+.users-page table.table{
+  width:100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 880px; /* para que no se rompa en pantallas angostas */
+}
+
+.users-page table.table thead th{
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(15, 23, 42, .85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: rgba(229,231,235,.85);
+  border-bottom: 1px solid var(--border, rgba(255,255,255,.10));
+  padding: 12px 12px;
+}
+
+.users-page table.table tbody td{
+  padding: 12px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  color: rgba(229,231,235,.92);
+}
+
+.users-page table.table tbody tr:hover td{
+  background: rgba(37,99,235,.06);
+}
+
+.users-page table.table tbody tr:last-child td{
+  border-bottom: 0;
+}
+
+/* Ajustes a badges/status (si ya existen en shell.css, esto solo afina) */
+.users-page .badge{
+  display:inline-flex;
+  align-items:center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.users-page .status{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.users-page .status::before{
+  content:"";
+  width:8px;
+  height:8px;
+  border-radius:999px;
+  display:inline-block;
+  background: rgba(148,163,184,.9);
+  box-shadow: 0 0 0 3px rgba(148,163,184,.12);
+}
+
+.users-page .status--ok{ color: rgba(52,211,153,.95); }
+.users-page .status--ok::before{
+  background: rgba(52,211,153,.95);
+  box-shadow: 0 0 0 3px rgba(52,211,153,.14);
+}
+
+.users-page .status--off{ color: rgba(248,113,113,.95); }
+.users-page .status--off::before{
+  background: rgba(248,113,113,.95);
+  box-shadow: 0 0 0 3px rgba(248,113,113,.14);
+}
+
+/* Botones en tabla: un poco más compactos */
+.users-page .table .btn{
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-weight: 800;
+}
+
+/* “No disponible” más claro */
+.users-page .muted{
+  color: rgba(156,163,175,.9);
+}
+
+/* Responsive: permite que acciones bajen si falta espacio */
+@media (max-width: 720px){
+  .users-page__header{
+    flex-direction:column;
+    align-items:stretch;
+  }
+  .users-page__actions{
+    justify-content:flex-start;
+  }
+}

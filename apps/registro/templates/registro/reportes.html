@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reportes de inventario - Ferretería Mi Casa{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/inventario.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="inventory-page inventory-page--reports">
+  <section class="inventory-topbar card">
+    <div>
+      <p class="eyebrow">Analítica de inventario</p>
+      <h1 class="page-title">Reportes y trazabilidad</h1>
+      <p class="page-subtitle">Filtra movimientos, revisa indicadores y exporta la información para análisis externo.</p>
+    </div>
+    <div class="inventory-topbar__actions">
+      <a class="action-btn action-btn--soft" href="{% url 'registro:index' %}">Volver a registro</a>
+      <a class="action-btn action-btn--primary" href="{% url 'registro:export_excel' %}?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&product={{ product_id|urlencode }}&movement_type={{ movement_type|urlencode }}&from={{ start_date|urlencode }}&to={{ end_date|urlencode }}">Exportar Excel</a>
+      <span class="action-btn action-btn--soft action-btn--disabled" aria-disabled="true">Exportar PDF</span>
+    </div>
+  </section>
+
+  <section class="report-grid">
+    <article class="report-card card">
+      <p class="report-card__label">Entradas</p>
+      <strong class="report-card__value">{{ total_entradas }}</strong>
+      <span class="report-card__hint">Movimientos positivos registrados</span>
+    </article>
+    <article class="report-card card">
+      <p class="report-card__label">Salidas</p>
+      <strong class="report-card__value">{{ total_salidas }}</strong>
+      <span class="report-card__hint">Movimientos negativos registrados</span>
+    </article>
+    <article class="report-card card">
+      <p class="report-card__label">Bajo stock</p>
+      <strong class="report-card__value">{{ summary.productos_bajo_stock }}</strong>
+      <span class="report-card__hint">Productos en alerta</span>
+    </article>
+    <article class="report-card card">
+      <p class="report-card__label">Movimientos</p>
+      <strong class="report-card__value">{{ conteo_movimientos }}</strong>
+      <span class="report-card__hint">Total en el periodo filtrado</span>
+    </article>
+  </section>
+
+  <section class="inventory-toolbar card inventory-toolbar--reports">
+    <form class="report-filters" method="get">
+      <div class="toolbar-field">
+        <label for="filterFrom">Desde</label>
+        <input id="filterFrom" type="date" name="from" value="{{ start_date }}">
+      </div>
+      <div class="toolbar-field">
+        <label for="filterTo">Hasta</label>
+        <input id="filterTo" type="date" name="to" value="{{ end_date }}">
+      </div>
+      <div class="toolbar-field toolbar-field--wide">
+        <label for="filterProduct">Producto</label>
+        <select id="filterProduct" name="product">
+          <option value="">Todos</option>
+          {% for option in product_options %}
+            <option value="{{ option.id_producto }}" {% if product_id|stringformat:"s" == option.id_producto|stringformat:"s" %}selected{% endif %}>{{ option.id_producto }} - {{ option.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="toolbar-field">
+        <label for="filterType">Tipo de movimiento</label>
+        <select id="filterType" name="movement_type">
+          <option value="">Todos</option>
+          <option value="entrada" {% if movement_type == "entrada" %}selected{% endif %}>Entrada</option>
+          <option value="salida" {% if movement_type == "salida" %}selected{% endif %}>Salida</option>
+          <option value="ajuste_entrada" {% if movement_type == "ajuste_entrada" %}selected{% endif %}>Ajuste +</option>
+          <option value="ajuste_salida" {% if movement_type == "ajuste_salida" %}selected{% endif %}>Ajuste -</option>
+        </select>
+      </div>
+      <div class="toolbar-field toolbar-field--actions">
+        <label>&nbsp;</label>
+        <button type="submit" class="action-btn action-btn--primary">Aplicar filtros</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="report-grid report-grid--main">
+    <article class="inventory-panel card report-panel">
+      <div class="panel-heading">
+        <h2>Historial de movimientos</h2>
+        <p>Consulta la trazabilidad operativa del periodo filtrado.</p>
+      </div>
+
+      <div class="inventory-table-wrap">
+        <table class="inventory-table inventory-table--reports">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Producto</th>
+              <th>Tipo</th>
+              <th>Cantidad</th>
+              <th>Usuario</th>
+              <th>Observación</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for movement in movements %}
+              <tr>
+                <td>{{ movement.fecha_movimiento }}</td>
+                <td>{{ movement.id_producto.nombre }}</td>
+                <td><span class="status-badge status-badge--{{ movement.tipo_movimiento|lower }}">{{ movement.tipo_movimiento }}</span></td>
+                <td>{{ movement.cantidad }}</td>
+                <td>{{ movement.id_usuario.nombre|default:"Sistema" }}</td>
+                <td>{{ movement.observaciones|default:"Sin observaciones" }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" class="empty-state">No hay movimientos para los filtros seleccionados.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <aside class="report-sidebar">
+      <article class="inventory-panel card">
+        <div class="panel-heading">
+          <h2>Stock crítico</h2>
+          <p>Productos con estado bajo o agotado.</p>
+        </div>
+        <div class="history-list">
+          {% for row in rows %}
+            {% if row.estado != "Normal" %}
+              <div class="history-item history-item--compact">
+                <div class="history-item__title">
+                  <strong>{{ row.nombre }}</strong>
+                  <span class="status-badge status-badge--{{ row.estado|lower }}">{{ row.estado }}</span>
+                </div>
+                <div class="history-item__meta">
+                  <span>Código: {{ row.codigo }}</span>
+                  <span>Stock: {{ row.stock_actual }}</span>
+                </div>
+              </div>
+            {% endif %}
+          {% empty %}
+            <div class="empty-state">No hay productos con alerta.</div>
+          {% endfor %}
+        </div>
+      </article>
+    </aside>
+  </section>
+</div>
+{% endblock %}

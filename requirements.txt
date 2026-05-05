@@ -278,3 +278,6 @@ Fin.
 
 ramas:
 - crear-login
+
+comandos aplicar cambios de css,html,js,py
+Presiona: Ctrl + Shift + R (recarga forzada) basura de navegador

@@ -1,133 +1,219 @@
-from django.shortcuts import render, redirect
-from django.utils import timezone
-from decimal import Decimal
-from django.db import transaction
+from django.shortcuts import render
 from django.http import JsonResponse
-from apps.core.models import (
-    Producto, Cliente, Venta, DetalleVenta,
-    Inventario, MovimientoInventario, FacturaCliente, Usuario
-)
+from django.views.decorators.csrf import csrf_exempt
+from django.db import transaction
+from django.utils import timezone
+import json
 
+from apps.core.models import Producto, Venta, DetalleVenta, Cliente, Usuario, Inventario
+
+
+#  CONFIG MONEDA (puedes mover a DB luego)
+TIPO_CAMBIO = 36.5  # 1 USD = 36.5 C$
+
+
+# VISTA PRINCIPAL
 def index(request):
-    carrito = request.session.get("carrito", [])
-    cliente = request.session.get("cliente", None)
+    productos = Producto.objects.all()
 
-    if request.method == "POST":
-        accion = request.POST.get("accion")
+    data = []
+    for p in productos:
+        inventario = p.inventario_set.first()
+        stock = inventario.stock_actual if inventario else 0
 
-        # --- BUSCAR CLIENTE ---
-        if accion == "buscar_cliente":
-            nombre = request.POST.get("nombre")
-            c = Cliente.objects.filter(nombre__icontains=nombre).first()
-            request.session["cliente"] = None if not c else {
-                "id": c.id_cliente, "nombre": c.nombre,
-                "telefono": c.telefono, "direccion": c.direccion
-            }
-            return redirect("ventas:index")
+        data.append({
+            'id_producto': p.id_producto,
+            'nombre': p.nombre,
+            'precio': float(p.precio_venta or 0),  # SIEMPRE EN CÓRDOBAS
+            'stock': stock,
+            'categoria': p.id_categoria.nombre if p.id_categoria else '',
+        })
 
-        # --- AGREGAR CLIENTE ---
-        if accion == "agregar_cliente":
-            c = Cliente.objects.create(
-                nombre=request.POST.get("nombre"),
-                telefono=request.POST.get("telefono"),
-                direccion=request.POST.get("direccion"),
-                fecha_registro=timezone.now()
-            )
-            request.session["cliente"] = {
-                "id": c.id_cliente, "nombre": c.nombre,
-                "telefono": c.telefono, "direccion": c.direccion
-            }
-            return redirect("ventas:index")
-
-        # --- AGREGAR PRODUCTO ---
-        if accion == "agregar_producto":
-            producto = Producto.objects.get(id_producto=request.POST.get("producto_id"))
-            cantidad = int(request.POST.get("cantidad"))
-            
-            for item in carrito:
-                if item["id"] == producto.id_producto:
-                    item["cantidad"] += cantidad
-                    item["subtotal"] = float(item["cantidad"]) * float(item["precio"])
-                    break
-            else:
-                carrito.append({
-                    "id": producto.id_producto, "nombre": producto.nombre,
-                    "precio": float(producto.precio_venta), "cantidad": cantidad,
-                    "subtotal": float(producto.precio_venta) * cantidad
-                })
-            request.session["carrito"] = carrito
-            return redirect("ventas:index")
-
-        # --- FINALIZAR VENTA (¡AHORA SÍ REGISTRA!) ---
-        if accion == "finalizar":
-            if not carrito or not cliente:
-                return redirect("ventas:index")
-            
-            try:
-                with transaction.atomic():
-                    # 1. Obtener objetos reales de BD
-                    cliente_obj = Cliente.objects.get(id_cliente=cliente['id'])
-                    usuario = Usuario.objects.first() # Ajustar según tu auth
-                    total_venta = sum(item["subtotal"] for item in carrito)
-
-                    # 2. Crear la Venta
-                    nueva_venta = Venta.objects.create(
-                        id_cliente=cliente_obj,
-                        id_usuario=usuario,
-                        fecha=timezone.now(),
-                        total=total_venta
-                    )
-
-                    # 3. Procesar cada item
-                    for item in carrito:
-                        prod = Producto.objects.get(id_producto=item["id"])
-                        inv = Inventario.objects.get(id_producto=prod)
-
-                        if inv.stock_actual < item["cantidad"]:
-                            raise Exception(f"No hay suficiente stock de {prod.nombre}")
-
-                        # Detalle de Venta
-                        DetalleVenta.objects.create(
-                            id_venta=nueva_venta,
-                            id_producto=prod,
-                            cantidad=item["cantidad"],
-                            precio_unitario=item["precio"],
-                            subtotal=item["subtotal"]
-                        )
-
-                        # Actualizar Stock
-                        inv.stock_actual -= item["cantidad"]
-                        inv.save()
-
-                        # Registrar movimiento
-                        MovimientoInventario.objects.create(
-                            id_producto=prod, id_usuario=usuario,
-                            tipo_movimiento="SALIDA", cantidad=item["cantidad"],
-                            referencia=f"Venta #{nueva_venta.id_venta}",
-                            fecha_movimiento=timezone.now()
-                        )
-
-                # Limpiar sesión solo si todo salió bien
-                request.session["carrito"] = []
-                request.session["cliente"] = None
-                return redirect("ventas:index")
-
-            except Exception as e:
-                # Aquí podrías pasar el error al template
-                return render(request, "ventas/index.html", {"error": str(e), "carrito": carrito})
-
-    return render(request, "ventas/index.html", {
-        "carrito": carrito, "cliente": cliente,
-        "productos": Producto.objects.all(),
-        "total": sum(item["subtotal"] for item in carrito)
+    return render(request, 'ventas/index.html', {
+        'productos': data,
+        'tipo_cambio': TIPO_CAMBIO  # 🔥 IMPORTANTE para el frontend
     })
 
-# Vista para AJAX
-def eliminar_ajax(request, producto_id):
-    if request.method == "POST":
-        carrito = request.session.get("carrito", [])
-        nuevo_carrito = [item for item in carrito if item["id"] != int(producto_id)]
-        request.session["carrito"] = nuevo_carrito
-        request.session.modified = True
-        nuevo_total = sum(item["subtotal"] for item in nuevo_carrito)
-        return JsonResponse({"status": "success", "nuevo_total": nuevo_total})
+
+# BUSCAR CLIENTE
+def buscar_cliente(request):
+    q = request.GET.get('q', '')
+
+    if len(q) < 2:
+        return JsonResponse([], safe=False)
+
+    clientes = Cliente.objects.filter(nombre__icontains=q)[:10]
+
+    return JsonResponse([
+        {
+            'id': c.id_cliente,
+            'nombre': c.nombre
+        }
+        for c in clientes
+    ], safe=False)
+
+
+#  CREAR CLIENTE
+@csrf_exempt
+def crear_cliente(request):
+    if request.method != 'POST':
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Método no permitido'
+        })
+
+    try:
+        data = json.loads(request.body)
+
+        nombre = data.get('nombre')
+        telefono = data.get('telefono')
+        direccion = data.get('direccion')
+
+        if not nombre:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'El nombre es obligatorio'
+            })
+
+        cliente = Cliente.objects.create(
+            nombre=nombre,
+            telefono=telefono,
+            direccion=direccion,
+            fecha_registro=timezone.now()
+        )
+
+        return JsonResponse({
+            'status': 'success',
+            'id': cliente.id_cliente,
+            'nombre': cliente.nombre
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        })
+
+
+#  GUARDAR VENTA (MULTI MONEDA)
+@csrf_exempt
+@transaction.atomic
+def guardar_venta(request):
+
+    if request.method != 'POST':
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Método inválido'
+        })
+
+    try:
+        data = json.loads(request.body)
+
+        carrito = data.get('carrito')
+        total = data.get('total')  # viene del frontend
+        moneda = data.get('moneda', 'C$')  # 🔥 NUEVO
+        cliente_id = data.get('cliente_id')
+
+        #  VALIDACIONES
+        if not carrito or not isinstance(carrito, list):
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Carrito vacío o inválido'
+            })
+
+        if total is None:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Total inválido'
+            })
+
+        if not cliente_id:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Debe seleccionar un cliente'
+            })
+
+        cliente = Cliente.objects.filter(id_cliente=cliente_id).first()
+
+        if not cliente:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Cliente no encontrado'
+            })
+
+        usuario = Usuario.objects.first()
+
+        if not usuario:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'No hay usuario disponible'
+            })
+
+        # CONVERTIR TOTAL A CÓRDOBAS
+        total_cordobas = float(total)
+
+        if moneda == "$":
+            total_cordobas = total_cordobas * TIPO_CAMBIO
+
+        #  VALIDAR STOCK
+        productos_map = {}
+
+        for item in carrito:
+            producto = Producto.objects.get(id_producto=item['id'])
+            inventario = Inventario.objects.filter(id_producto=producto).first()
+
+            if not inventario:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'{producto.nombre} sin inventario'
+                })
+
+            if inventario.stock_actual < item['cantidad']:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Stock insuficiente para {producto.nombre}'
+                })
+
+            productos_map[item['id']] = (producto, inventario)
+
+        #  CREAR VENTA
+        venta = Venta.objects.create(
+            id_cliente=cliente,
+            id_usuario=usuario,
+            fecha=timezone.now(),
+            total=total_cordobas  #  SIEMPRE GUARDAMOS EN C$
+        )
+
+        #  DETALLE + STOCK
+        for item in carrito:
+            producto, inventario = productos_map[item['id']]
+
+            precio_unitario = float(item['precio'])
+
+            #  SI VIENE EN DÓLARES → CONVERTIR
+            if moneda == "$":
+                precio_unitario *= TIPO_CAMBIO
+
+            subtotal = item['cantidad'] * precio_unitario
+
+            DetalleVenta.objects.create(
+                id_venta=venta,
+                id_producto=producto,
+                cantidad=item['cantidad'],
+                precio_unitario=precio_unitario,
+                subtotal=subtotal
+            )
+
+            inventario.stock_actual -= item['cantidad']
+            inventario.save()
+
+        return JsonResponse({
+            'status': 'success',
+            'venta_id': venta.id_venta
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        })

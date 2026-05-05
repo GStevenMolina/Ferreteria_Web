@@ -1,160 +1,205 @@
-{% extends "base.html" %}
-{% block title %}Ventas{% endblock %}
-{% block content %}
+{% extends 'base.html' %}
 {% load static %}
 
-<link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+{% block title %}Ventas{% endblock %}
 
-<div class="container">
-  <main class="main-content">
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/venta.css' %}">
+{% endblock %}
 
-    {% if error %}
-      <p class="error">{{ error }}</p>
-    {% endif %}
+{% block content %}
 
-    <div class="form-sections">
+<header class="navbar">
+    <h1>Punto de Venta</h1>
+</header>
 
-      <!-- 🔵 CLIENTE -->
-      <section class="form-card">
+<!-- 🔥 IMPORTANTE: pos-theme -->
+<main class="pos-layout pos-theme">
 
-        <!-- BUSCAR CLIENTE -->
-        <form method="POST">
-          {% csrf_token %}
-          <input type="hidden" name="accion" value="buscar_cliente">
+    <!-- ===== IZQUIERDA ===== -->
+    <section class="pos-left">
 
-          <h3>Cliente</h3>
-
-          <input type="text" name="nombre" placeholder="Buscar cliente" required>
-          <button type="submit" class="btn btn-blue-outline">Buscar</button>
-        </form>
-
-        <!-- DATOS CLIENTE -->
-        <label>Teléfono</label>
-        <input type="text" value="{{ cliente.telefono|default:'' }}" readonly>
-
-        <label>Dirección</label>
-        <input type="text" value="{{ cliente.direccion|default:'' }}" readonly>
-
-        <!-- BOTÓN -->
-        <button type="button" class="btn btn-blue" onclick="toggleCliente()">
-          + Nuevo Cliente
-        </button>
-
-        <!-- FORMULARIO DESPLEGABLE -->
-        <div id="formNuevoCliente" class="cliente-form-hidden">
-
-          <form method="POST" class="cliente-form">
-            {% csrf_token %}
-            <input type="hidden" name="accion" value="agregar_cliente">
-
-            <h4>Nuevo Cliente</h4>
-
-            <div class="input-group">
-              <label>Nombre</label>
-              <input type="text" name="nombre" required>
-            </div>
-
-            <div class="input-group">
-              <label>Teléfono</label>
-              <input type="text" name="telefono">
-            </div>
-
-            <div class="input-group">
-              <label>Dirección</label>
-              <input type="text" name="direccion">
-            </div>
-
-            <div class="cliente-actions">
-              <button type="submit" class="btn btn-blue">Guardar</button>
-              <button type="button" class="btn btn-cancel" onclick="toggleCliente()">Cancelar</button>
-            </div>
-
-          </form>
-
+        <!-- 🔍 BUSCADOR -->
+        <div class="search-box">
+            <input type="text" id="search" placeholder="🔍 Buscar por nombre o categoria...">
         </div>
 
-      </section>
+        <!-- 🧱 PRODUCTOS -->
+        <div class="products-grid">
+            {% for product in productos %}
+            <div class="product-card">
 
-      <!-- 🟠 PRODUCTO -->
-      <section class="form-card product-card">
+                <div class="product-info">
+                    <h3 class="nombre">{{ product.nombre }}</h3>
+                    <span class="categoria">{{ product.categoria }}</span>
+                </div>
 
-        <form method="POST">
-          {% csrf_token %}
-          <input type="hidden" name="accion" value="agregar_producto">
+                <div class="product-price">
+                    <span class="price-label">Precio</span>
+                    <p class="price" data-precio="{{ product.precio }}">
+                        C$ {{ product.precio }}
+                    </p>
+                </div>
 
-          <h3>Producto</h3>
+                <div class="product-stock {% if product.stock < 5 %}low-stock{% endif %}">
+                    Stock: {{ product.stock }}
+                </div>
 
-          <select name="producto_id" required>
-            <option value="">Seleccionar producto</option>
-            {% for p in productos %}
-              <option value="{{ p.id_producto }}">
-                {{ p.nombre }} - {{ p.precio_venta }}
-              </option>
+                <button 
+                    type="button"
+                    class="add-to-cart btn-add"
+                    data-id="{{ product.id_producto }}"
+                    data-nombre="{{ product.nombre }}"
+                    data-precio="{{ product.precio }}">
+                    + Agregar
+                </button>
+
+            </div>
             {% endfor %}
-          </select>
-
-          <input type="number" name="cantidad" placeholder="Cantidad" min="1" required>
-
-          <button type="submit" class="btn btn-orange">Agregar</button>
-        </form>
-
-      </section>
-
-    </div>
-
-    <!-- 🧾 TABLA -->
-    <section class="main-table">
-
-      <table>
-        <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Cantidad</th>
-            <th>Precio</th>
-            <th>Subtotal</th>
-            <th>Acción</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {% for item in carrito %}
-          <tr>
-            <td>{{ item.nombre }}</td>
-            <td class="center">{{ item.cantidad }}</td>
-            <td class="right">{{ item.precio }}</td>
-            <td class="right">{{ item.subtotal }}</td>
-            <td>
-              <form method="POST">
-                {% csrf_token %}
-                <input type="hidden" name="accion" value="eliminar_producto">
-                <input type="hidden" name="index" value="{{ forloop.counter0 }}">
-                <button type="submit" class="btn-delete">🗑</button>
-              </form>
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="5" style="text-align:center;">No hay productos</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-
-      <div class="totals">
-        <span>Total: <strong>{{ total }}</strong></span>
-
-        <form method="POST">
-          {% csrf_token %}
-          <input type="hidden" name="accion" value="finalizar">
-          <button type="submit" class="btn btn-orange">Vender</button>
-        </form>
-      </div>
+        </div>
 
     </section>
 
-  </main>
-</div>
+    <!-- ===== DERECHA ===== -->
+    <aside class="pos-right">
 
+        <!-- 👤 CLIENTE -->
+        <div class="card cliente-card">
+            <h3>Cliente</h3>
+
+            <input 
+                type="text" 
+                id="buscar-cliente" 
+                placeholder="Buscar cliente..."
+                autocomplete="off"
+            >
+
+            <ul id="lista-clientes"></ul>
+
+            <button id="nuevo-cliente-btn" class="btn btn-secondary">
+                + Nuevo Cliente
+            </button>
+
+            <div id="form-cliente" class="form-cliente">
+                <input type="text" id="nuevo-nombre" placeholder="Nombre completo">
+                <input type="text" id="nuevo-telefono" placeholder="Teléfono">
+                <input type="text" id="nuevo-direccion" placeholder="Dirección">
+
+                <button id="guardar-cliente" class="btn btn-primary">
+                    Guardar Cliente
+                </button>
+            </div>
+        </div>
+
+        <!-- 💱 MONEDA -->
+        <div class="card currency-card">
+
+            <div class="currency-row">
+                <label>Moneda</label>
+                <select id="currencySelect">
+                    <option value="NIO">C$ NIO</option>
+                    <option value="USD">$ USD</option>
+                </select>
+            </div>
+
+            <div class="currency-row">
+                <label>Tipo de Cambio</label>
+                <input 
+                    type="number" 
+                    id="fxRate" 
+                    value="36.60" 
+                    step="0.01"
+                >
+            </div>
+
+        </div>
+
+        <!-- 🛒 CARRITO -->
+        <div class="card cart-card">
+
+            <h2>Detalle de Venta</h2>
+
+            <div id="cart-items" class="cart-items">
+                <p class="empty">No hay productos</p>
+            </div>
+
+            <!-- 💰 TOTALES -->
+            <div class="totals">
+
+                <div class="total-row">
+                    <span>Subtotal</span>
+                    <span>
+                        <span class="total-currency">C$</span>
+                        <span id="subtotal">0.00</span>
+                    </span>
+                </div>
+
+                <div class="total-row">
+                    <span>IVA (15%)</span>
+                    <span>
+                        <span class="total-currency">C$</span>
+                        <span id="iva">0.00</span>
+                    </span>
+                </div>
+
+                <div class="total-row total-final">
+                    <span>Total</span>
+                    <span>
+                        <span class="total-currency">C$</span>
+                        <span id="total">0.00</span>
+                    </span>
+                </div>
+
+            </div>
+
+            <!-- 💳 PAGO -->
+            <div class="payment-box">
+
+                <label>Método de Pago</label>
+                <select id="payment">
+                    <option value="efectivo">Efectivo</option>
+                    <option value="tarjeta">Tarjeta</option>
+                </select>
+
+                <label>Efectivo recibido</label>
+                <input type="number" id="cash-received" value="0" step="0.01">
+
+                <p class="change">
+                    Vuelto:
+                    <strong>
+                        <span class="total-currency">C$</span>
+                        <span id="change">0.00</span>
+                    </strong>
+                </p>
+
+            </div>
+
+            <!-- 🔘 BOTONES -->
+            <div class="actions">
+                <button 
+                    id="pay"
+                    type="button"
+                    data-url="{% url 'ventas:guardar_venta' %}"
+                    class="btn btn-success"
+                    disabled>
+                    Finalizar Venta
+                </button>
+
+                <button 
+                    id="cancel" 
+                    type="button" 
+                    class="btn btn-danger">
+                    Cancelar
+                </button>
+            </div>
+
+        </div>
+
+    </aside>
+
+</main>
+
+{% csrf_token %}
 <script src="{% static 'js/ventas.js' %}"></script>
 
 {% endblock %}

@@ -1,0 +1,277 @@
+/* ===== BASE ===== */
+body {
+  font-family: 'Segoe UI', Roboto, Arial;
+  margin: 0;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+/* ===== NAVBAR ===== */
+.navbar {
+  background: #020617;
+  padding: 15px;
+  text-align: center;
+  border-bottom: 1px solid #1e293b;
+}
+
+/* ===== LAYOUT ===== */
+.container {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 25px;
+  padding: 25px;
+}
+
+/* ===== TOOLBAR MONEDA ===== */
+.toolbar {
+  grid-column: 1 / -1;
+}
+
+/* 🔥 MEJORADO */
+.currency-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid #1e293b;
+  background: #020617;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+}
+
+.currency-toggle__label {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.currency-pill {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(59,130,246,0.2);
+  border: 1px solid #3b82f6;
+  color: #dbeafe;
+  font-weight: bold;
+}
+
+.currency-toggle__btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #fbbf24;
+  background: rgba(251,191,36,0.15);
+  color: #fbbf24;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.25s;
+}
+
+.currency-toggle__btn:hover {
+  background: #fbbf24;
+  color: #020617;
+}
+
+#fx_rate {
+  width: 90px;
+  text-align: center;
+}
+
+/* ===== INPUTS ===== */
+input, select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #020617;
+  color: #e2e8f0;
+  margin-top: 5px;
+  transition: 0.2s;
+}
+
+input:focus, select:focus {
+  border-color: #3b82f6;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+}
+
+/* ===== BUSCADOR ===== */
+.search-bar {
+  grid-column: 1 / -1;
+}
+
+/* ===== PRODUCTOS ===== */
+.products {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 15px;
+}
+
+.product-card {
+  background: #020617;
+  padding: 15px;
+  border-radius: 15px;
+  border: 1px solid #1e293b;
+  text-align: center;
+  transition: 0.25s;
+}
+
+.product-card:hover {
+  border-color: #3b82f6;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+}
+
+.price {
+  color: #10b981;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+/* ===== BOTÓN AGREGAR ===== */
+.add-to-cart {
+  margin-top: 10px;
+  padding: 10px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+.add-to-cart:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 12px rgba(37,99,235,0.4);
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar-sales {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ===== CLIENTE ===== */
+.cliente-box {
+  background: #020617;
+  padding: 15px;
+  border-radius: 15px;
+  border: 1px solid #1e293b;
+}
+
+/* ===== LISTA CLIENTES ===== */
+#lista-clientes {
+  list-style: none;
+  padding: 0;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+#lista-clientes li {
+  padding: 8px;
+  cursor: pointer;
+  border-bottom: 1px solid #1e293b;
+  transition: 0.2s;
+}
+
+#lista-clientes li:hover {
+  background: #1e293b;
+  color: #3b82f6;
+}
+
+/* ===== FORM CLIENTE ===== */
+.form-cliente {
+  margin-top: 10px;
+  display: none;
+}
+
+/* ===== CARRITO ===== */
+.cart {
+  background: #020617;
+  padding: 15px;
+  border-radius: 15px;
+  border: 1px solid #1e293b;
+}
+
+#cart-items {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+.cart-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+/* ===== TOTALES ===== */
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 5px 0;
+}
+
+.final {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+/* ===== VUELTO ===== */
+.change-text {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #facc15;
+}
+
+/* ===== BOTONES ===== */
+.btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  margin-top: 10px;
+  border: none;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+.btn-pay {
+  background: linear-gradient(135deg, #10b981, #22c55e);
+  color: white;
+}
+
+.btn-pay:hover {
+  transform: translateY(-2px);
+}
+
+.btn-cancel {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+}
+
+.btn-cancel:hover {
+  transform: translateY(-2px);
+}
+
+.btn:disabled {
+  background: #334155;
+  cursor: not-allowed;
+}
+
+/* ===== BOTÓN NUEVO CLIENTE ===== */
+.btn-nuevo-cliente {
+  margin-top: 12px;
+  padding: 12px;
+  width: 100%;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  color: #1e293b;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+.btn-nuevo-cliente:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(251,191,36,0.3);
+}

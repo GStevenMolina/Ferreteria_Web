@@ -1,138 +1,571 @@
 :root{
-  --bg0:#0b1220;
-  --bg1:#0f1a2f;
-  --card:#111827;
-  --card2:#0f172a;
-  --text:#e5e7eb;
-  --muted:#9ca3af;
-  --border: rgba(255,255,255,.10);
-  --focus: rgba(59,130,246,.35);
-  --primary:#2563eb;
-  --primary2:#1d4ed8;
-  --danger:#ef4444;
+  --shadow: 0 25px 70px rgba(0,0,0,.25);
+
+  /* celestes (card login) */
+  --c0:#053b6e;
+  --c1:#0ea5e9;
+  --c2:#22d3ee;
+  --cText: rgba(255,255,255,.92);
+  --cMuted: rgba(255,255,255,.72);
+  --cLine: rgba(255,255,255,.34);
 }
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
+
 body{
   margin:0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  color:var(--text);
-  background: radial-gradient(1200px 800px at 20% 10%, rgba(37,99,235,.25), transparent 60%),
-              radial-gradient(900px 700px at 90% 80%, rgba(16,185,129,.15), transparent 55%),
-              linear-gradient(180deg, var(--bg0), var(--bg1));
+
+  /* Mantener tu fondo con imagen */
+  background-image: url("../assets/fondo1.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #070b14;
+
+  position: relative;
+  overflow-x: hidden;
 }
 
-.login__wrap{
+/* overlay “cristalino” general (no cambia tu imagen, solo mejora lectura) */
+body::before{
+  content:"";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(900px 700px at 10% 15%, rgba(14,165,233,.18), transparent 55%),
+    radial-gradient(900px 700px at 90% 85%, rgba(34,211,238,.14), transparent 55%),
+    linear-gradient(180deg, rgba(11,18,32,.60), rgba(15,26,47,.68));
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after{
+  content:"";
+  position: fixed;
+  inset: 0;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: rgba(0,0,0,.08);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* contenedor central */
+.auth{
   min-height:100%;
   display:flex;
-  flex-direction:column;
   align-items:center;
   justify-content:center;
-  padding:32px 16px;
-  gap:16px;
+  padding:26px 16px;
+  position: relative;
+  z-index: 1;
 }
 
-.login__card{
-  width:min(480px, 100%);
-  background: linear-gradient(180deg, rgba(17,24,39,.95), rgba(15,23,42,.92));
-  border:1px solid var(--border);
-  border-radius:16px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.45);
-  padding:22px;
+/* Ahora el shell es 1 sola “tarjeta grande” */
+.auth__shell{
+  width: min(1120px, 100%);
+  position: relative;
+
+  /* una sola columna */
+  display:block;
 }
 
-.login__header{
+/* Panel azul grande (reutilizamos auth__right, pero ya no es “derecha”) */
+.auth__right{
+  border-radius: 26px;
+  box-shadow: var(--shadow);
+  overflow:hidden;
+  position:relative;
+
+  /* Mantén el panel azul con “ondas” tipo la referencia */
+  background:
+    radial-gradient(520px 360px at 20% 15%, rgba(255,255,255,.16), transparent 60%),
+    radial-gradient(620px 520px at 80% 85%, rgba(255,255,255,.10), transparent 65%),
+    radial-gradient(420px 320px at 65% 35%, rgba(255,255,255,.08), transparent 60%),
+    linear-gradient(135deg, rgba(29,78,216,.92), rgba(37,99,235,.88));
+  border: 1px solid rgba(255,255,255,.16);
+
+  /* tamaño como “card grande” */
+  min-height: 560px;
+  padding: 54px 54px;
+
   display:flex;
-  gap:14px;
   align-items:center;
-  margin-bottom:14px;
+  justify-content:flex-start;
 }
 
-.login__logo{
-  width:52px;
-  height:52px;
-  object-fit:contain;
-  border-radius:10px;
-  background: rgba(255,255,255,.06);
-  border:1px solid var(--border);
-  padding:6px;
+/* Texto de bienvenida se queda a la izquierda dentro del panel */
+.hero{
+  color:white;
+  text-align:left;
+  max-width: 520px;
+  text-shadow: 0 10px 40px rgba(0,0,0,.35);
 }
 
-.login__title{
+.hero__badge{
+  display:inline-flex;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.25);
+  background: rgba(255,255,255,.10);
+  font-weight: 900;
+  letter-spacing:.8px;
+  font-size: 12px;
+}
+
+.hero__title{
+  margin: 18px 0 12px;
+  font-size: 44px;
+  font-weight: 950;
+  letter-spacing: .8px;
+}
+
+.hero__text{
   margin:0;
-  font-size:18px;
-  font-weight:700;
-  letter-spacing:.2px;
+  opacity:.92;
+  font-size: 15px;
+  line-height: 1.55;
+  max-width: 480px;
 }
 
-.login__subtitle{
-  margin:2px 0 0 0;
-  font-size:13px;
-  color:var(--muted);
+/* El login (auth__left) se monta encima del panel azul, a la derecha */
+.auth__left{
+  position:absolute;
+  top: 50%;
+  right: 54px;
+  transform: translateY(-50%);
+  z-index: 2;
+
+  display:block;
 }
 
-.login__alert{
-  background: rgba(239,68,68,.12);
-  border:1px solid rgba(239,68,68,.35);
-  color:#fecaca;
-  padding:10px 12px;
-  border-radius:12px;
-  font-size:13px;
-  margin:10px 0 14px;
+/* Card login */
+.auth__card{
+  width: min(460px, 92vw);
+  border-radius: 22px;
+  box-shadow: 0 25px 70px rgba(0,0,0,.35);
+  padding: 34px 36px;
 }
 
-.login__form{
+/* Mantener tu card celeste (clase del HTML sigue igual) */
+.auth__card--purple{
+  color: var(--cText);
+  background:
+    radial-gradient(420px 320px at 20% 25%, rgba(34,211,238,.20), transparent 60%),
+    radial-gradient(460px 340px at 75% 78%, rgba(14,165,233,.18), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.10)),
+    linear-gradient(135deg, rgba(5,59,110,.82), rgba(14,165,233,.62));
+  border: 1px solid rgba(255,255,255,.18);
+
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Avatar circular + logo grande */
+.auth__avatar{
+  width: 110px;
+  height: 110px;
+  border-radius: 999px;
+  margin: 0 auto 16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.22);
+  box-shadow: 0 22px 70px rgba(0,0,0,.40);
+}
+
+.auth__avatarLogo{
+  width: 78px;
+  height: 78px;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 10px 26px rgba(0,0,0,.30));
+}
+
+.auth__brandCenter{
+  text-align:center;
+  margin-bottom: 14px;
+}
+
+.auth__brandTitle2{
+  font-weight: 900;
+  letter-spacing:.3px;
+  font-size: 18px;
+}
+
+.auth__brandSub2{
+  margin-top:4px;
+  font-size: 13px;
+  color: var(--cMuted);
+}
+
+/* Alerts */
+.auth__alerts{ margin: 8px 0 12px; }
+.alert{ padding: 10px 12px; border-radius: 12px; font-size: 13px; }
+.alert--dark{
+  background: rgba(0,0,0,.22);
+  border: 1px solid rgba(255,255,255,.14);
+  color: rgba(255,255,255,.92);
+}
+
+/* Form tipo líneas */
+.form{ display:flex; flex-direction:column; gap:16px; }
+.form--lines{ margin-top: 6px; }
+
+.lineField{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 2px solid var(--cLine);
+  position: relative;
+}
+
+.lineField__icon{
+  color: rgba(255,255,255,.80);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width: 22px;
+  flex: 0 0 22px;
+}
+
+.lineField__input{
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--cText);
+  font-size: 15px;
+  padding: 8px 0;
+}
+
+.lineField__input::placeholder{ color: rgba(255,255,255,.60); }
+
+.lineField__input--password{ padding-right: 46px; }
+
+.lineField__toggle{
+  position:absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.88);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.lineField__toggle:hover{ background: rgba(255,255,255,.12); }
+
+/* Autofill fix (elimina el fondo claro al autocompletar) */
+.lineField__input:-webkit-autofill,
+.lineField__input:-webkit-autofill:hover,
+.lineField__input:-webkit-autofill:focus,
+.lineField__input:-webkit-autofill:active{
+  -webkit-text-fill-color: rgba(255,255,255,.92) !important;
+  caret-color: rgba(255,255,255,.92);
+  transition: background-color 999999s ease-in-out 0s;
+  -webkit-box-shadow: 0 0 0 1000px rgba(0,0,0,0) inset !important;
+  box-shadow: 0 0 0 1000px rgba(0,0,0,0) inset !important;
+}
+
+.lineField__input:-moz-autofill{
+  box-shadow: 0 0 0 1000px rgba(0,0,0,0) inset !important;
+  -moz-text-fill-color: rgba(255,255,255,.92) !important;
+}
+
+/* Row */
+.form__row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+}
+.form__row--thin{ margin-top: -6px; }
+
+.check{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  user-select:none;
+  font-size: 13px;
+}
+.check--light{ color: rgba(255,255,255,.80); }
+.check input{ width:16px; height:16px; }
+
+.linkLight{
+  color: rgba(255,255,255,.82);
+  font-size: 13px;
+  text-decoration: none;
+}
+.linkLight:hover{ text-decoration: underline; }
+
+/* Botones */
+.btn{
+  width: 100%;
+  border:0;
+  border-radius: 10px;
+  padding: 13px 14px;
+  font-weight: 900;
+  letter-spacing: .8px;
+  cursor:pointer;
+  transition: filter .15s ease, transform .04s ease;
+}
+.btn:active{ transform: translateY(1px); }
+
+.btn--magenta{
+  background: linear-gradient(180deg, rgba(34,211,238,.95), rgba(14,165,233,.95));
+  color: #001018;
+  box-shadow: 0 18px 40px rgba(14,165,233,.22);
+}
+.btn--magenta:hover{ filter: brightness(1.05); }
+
+.btn--ghost{
+  margin-top: 6px;
+  background: rgba(0,0,0,.18);
+  border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.78);
+}
+.btn--ghost:hover{
+  background: rgba(0,0,0,.22);
+  color: rgba(255,255,255,.92);
+}
+
+/* Responsive: en móvil apila (el login baja debajo del panel) */
+@media (max-width: 1000px){
+  .auth__right{
+    padding: 28px;
+    min-height: 260px;
+    justify-content:center;
+    text-align:center;
+  }
+  .hero{ text-align:center; }
+
+  .auth__left{
+    position: static;
+    transform: none;
+    margin-top: 16px;
+    display:flex;
+    justify-content:center;
+  }
+
+  .auth__card{
+    width: min(520px, 100%);
+  }
+
+  body::after{
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+}
+
+/* Create user page (scoped) - NO afecta al login (.auth__*) */
+
+body.cu{
+  margin:0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+
+  background-image: url("../assets/fondo1.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #070b14;
+
+  position: relative;
+  overflow-x: hidden;
+  color: var(--cText);
+}
+
+body.cu::before{
+  content:"";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(900px 700px at 10% 15%, rgba(14,165,233,.18), transparent 55%),
+    radial-gradient(900px 700px at 90% 85%, rgba(34,211,238,.14), transparent 55%),
+    linear-gradient(180deg, rgba(11,18,32,.60), rgba(15,26,47,.68));
+  pointer-events: none;
+  z-index: 0;
+}
+
+body.cu::after{
+  content:"";
+  position: fixed;
+  inset: 0;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: rgba(0,0,0,.08);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Layout clásico (login__*) solo para Create User */
+body.cu .login__wrap{
+  min-height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 26px 16px;
+  position: relative;
+  z-index: 1;
+}
+
+body.cu .login__card{
+  width: min(620px, 100%);
+  border-radius: 22px;
+  box-shadow: 0 25px 70px rgba(0,0,0,.35);
+  padding: 28px 28px 22px;
+
+  color: var(--cText);
+  background:
+    radial-gradient(420px 320px at 20% 25%, rgba(34,211,238,.20), transparent 60%),
+    radial-gradient(460px 340px at 75% 78%, rgba(14,165,233,.18), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.10)),
+    linear-gradient(135deg, rgba(5,59,110,.82), rgba(14,165,233,.62));
+  border: 1px solid rgba(255,255,255,.18);
+
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+body.cu .login__title{
+  margin: 0 0 10px 0;
+  font-size: 26px;
+  font-weight: 950;
+  letter-spacing: .2px;
+  text-align:center;
+}
+
+body.cu .login__form{
   display:flex;
   flex-direction:column;
-  gap:12px;
+  gap: 12px;
+  margin-top: 12px;
 }
 
-.field__label{
+/* Campos */
+body.cu .field__label{
   display:block;
-  font-size:13px;
-  color:var(--muted);
-  margin-bottom:6px;
+  font-size: 13px;
+  color: rgba(255,255,255,.78);
+  margin-bottom: 7px;
 }
 
-.field__input{
+body.cu .field__input{
   width:100%;
-  padding:11px 12px;
-  border-radius:12px;
-  border:1px solid var(--border);
-  background: rgba(0,0,0,.20);
-  color:var(--text);
-  outline:none;
+  border: 1px solid rgba(255,255,255,.20);
+  background: rgba(0,0,0,.18);
+  color: var(--cText);
+  outline: none;
+  padding: 12px 12px;
+  border-radius: 14px;
 }
 
-.field__input:focus{
-  border-color: rgba(59,130,246,.55);
-  box-shadow: 0 0 0 4px var(--focus);
+body.cu .field__input:focus{
+  border-color: rgba(34,211,238,.55);
+  box-shadow: 0 0 0 4px rgba(34,211,238,.18);
 }
 
-.login__btn{
-  margin-top:4px;
+body.cu .field__passwordWrap{
+  position: relative;
+}
+
+body.cu .field__input--password{
+  padding-right: 46px;
+}
+
+body.cu .field__togglePass{
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.92);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.cu .field__togglePass:hover{
+  background: rgba(255,255,255,.12);
+}
+
+body.cu select.field__input{
+  background-color: rgba(3,12,24,.75);
+  border-color: rgba(120,163,198,.45);
+  color: rgba(255,255,255,.92);
+}
+
+body.cu select.field__input option{
+  background-color: #071f35;
+  color: rgba(255,255,255,.96);
+}
+
+body.cu select.field__input option:checked,
+body.cu select.field__input option:hover{
+  background-color: #0c3558;
+  color: rgba(255,255,255,.95);
+}
+
+/* Alertas */
+body.cu .login__alert{
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  background: rgba(0,0,0,.22);
+  border: 1px solid rgba(255,255,255,.14);
+  color: rgba(255,255,255,.92);
+  margin: 12px 0 6px;
+}
+
+/* Botón */
+body.cu .login__btn{
+  margin-top: 8px;
   width:100%;
-  padding:11px 12px;
   border:0;
-  border-radius:12px;
-  background: linear-gradient(180deg, var(--primary), var(--primary2));
-  color:white;
-  font-weight:700;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-weight: 950;
+  letter-spacing: .7px;
   cursor:pointer;
+  color: #001018;
+  background: linear-gradient(180deg, rgba(34,211,238,.95), rgba(14,165,233,.95));
+  box-shadow: 0 18px 40px rgba(14,165,233,.22);
+}
+body.cu .login__btn:hover{ filter: brightness(1.05); }
+
+/* Link "Volver al panel" (solo Create User) */
+body.cu .cu__back{
+  display:block;
+  text-align:center;
+  margin-top: 10px;
+  font-size: 13px;
+  color: rgba(255,255,255,.84);
+  text-decoration: none;
 }
 
-.login__btn:hover{
-  filter: brightness(1.05);
+body.cu .cu__back:hover{
+  text-decoration: underline;
+  color: rgba(255,255,255,.92);
 }
 
-.login__hint{
-  margin:10px 0 0 0;
-  font-size:12px;
-  color:var(--muted);
-}
-
-.login__footer{
-  color:var(--muted);
-  font-size:12px;
-}
+/*
+  Archivo: login.css
+  Función: estilos compartidos para autenticación y páginas relacionadas (login, crear usuario,
+  cambio/restablecimiento de contraseña). Incluye variables de color, estilos de tarjeta y
+  utilidades para mostrar/ocultar campos de contraseña con iconos.
+*/

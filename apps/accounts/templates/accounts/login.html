@@ -1,53 +1,153 @@
 {% load static %}
+<!--
+  Template: login.html
+  Función: formulario de inicio de sesión para usuarios. Muestra mensajes de error/alerta,
+  soporte para recordar sesión y control de mostrar/ocultar contraseña (icono ojo).
+  El enlace "Forgot Password?" puede apuntar al flujo de recuperación local para pruebas.
+-->
 <!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Login</title>
+  <title>Iniciar sesión</title>
   <link rel="stylesheet" href="{% static 'css/login.css' %}">
 </head>
-
 <body>
-  <div class="login__wrap">
-    <div class="login__card">
-      <div class="login__header">
-        <!-- opcional: logo -->
-        <!-- <img class="login__logo" src="{% static 'img/logo.png' %}" alt="Logo" /> -->
-        <div>
-          <h1 class="login__title">Iniciar sesión</h1>
-          <p class="login__subtitle">Ingresa tu correo y contraseña para continuar</p>
+
+  <main class="auth">
+    <section class="auth__shell">
+
+      <!-- IZQUIERDA (morado como la referencia) -->
+      <div class="auth__left">
+        <div class="auth__card auth__card--purple">
+
+          <div class="auth__avatar">
+            <!-- Logo dentro de esfera -->
+            <img class="auth__avatarLogo" src="{% static 'assets/Ferreteria.png' %}" alt="Ferretería Mi Casa">
+          </div>
+
+          <div class="auth__brandCenter">
+            <div class="auth__brandTitle2">Ferretería Mi Casa</div>
+            <div class="auth__brandSub2">Panel de acceso</div>
+          </div>
+
+          {% if messages %}
+            <div class="auth__alerts">
+              {% for message in messages %}
+                <div class="alert alert--dark">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <form class="form form--lines" method="post" action="{% url 'login' %}">
+            {% csrf_token %}
+
+            <label class="lineField">
+              <span class="lineField__icon" aria-hidden="true">
+                <!-- mail icon -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 6h16v12H4V6Z" stroke="currentColor" stroke-width="2"/>
+                  <path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </span>
+              <input
+                class="lineField__input"
+                type="email"
+                name="email"
+                value="{{ email|default:'' }}"
+                placeholder="Email"
+                autocomplete="username"
+                required
+              />
+            </label>
+
+            <label class="lineField">
+              <span class="lineField__icon" aria-hidden="true">
+                <!-- lock icon -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="2"/>
+                  <path d="M6 11h12v10H6V11Z" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </span>
+
+              <input
+                id="password"
+                class="lineField__input lineField__input--password"
+                type="password"
+                name="password"
+                placeholder="Password"
+                autocomplete="current-password"
+                required
+              />
+
+              <!-- ojo -->
+              <button
+                type="button"
+                class="lineField__toggle"
+                id="btnTogglePassword"
+                aria-label="Mostrar contraseña"
+                title="Mostrar contraseña"
+              >
+                <svg id="iconEye" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" stroke="currentColor" stroke-width="2"/>
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                <svg id="iconEyeOff" width="18" height="18" viewBox="0 0 24 24" fill="none" style="display:none;">
+                  <path d="M3 3l18 18" stroke="currentColor" stroke-width="2"/>
+                  <path d="M10.6 10.6A3 3 0 0 0 12 15a3 3 0 0 0 2.4-4.4" stroke="currentColor" stroke-width="2"/>
+                  <path d="M6.3 6.3C3.8 8.3 2 12 2 12s3.5 7 10 7c2.1 0 3.9-.6 5.4-1.5" stroke="currentColor" stroke-width="2"/>
+                  <path d="M9.9 4.2C10.6 4.1 11.3 4 12 4c6.5 0 10 8 10 8s-1 2.3-3.1 4.4" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </button>
+            </label>
+
+            <div class="form__row form__row--thin">
+              <label class="check check--light">
+                <input type="checkbox" name="remember_me" value="1">
+                <span>Remember me</span>
+              </label>
+              <a class="linkLight" href="{% url 'password_forgot_local' %}">Forgot Password?</a>
+            </div>
+
+            <button class="btn btn--magenta" type="submit">LOGIN</button>
+          </form>
         </div>
       </div>
 
-      {% if messages %}
-        {% for message in messages %}
-          <div class="login__alert">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-
-      <form class="login__form" method="post" action="{% url 'login' %}">
-        {% csrf_token %}
-
-        <div>
-          <label class="field__label">Email</label>
-          <input class="field__input" type="email" name="email" value="{{ email|default:'' }}" required />
+      <!-- DERECHA (azul grande) -->
+      <aside class="auth__right" aria-hidden="true">
+        <div class="hero">
+          <div class="hero__badge">BIENVENIDO</div>
+          <h2 class="hero__title">¡Ferretería Mi Casa!</h2>
+          <p class="hero__text">
+            Administra compras, ventas y registro desde un solo lugar.
+          </p>
         </div>
+      </aside>
 
-        <div>
-          <label class="field__label">Contraseña</label>
-          <input class="field__input" type="password" name="password" required />
-        </div>
+    </section>
+  </main>
 
-        <button class="login__btn" type="submit">Entrar</button>
+  <script>
+    (function () {
+      const input = document.getElementById("password");
+      const btn = document.getElementById("btnTogglePassword");
+      const eye = document.getElementById("iconEye");
+      const eyeOff = document.getElementById("iconEyeOff");
+      if (!input || !btn) return;
 
-        <p class="login__hint">Si tienes problemas para entrar, revisa tu correo y contraseña.</p>
-      </form>
-    </div>
+      btn.addEventListener("click", function () {
+        const isPassword = input.type === "password";
+        input.type = isPassword ? "text" : "password";
+        eye.style.display = isPassword ? "none" : "block";
+        eyeOff.style.display = isPassword ? "block" : "none";
+        btn.setAttribute("aria-label", isPassword ? "Ocultar contraseña" : "Mostrar contraseña");
+        btn.setAttribute("title", isPassword ? "Ocultar contraseña" : "Mostrar contraseña");
+        input.focus();
+      });
+    })();
+  </script>
 
-    <div class="login__footer">
-      Ferretería • Panel de acceso
-    </div>
-  </div>
 </body>
 </html>

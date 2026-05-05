@@ -314,9 +314,9 @@ def nueva_compra(request):
         movimientos.append(MovimientoInventario(
             id_producto=producto,
             id_usuario=usuario,
-            tipo_movimiento="COMPRA",
+            tipo_movimiento="Entrada",
             cantidad=cantidad,
-            referencia=f"COMPRA:{compra.id_compra}",
+            referencia=f"Entrada:{compra.id_compra}",
             fecha_movimiento=ahora,
             observaciones=f"Entrada por compra. Factura {numero_factura}. Proveedor {proveedor.nombre}. IVA {iva_rate}%.",
         ))

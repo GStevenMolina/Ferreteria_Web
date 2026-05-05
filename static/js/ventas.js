@@ -57,20 +57,22 @@ document.addEventListener("DOMContentLoaded", () => {
         return monedaActual === "USD" ? "$" : "C$";
     }
 
-    function actualizarSimbolos() {
-        const s = simbolo();
-        document.querySelectorAll(".currency-symbol").forEach(el => {
-            el.innerText = s;
-        });
-    }
-
     function convertir(valor) {
         return monedaActual === "USD" ? valor / tasa : valor;
     }
 
+    // ⚠️ SOLO cambia símbolos en totales (no en productos)
+    function actualizarSimbolosTotales() {
+        const s = simbolo();
+
+        document.querySelectorAll(".total-currency").forEach(el => {
+            el.innerText = s;
+        });
+    }
+
     currencySelect.addEventListener("change", () => {
         monedaActual = currencySelect.value;
-        actualizarSimbolos(); // 🔥 FIX
+        actualizarSimbolosTotales();
         renderCarrito();
     });
 
@@ -79,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
         renderCarrito();
     });
 
-    actualizarSimbolos(); // 🔥 al iniciar
+    actualizarSimbolosTotales();
 
     // ==============================
     // 🔍 BUSCADOR
@@ -106,7 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const id = this.dataset.id;
             const nombre = this.dataset.nombre;
-            const precio = parseFloat(this.dataset.precio);
+            const precio = parseFloat(this.dataset.precio); // SIEMPRE C$
 
             if (!id || !nombre || isNaN(precio)) {
                 console.error("Producto inválido");
@@ -139,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         carrito.forEach((item, index) => {
 
-            const totalItem = item.precio * item.cantidad;
+            const totalItem = item.precio * item.cantidad; // base C$
             const totalConvertido = convertir(totalItem);
 
             const div = document.createElement("div");

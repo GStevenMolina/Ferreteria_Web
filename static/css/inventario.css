@@ -1,29 +1,40 @@
+/* =====================================================
+   Variables globales de diseño del módulo de inventario
+   ===================================================== */
 :root {
-  --page-bg: #0f172a;
-  --card-bg: rgba(15, 23, 42, 0.94);
-  --card-border: rgba(255, 255, 255, 0.08);
-  --text: #e5e7eb;
-  --muted: #94a3b8;
-  --accent: #38bdf8;
-  --accent-strong: #0ea5e9;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --radius: 18px;
+  --page-bg: #0f172a;          /* Fondo principal de la página */
+  --card-bg: rgba(15, 23, 42, 0.94);   /* Fondo de las tarjetas/paneles */
+  --card-border: rgba(255, 255, 255, 0.08); /* Borde sutil de tarjetas */
+  --text: #e5e7eb;             /* Color de texto principal */
+  --muted: #94a3b8;            /* Color de texto secundario/apagado */
+  --accent: #38bdf8;           /* Color de acento (azul claro) */
+  --accent-strong: #0ea5e9;    /* Variante más intensa del acento */
+  --success: #22c55e;          /* Color para estado "Normal" */
+  --warning: #f59e0b;          /* Color para stock bajo */
+  --danger: #ef4444;           /* Color para stock agotado o acciones destructivas */
+  --radius: 18px;              /* Radio de borde global */
 }
 
+/* Reset básico: usar box-sizing border-box en todos los elementos */
 * { box-sizing: border-box; }
 
+/* =====================================================
+   Estructura principal de la página de inventario
+   ===================================================== */
+
+/* Contenedor raíz de la página de inventario (registro y reportes) */
 .inventory-page {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
+/* Variante con mayor separación para la vista de reportes */
 .inventory-page--reports {
   gap: 16px;
 }
 
+/* Estilos base compartidos por la barra superior, barra de herramientas y paneles */
 .inventory-topbar,
 .inventory-toolbar,
 .inventory-panel {
@@ -33,6 +44,7 @@
   color: var(--text);
 }
 
+/* Barra superior: título + acciones principales alineadas horizontalmente */
 .inventory-topbar {
   display: flex;
   justify-content: space-between;
@@ -40,6 +52,7 @@
   align-items: flex-start;
 }
 
+/* Etiqueta pequeña encima del título principal ("Control de inventario") */
 .eyebrow {
   margin: 0 0 8px;
   color: var(--accent);
@@ -48,6 +61,7 @@
   letter-spacing: .12em;
 }
 
+/* Contenedor de botones de acción en la barra superior y barra de herramientas */
 .inventory-topbar__actions,
 .inventory-toolbar {
   display: flex;
@@ -55,10 +69,16 @@
   gap: 10px;
 }
 
+/* Alinear los botones de acción a la derecha */
 .inventory-topbar__actions {
   justify-content: flex-end;
 }
 
+/* =====================================================
+   Botones de acción (action-btn)
+   ===================================================== */
+
+/* Estilo base de todos los botones de acción */
 .action-btn {
   display: inline-flex;
   align-items: center;
@@ -75,40 +95,56 @@
   background: rgba(255, 255, 255, 0.10);
 }
 
+/* Variante principal: gradiente azul para guardar/confirmar */
 .action-btn--primary {
   background: linear-gradient(180deg, var(--accent), var(--accent-strong));
 }
 
+/* Variante suave: fondo semitransparente con borde sutil */
 .action-btn--soft {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.08);
 }
 
+/* Variante peligrosa: gradiente rojo para eliminar */
 .action-btn--danger {
   background: linear-gradient(180deg, #f87171, var(--danger));
 }
 
+/* Variante deshabilitada: reducir opacidad y deshabilitar interacción */
 .action-btn--disabled {
   opacity: .55;
   pointer-events: none;
 }
 
+/* =====================================================
+   Tipografía de la cabecera de página
+   ===================================================== */
+
+/* Título principal de la página */
 .page-title {
   margin: 0;
   font-size: clamp(24px, 3vw, 34px);
   line-height: 1.1;
 }
 
+/* Subtítulo descriptivo debajo del título */
 .page-subtitle {
   margin: 8px 0 0;
   color: var(--muted);
   max-width: 68ch;
 }
 
+/* =====================================================
+   Barra de herramientas (filtros y búsqueda)
+   ===================================================== */
+
+/* Alinear los campos al fondo para que los labels queden al mismo nivel */
 .inventory-toolbar {
   align-items: end;
 }
 
+/* Campo de formulario en la barra de herramientas y en los formularios del panel */
 .toolbar-field,
 .form-field {
   display: flex;
@@ -116,20 +152,24 @@
   gap: 6px;
 }
 
+/* Campo de acciones alineado al extremo derecho de la barra */
 .toolbar-field--actions {
   margin-left: auto;
 }
 
+/* Campo ancho para la caja de búsqueda */
 .toolbar-field--wide {
   min-width: 240px;
 }
 
+/* Etiquetas de los campos en la barra y formularios */
 .toolbar-field label,
 .form-field label {
   font-size: 12px;
   color: var(--muted);
 }
 
+/* Inputs, selects y textareas dentro de los campos */
 .toolbar-field input,
 .toolbar-field select,
 .form-field input,
@@ -144,6 +184,7 @@
   outline: none;
 }
 
+/* Estado de foco: borde azul y sombra de acento */
 .toolbar-field input:focus,
 .toolbar-field select:focus,
 .form-field input:focus,
@@ -153,6 +194,7 @@
   box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14);
 }
 
+/* Píldora de resumen: muestra el conteo de productos visibles */
 .summary-pill {
   min-height: 42px;
   display: inline-flex;
@@ -164,12 +206,18 @@
   font-weight: 700;
 }
 
+/* =====================================================
+   Navegación segmentada (Registro / Reportes)
+   ===================================================== */
+
+/* Contenedor de las opciones de navegación */
 .segmented-actions {
   display: inline-flex;
   gap: 8px;
   flex-wrap: wrap;
 }
 
+/* Cada opción de la navegación segmentada */
 .segmented-actions__item {
   min-height: 42px;
   display: inline-flex;
@@ -183,12 +231,18 @@
   font-weight: 700;
 }
 
+/* Opción activa de la navegación segmentada (sección actual) */
 .segmented-actions__item.is-active {
   background: rgba(56, 189, 248, 0.16);
   color: #d8f4ff;
   border-color: rgba(56, 189, 248, 0.30);
 }
 
+/* =====================================================
+   Diseño principal: panel lateral + tabla
+   ===================================================== */
+
+/* Rejilla de dos columnas: formulario lateral y tabla de inventario */
 .inventory-layout {
   display: grid;
   grid-template-columns: minmax(340px, 420px) 1fr;
@@ -196,10 +250,12 @@
   align-items: start;
 }
 
+/* Panel con relleno interno (formulario de producto y movimientos) */
 .inventory-panel {
   padding: 16px;
 }
 
+/* Encabezado de cada sección dentro del panel */
 .panel-heading h2 {
   margin: 0 0 4px;
   font-size: 18px;
@@ -211,10 +267,16 @@
   font-size: 13px;
 }
 
+/* Margen superior para separar secciones dentro del panel */
 .panel-heading--spaced {
   margin-top: 18px;
 }
 
+/* =====================================================
+   Formularios del panel de inventario
+   ===================================================== */
+
+/* Rejilla de dos columnas para los campos del formulario */
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -222,38 +284,50 @@
   margin-top: 16px;
 }
 
+/* Variante compacta para el formulario de movimientos */
 .form-grid--compact {
   margin-top: 12px;
 }
 
+/* Campo que ocupa las dos columnas de la rejilla */
 .form-field--full {
   grid-column: 1 / -1;
 }
 
+/* Campos de solo lectura con leve transparencia (código y stock actual) */
 .form-field input[readonly] {
   opacity: .9;
 }
 
+/* Botón que ocupa todo el ancho del contenedor */
 .action-btn--full {
   width: 100%;
 }
 
+/* Formulario de eliminación oculto (se activa al confirmar desde el botón Eliminar) */
 .hidden-delete-form {
   display: none;
 }
 
+/* =====================================================
+   Tabla de inventario
+   ===================================================== */
+
+/* Contenedor con scroll horizontal para tablas anchas */
 .inventory-table-wrap {
   overflow: auto;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Tabla principal del inventario */
 .inventory-table {
   width: 100%;
   border-collapse: collapse;
   min-width: 760px;
 }
 
+/* Celdas de cabecera y datos */
 .inventory-table th,
 .inventory-table td {
   padding: 12px 14px;
@@ -261,6 +335,7 @@
   text-align: left;
 }
 
+/* Cabecera fija al hacer scroll vertical en la tabla */
 .inventory-table th {
   position: sticky;
   top: 0;
@@ -268,31 +343,42 @@
   z-index: 1;
 }
 
+/* Enlace de ordenamiento dentro de las cabeceras */
 .inventory-table th a {
   color: #cbd5e1;
   text-decoration: none;
 }
 
+/* Fila clickeable para seleccionar un producto */
 .inventory-row {
   cursor: pointer;
 }
 
+/* Estado hover de las filas */
 .inventory-row:hover {
   background: rgba(255, 255, 255, 0.03);
 }
 
+/* Fila actualmente seleccionada (producto cargado en el formulario) */
 .inventory-row.is-selected {
   background: rgba(56, 189, 248, 0.12);
 }
 
+/* Fila con stock bajo (por debajo del mínimo) */
 .inventory-row--bajo {
   background: rgba(245, 158, 11, 0.08);
 }
 
+/* Fila con stock agotado */
 .inventory-row--agotado {
   background: rgba(239, 68, 68, 0.10);
 }
 
+/* =====================================================
+   Insignias de estado del inventario
+   ===================================================== */
+
+/* Base de todas las insignias de estado */
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -302,32 +388,44 @@
   font-weight: 700;
 }
 
+/* Estado: stock normal (verde) */
 .status-badge--normal { background: rgba(34, 197, 94, 0.14); color: #86efac; }
+/* Estado: stock bajo (amarillo) */
 .status-badge--bajo { background: rgba(245, 158, 11, 0.14); color: #fcd34d; }
+/* Estado: stock agotado (rojo) */
 .status-badge--agotado { background: rgba(239, 68, 68, 0.14); color: #fca5a5; }
 
+/* Enlace de detalle dentro de cada fila de la tabla */
 .row-link {
   color: var(--accent);
   text-decoration: none;
   font-weight: 700;
 }
 
+/* Mensaje cuando no hay productos para mostrar en la tabla */
 .empty-state {
   text-align: center;
   color: var(--muted);
   padding: 18px;
 }
 
+/* =====================================================
+   Panel de historial de movimientos
+   ===================================================== */
+
+/* Panel del historial de movimientos */
 .history-panel {
   margin-top: 18px;
 }
 
+/* Lista de ítems del historial en columna */
 .history-list {
   display: grid;
   gap: 10px;
   margin-top: 12px;
 }
 
+/* Ítem individual del historial de movimientos */
 .history-item {
   padding: 12px 14px;
   border-radius: 14px;
@@ -335,6 +433,7 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Fila de título y metadatos dentro de cada ítem del historial */
 .history-item__title,
 .history-item__meta {
   display: flex;
@@ -347,37 +446,48 @@
   color: white;
 }
 
+/* Texto secundario del historial (fecha, usuario, etc.) */
 .history-item__title span,
 .history-item__meta {
   color: var(--muted);
   font-size: 12px;
 }
 
+/* Observación del movimiento */
 .history-item p {
   margin: 8px 0 0;
   color: #cbd5e1;
   font-size: 13px;
 }
 
+/* Variante compacta del ítem de historial */
 .history-item--compact {
   padding: 10px 12px;
 }
 
+/* =====================================================
+   Sección de reportes
+   ===================================================== */
+
+/* Rejilla de KPIs de reportes (4 tarjetas en una fila) */
 .report-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 }
 
+/* Diseño principal de reportes: tabla ancha + panel lateral */
 .report-grid--main {
   grid-template-columns: minmax(0, 2fr) minmax(280px, 420px);
   align-items: start;
 }
 
+/* Tarjeta de reporte (KPI individual) */
 .report-card {
   padding: 16px;
 }
 
+/* Etiqueta de la tarjeta de reporte */
 .report-card__label {
   margin: 0;
   color: var(--muted);
@@ -386,6 +496,7 @@
   letter-spacing: .08em;
 }
 
+/* Valor numérico grande de la tarjeta */
 .report-card__value {
   display: block;
   margin-top: 10px;
@@ -393,6 +504,7 @@
   color: white;
 }
 
+/* Texto de ayuda o unidad debajo del valor */
 .report-card__hint {
   display: block;
   margin-top: 6px;
@@ -400,10 +512,12 @@
   font-size: 13px;
 }
 
+/* Barra de herramientas específica de la vista de reportes */
 .inventory-toolbar--reports {
   padding: 16px;
 }
 
+/* Rejilla de filtros de reportes (5 columnas) */
 .report-filters {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -411,33 +525,51 @@
   width: 100%;
 }
 
+/* Panel principal de la tabla de reportes */
 .report-panel {
   min-height: 100%;
 }
 
+/* Panel lateral de reportes con KPIs apilados */
 .report-sidebar {
   display: grid;
   gap: 14px;
 }
 
+/* Tabla de movimientos en reportes (sin ancho mínimo fijo) */
 .inventory-table--reports {
   min-width: 100%;
 }
 
+/* =====================================================
+   Insignias de tipo de movimiento (reportes)
+   ===================================================== */
+
+/* Entrada de mercancía (compra) */
 .status-badge--entrada { background: rgba(34, 197, 94, 0.14); color: #86efac; }
+/* Salida de mercancía (venta) */
 .status-badge--salida { background: rgba(239, 68, 68, 0.14); color: #fca5a5; }
+/* Ajuste positivo de inventario */
 .status-badge--ajuste_entrada { background: rgba(59, 130, 246, 0.14); color: #93c5fd; }
+/* Ajuste negativo de inventario */
 .status-badge--ajuste_salida { background: rgba(245, 158, 11, 0.14); color: #fcd34d; }
 
+/* =====================================================
+   Diseño responsivo
+   ===================================================== */
+
+/* En pantallas medianas: apilar el panel y la tabla verticalmente */
 @media (max-width: 1100px) {
   .inventory-layout {
     grid-template-columns: 1fr;
   }
 
+  /* La barra superior también se apila verticalmente */
   .inventory-topbar {
     flex-direction: column;
   }
 
+  /* Las rejillas de reportes y filtros pasan a una sola columna */
   .report-grid,
   .report-grid--main,
   .report-filters {
@@ -445,12 +577,18 @@
   }
 }
 
+/* En pantallas pequeñas: el formulario de producto usa una sola columna */
 @media (max-width: 720px) {
   .form-grid {
     grid-template-columns: 1fr;
   }
 }
 
+/* =====================================================
+   Modal para crear un nuevo producto
+   ===================================================== */
+
+/* Contenedor del modal (oculto por defecto con display: none) */
 .inventory-modal {
   position: fixed;
   inset: 0;
@@ -458,10 +596,12 @@
   z-index: 110;
 }
 
+/* El modal se muestra cuando tiene la clase is-open */
 .inventory-modal.is-open {
   display: block;
 }
 
+/* Fondo oscuro semitransparente detrás del diálogo */
 .inventory-modal__backdrop {
   position: absolute;
   inset: 0;
@@ -469,6 +609,7 @@
   backdrop-filter: blur(2px);
 }
 
+/* Cuadro de diálogo centrado con scroll interno si el contenido es largo */
 .inventory-modal__dialog {
   position: relative;
   margin: 4vh auto;
@@ -481,6 +622,7 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+/* Encabezado del modal: título + botón de cierre */
 .inventory-modal__header {
   display: flex;
   align-items: center;
@@ -493,6 +635,7 @@
   font-size: 20px;
 }
 
+/* Botón X para cerrar el modal */
 .inventory-modal__close {
   width: 36px;
   height: 36px;
@@ -505,12 +648,14 @@
   cursor: pointer;
 }
 
+/* Subtítulo descriptivo dentro del modal */
 .inventory-modal__subtitle {
   margin: 8px 0 0;
   color: var(--muted);
   font-size: 13px;
 }
 
+/* Botones de acción al final del modal (Cancelar / Guardar) */
 .inventory-modal__actions {
   display: flex;
   justify-content: flex-end;

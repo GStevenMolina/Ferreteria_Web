@@ -57,7 +57,7 @@ def _selected_product_from_request(request):
 def _parse_optional_date(request, key):
     """
     Lee y convierte a objeto date un parámetro GET opcional.
-    Retorna None si el parámetro no existe o no es una fecha válida.
+    Devuelve None si el parámetro no existe o no es una fecha válida.
     """
     raw = (request.GET.get(key) or "").strip()
     if not raw:

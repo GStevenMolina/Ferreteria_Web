@@ -35,7 +35,7 @@
     createModal.setAttribute('aria-hidden', 'true');
   }
 
-  // Intenta parsear el JSON del atributo data-product de cada fila;
+  // Intenta analizar el JSON del atributo data-product de cada fila;
   // devuelve un objeto vacío si el valor es inválido o nulo
   function safeParse(raw) {
     try {

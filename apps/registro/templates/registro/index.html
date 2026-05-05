@@ -11,8 +11,8 @@
   <section class="inventory-topbar card">
     <div>
       <p class="eyebrow">Control de inventario</p>
-      <h1 class="page-title">Registro y movimientos de almacén</h1>
-      <p class="page-subtitle">Gestiona productos, controla stock y registra entradas, salidas y ajustes sin perder rapidez.</p>
+      <h1 class="page-title">Registro de inventario</h1>
+      <p class="page-subtitle">Crea productos, ajusta stock y registra movimientos sin cargar historial ni reportes en esta pantalla.</p>
     </div>
     <div class="inventory-topbar__actions">
       <button type="button" class="action-btn action-btn--soft" data-action="new-product">Agregar producto</button>
@@ -20,7 +20,7 @@
       <button type="button" class="action-btn" data-action="edit-product">Editar</button>
       <button type="submit" form="delete-form" class="action-btn action-btn--danger" onclick="return confirm('¿Eliminar este producto? Esta acción no se puede deshacer.')">Eliminar</button>
       <button type="button" class="action-btn action-btn--soft" data-action="focus-movement">Actualizar stock</button>
-      <a class="action-btn action-btn--soft" href="{% url 'registro:export_excel' %}?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}">Exportar Excel</a>
+      <a class="action-btn action-btn--soft" href="{% url 'registro:reportes' %}">Ver reportes</a>
     </div>
   </section>
 
@@ -114,13 +114,20 @@
       <label>Resumen</label>
       <div class="summary-pill">{{ rows|length }} productos visibles</div>
     </div>
+    <div class="toolbar-field toolbar-field--actions">
+      <label>Flujo</label>
+      <div class="segmented-actions">
+        <span class="segmented-actions__item is-active">Registro</span>
+        <a class="segmented-actions__item" href="{% url 'registro:reportes' %}">Reportes</a>
+      </div>
+    </div>
   </section>
 
   <div class="inventory-layout">
     <aside class="inventory-panel card">
       <div class="panel-heading">
         <h2>Formulario de producto</h2>
-        <p>Los campos obligatorios están marcados implícitamente por el formulario.</p>
+        <p>Usa este bloque para crear o editar productos. La edición es inmediata y no interrumpe el flujo de trabajo.</p>
       </div>
 
       <form id="product-form" method="post" class="form-grid">
@@ -179,7 +186,7 @@
 
       <div class="panel-heading panel-heading--spaced">
         <h2>Movimiento de inventario</h2>
-        <p>Las entradas, salidas y ajustes actualizan el stock de forma transaccional.</p>
+        <p>Las entradas, salidas y ajustes actualizan el stock de forma transaccional sin salir de Registro.</p>
       </div>
 
       <form id="movement-form" method="post" class="form-grid form-grid--compact">
@@ -254,31 +261,6 @@
             {% endfor %}
           </tbody>
         </table>
-      </div>
-
-      <div class="history-panel">
-        <div class="panel-heading panel-heading--spaced">
-          <h2>Historial de movimientos</h2>
-          <p>Últimos movimientos del producto seleccionado.</p>
-        </div>
-        <div class="history-list">
-          {% for movement in movement_history %}
-            <article class="history-item">
-              <div class="history-item__title">
-                <strong>{{ movement.id_producto.nombre }}</strong>
-                <span>{{ movement.tipo_movimiento }}</span>
-              </div>
-              <div class="history-item__meta">
-                <span>Cantidad: {{ movement.cantidad }}</span>
-                <span>{{ movement.fecha_movimiento }}</span>
-                <span>{{ movement.id_usuario.nombre|default:"Sistema" }}</span>
-              </div>
-              <p>{{ movement.observaciones|default:"Sin observaciones" }}</p>
-            </article>
-          {% empty %}
-            <div class="empty-state">Todavía no hay movimientos registrados.</div>
-          {% endfor %}
-        </div>
       </div>
     </section>
   </div>

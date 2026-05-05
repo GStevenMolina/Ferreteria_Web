@@ -6,100 +6,27 @@ from django.db import IntegrityError, transaction
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from apps.accounts.auth import login_required_custom
-from apps.core.models import Categoria, Inventario, MovimientoInventario, Producto, Proveedor, Usuario
+from apps.core.models import Inventario, MovimientoInventario, Producto, Usuario
 
 from .forms import MovementForm, ProductForm
-
-
-def _stock_status(stock_actual, stock_minimo):
-    stock_actual = stock_actual or 0
-    stock_minimo = stock_minimo or 0
-    if stock_actual <= 0:
-        return "Agotado"
-    if stock_actual <= stock_minimo:
-        return "Bajo"
-    return "Normal"
-
-
-def _inventory_queryset(query_text="", category_id=""):
-    queryset = Producto.objects.select_related("id_categoria", "id_proveedor").all()
-    if query_text:
-        queryset = queryset.filter(nombre__icontains=query_text)
-    if category_id:
-        queryset = queryset.filter(id_categoria_id=category_id)
-    return queryset
-
-
-def _build_rows(queryset):
-    inventory_map = {
-        row.id_producto_id: row
-        for row in Inventario.objects.select_related("id_producto").all()
-    }
-    rows = []
-    for product in queryset:
-        inventory = inventory_map.get(product.id_producto)
-        stock_actual = inventory.stock_actual if inventory and inventory.stock_actual is not None else 0
-        stock_minimo = inventory.stock_minimo if inventory and inventory.stock_minimo is not None else 0
-        rows.append(
-            {
-                "product": product,
-                "inventory": inventory,
-                "codigo": product.id_producto,
-                "nombre": product.nombre,
-                "categoria": product.id_categoria.nombre if product.id_categoria else "Sin categoría",
-                "categoria_id": product.id_categoria_id,
-                "proveedor": product.id_proveedor.nombre if product.id_proveedor else "",
-                "proveedor_id": product.id_proveedor_id,
-                "precio_compra": product.precio_compra or 0,
-                "precio_venta": product.precio_venta or 0,
-                "unidad_medida": product.unidad_medida or "",
-                "descripcion": product.descripcion or "",
-                "stock_actual": stock_actual,
-                "stock_minimo": stock_minimo,
-                "estado": _stock_status(stock_actual, stock_minimo),
-            }
-        )
-    return rows
-
-
-def _sort_rows(rows, sort_key):
-    reverse = sort_key.startswith("-")
-    key = sort_key.lstrip("-")
-    mapping = {
-        "codigo": lambda row: row["codigo"],
-        "nombre": lambda row: row["nombre"].lower(),
-        "categoria": lambda row: row["categoria"].lower(),
-        "precio_venta": lambda row: row["precio_venta"],
-        "stock_actual": lambda row: row["stock_actual"],
-        "stock_minimo": lambda row: row["stock_minimo"],
-        "estado": lambda row: row["estado"],
-    }
-    return sorted(rows, key=mapping.get(key, mapping["codigo"]), reverse=reverse)
+from .services import (
+    build_product_form_initial,
+    build_rows,
+    categories_and_providers,
+    inventory_queryset,
+    movement_history,
+    report_kpis,
+    report_summary,
+    sort_rows,
+)
 
 
 def _build_product_form(product=None):
-    categories = Categoria.objects.order_by("nombre")
-    providers = Proveedor.objects.order_by("nombre")
-    inventory = None
-    if product:
-        inventory = Inventario.objects.filter(id_producto=product).first()
-
-    initial = {
-        "product_id": product.id_producto if product else "",
-        "codigo_producto": product.id_producto if product else "",
-        "nombre": product.nombre if product else "",
-        "descripcion": product.descripcion if product else "",
-        "categoria": product.id_categoria_id if product else "",
-        "proveedor": product.id_proveedor_id if product else "",
-        "unidad_medida": product.unidad_medida if product else "unidad",
-        "precio_compra": product.precio_compra if product and product.precio_compra is not None else "",
-        "precio_venta": product.precio_venta if product and product.precio_venta is not None else "",
-        "stock_actual": inventory.stock_actual if inventory and inventory.stock_actual is not None else 0,
-        "stock_minimo": inventory.stock_minimo if inventory and inventory.stock_minimo is not None else 0,
-    }
-    return ProductForm(initial=initial, categories=categories, providers=providers)
+    data = categories_and_providers()
+    return ProductForm(initial=build_product_form_initial(product), categories=data["categories"], providers=data["providers"])
 
 
 def _current_user(request):
@@ -114,6 +41,22 @@ def _selected_product_from_request(request):
     if not selected_id:
         return None
     return Producto.objects.select_related("id_categoria", "id_proveedor").filter(id_producto=selected_id).first()
+
+
+def _parse_optional_date(request, key):
+    raw = (request.GET.get(key) or "").strip()
+    if not raw:
+        return None
+    return parse_date(raw)
+
+
+def _excel_safe_datetime(value):
+    if not value:
+        return ""
+    if timezone.is_aware(value):
+        value = timezone.localtime(value)
+        return value.replace(tzinfo=None)
+    return value
 
 
 @login_required_custom
@@ -131,8 +74,8 @@ def index(request):
     category_id = (request.GET.get("category") or "").strip()
     sort_key = (request.GET.get("sort") or "codigo").strip()
 
-    queryset = _inventory_queryset(query_text=query_text, category_id=category_id)
-    rows = _sort_rows(_build_rows(queryset), sort_key)
+    queryset = inventory_queryset(query_text=query_text, category_id=category_id)
+    rows = sort_rows(build_rows(queryset), sort_key)
 
     selected_product = _selected_product_from_request(request)
     if not selected_product and rows:
@@ -147,36 +90,30 @@ def index(request):
 
     product_form = _build_product_form(selected_product)
     movement_form = MovementForm()
-    movement_history = MovementHistory(selected_product)
+
+    categories = categories_and_providers()["categories"]
+    product_options = list(inventory_queryset().values("id_producto", "nombre"))
 
     context = {
-        "categories": Categoria.objects.order_by("nombre"),
-        "providers": Proveedor.objects.order_by("nombre"),
+        "categories": categories,
         "rows": rows,
         "selected_row": selected_row,
         "product_form": product_form,
         "movement_form": movement_form,
-        "movement_history": movement_history,
         "query_text": query_text,
         "category_id": category_id,
         "sort_key": sort_key,
         "selected_product_id": selected_product.id_producto if selected_product else "",
         "selected_product_name": selected_product.nombre if selected_product else "",
-        "product_options": list(_inventory_queryset().values("id_producto", "nombre")),
+        "product_options": product_options,
     }
     return render(request, "registro/index.html", context)
 
 
-def MovementHistory(selected_product):
-    queryset = MovimientoInventario.objects.select_related("id_producto", "id_usuario").order_by("-fecha_movimiento")
-    if selected_product:
-        queryset = queryset.filter(id_producto=selected_product)
-    return queryset[:20]
-
-
 def _save_product(request):
-    categories = Categoria.objects.order_by("nombre")
-    providers = Proveedor.objects.order_by("nombre")
+    data = categories_and_providers()
+    categories = data["categories"]
+    providers = data["providers"]
     form = ProductForm(request.POST, categories=categories, providers=providers)
     if not form.is_valid():
         messages.error(request, "Revisa los campos del producto antes de guardar.")
@@ -297,8 +234,8 @@ def _render_with_form(request, product_form=None, movement_form=None):
     query_text = (request.GET.get("q") or "").strip()
     category_id = (request.GET.get("category") or "").strip()
     sort_key = (request.GET.get("sort") or "codigo").strip()
-    queryset = _inventory_queryset(query_text=query_text, category_id=category_id)
-    rows = _sort_rows(_build_rows(queryset), sort_key)
+    queryset = inventory_queryset(query_text=query_text, category_id=category_id)
+    rows = sort_rows(build_rows(queryset), sort_key)
     selected_product = _selected_product_from_request(request)
     if not selected_product and rows:
         selected_product = rows[0]["product"]
@@ -315,19 +252,17 @@ def _render_with_form(request, product_form=None, movement_form=None):
         movement_form = MovementForm()
 
     context = {
-        "categories": Categoria.objects.order_by("nombre"),
-        "providers": Proveedor.objects.order_by("nombre"),
+        "categories": categories_and_providers()["categories"],
         "rows": rows,
         "selected_row": selected_row,
         "product_form": product_form,
         "movement_form": movement_form,
-        "movement_history": MovementHistory(selected_product),
         "query_text": query_text,
         "category_id": category_id,
         "sort_key": sort_key,
         "selected_product_id": selected_product.id_producto if selected_product else "",
         "selected_product_name": selected_product.nombre if selected_product else "",
-        "product_options": list(_inventory_queryset().values("id_producto", "nombre")),
+        "product_options": list(inventory_queryset().values("id_producto", "nombre")),
     }
     return render(request, "registro/index.html", context)
 
@@ -336,7 +271,17 @@ def _render_with_form(request, product_form=None, movement_form=None):
 def export_excel(request):
     query_text = (request.GET.get("q") or "").strip()
     category_id = (request.GET.get("category") or "").strip()
-    rows = _sort_rows(_build_rows(_inventory_queryset(query_text=query_text, category_id=category_id)), "codigo")
+    product_id = (request.GET.get("product") or "").strip()
+    movement_type = (request.GET.get("movement_type") or "").strip()
+    start_date = _parse_optional_date(request, "from")
+    end_date = _parse_optional_date(request, "to")
+    rows = sort_rows(build_rows(inventory_queryset(query_text=query_text, category_id=category_id)), "codigo")
+    movements = report_kpis(
+        product_id=product_id,
+        movement_type=movement_type,
+        start_date=start_date,
+        end_date=end_date,
+    )["movements"]
 
     workbook = Workbook()
     sheet = workbook.active
@@ -353,11 +298,11 @@ def export_excel(request):
             row["estado"],
         ])
 
-    movements = workbook.create_sheet("Movimientos")
-    movements.append(["Fecha", "Producto", "Tipo", "Cantidad", "Usuario", "Observación"])
-    for movement in MovimientoInventario.objects.select_related("id_producto", "id_usuario").order_by("-fecha_movimiento")[:200]:
-        movements.append([
-            movement.fecha_movimiento,
+    movements_sheet = workbook.create_sheet("Movimientos")
+    movements_sheet.append(["Fecha", "Producto", "Tipo", "Cantidad", "Usuario", "Observación"])
+    for movement in movements[:200]:
+        movements_sheet.append([
+            _excel_safe_datetime(movement.fecha_movimiento),
             movement.id_producto.nombre if movement.id_producto else "",
             movement.tipo_movimiento,
             movement.cantidad,
@@ -374,3 +319,40 @@ def export_excel(request):
     )
     response["Content-Disposition"] = 'attachment; filename="inventario_ferreteria.xlsx"'
     return response
+
+
+@login_required_custom
+def reportes(request):
+    query_text = (request.GET.get("q") or "").strip()
+    category_id = (request.GET.get("category") or "").strip()
+    product_id = (request.GET.get("product") or "").strip()
+    movement_type = (request.GET.get("movement_type") or "").strip()
+    start_date = _parse_optional_date(request, "from")
+    end_date = _parse_optional_date(request, "to")
+
+    rows = sort_rows(build_rows(inventory_queryset(query_text=query_text, category_id=category_id)), "codigo")
+    summary = report_summary(inventory_queryset(query_text=query_text, category_id=category_id))
+    kpis = report_kpis(product_id=product_id, movement_type=movement_type, start_date=start_date, end_date=end_date)
+
+    selected_product = _selected_product_from_request(request)
+    if not selected_product and product_id:
+        selected_product = Producto.objects.filter(id_producto=product_id).first()
+
+    context = {
+        "categories": categories_and_providers()["categories"],
+        "rows": rows,
+        "summary": summary,
+        "movements": kpis["movements"],
+        "total_entradas": kpis["total_entradas"],
+        "total_salidas": kpis["total_salidas"],
+        "conteo_movimientos": kpis["conteo_movimientos"],
+        "query_text": query_text,
+        "category_id": category_id,
+        "product_id": product_id,
+        "movement_type": movement_type,
+        "start_date": request.GET.get("from", ""),
+        "end_date": request.GET.get("to", ""),
+        "selected_product_name": selected_product.nombre if selected_product else "",
+        "product_options": list(inventory_queryset().values("id_producto", "nombre")),
+    }
+    return render(request, "registro/reportes.html", context)

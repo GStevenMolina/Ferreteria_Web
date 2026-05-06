@@ -1,11 +1,20 @@
 :root{
-  --bg: #23245D;
-  --sidebar: #1A1A40;
-  --btn: #2D2F65;
-  --hover: #348FFC;
+  /* Paleta de login.css para coherencia visual */
+  --c0: #053b6e;
+  --c1: #0ea5e9;
+  --c2: #22d3ee;
+  --cText: rgba(255,255,255,.92);
+  --cMuted: rgba(255,255,255,.72);
+  --cLine: rgba(255,255,255,.34);
+  
+  /* Variables heredadas (compatibilidad) */
+  --bg: #053b6e;
+  --sidebar: #0a4b85;
+  --btn: #0ea5e9;
+  --hover: #22d3ee;
   --orange: #F4952F;
   --gray: #5a5a5a;
-  --text: #ffffff;
+  --text: rgba(255,255,255,.92);
   --radius: 12px;
 }
 
@@ -45,6 +54,57 @@ body{
 .brand__subtitle{ font-weight: 600; font-size: 14px; color: var(--orange); line-height: 1.1; }
 
 .sidebar.is-collapsed .brand__text{ display:none; }
+
+/* User Profile Section */
+.user-profile{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+  padding: 12px 12px;
+  margin: 8px 8px 16px 8px;
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 14px;
+}
+
+.user-avatar{
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0ea5e9, #22d3ee);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+  flex-shrink: 0;
+  color: #001018;
+}
+
+.user-info{
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name{
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-role{
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.2;
+}
+
+.sidebar.is-collapsed .user-info{
+  display: none;
+}
 
 .divider{
   height: 1px;
@@ -87,7 +147,7 @@ body{
   height: 44px;
 
   border-radius: var(--radius);
-  background: var(--btn);
+  background: transparent;
   color: var(--text);
   text-decoration: none;
 
@@ -95,8 +155,14 @@ body{
   font-weight: 600;
 
   padding: 0 10px;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
 }
-.menu-link:hover{ background: var(--hover); }
+.menu-link:hover{
+  background: rgba(34, 211, 238, 0.16);
+  border-left: 3px solid var(--hover);
+  padding-left: 7px;
+}
 
 .menu-link[aria-disabled="true"]{
   opacity: .5;

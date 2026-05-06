@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Proveedores | Ferreteria Mi Casa{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/compras.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="prov-wrap">
+  <h1 class="prov-title">Consulta de proveedores</h1>
+  <p class="prov-subtitle">Visualiza proveedores, productos y movimientos de inventario por tipo (Entrada/Salida).</p>
+
+  {% if proveedores_data %}
+    {% for item in proveedores_data %}
+      {% with p=item.proveedor lista=item.productos %}
+      <section class="prov-card">
+        <div class="prov-card__head">
+          <div>
+            <strong>{{ p.nombre }}</strong>
+            <div class="prov-muted">ID proveedor: {{ p.id_proveedor }}</div>
+          </div>
+          <div class="prov-muted">Productos registrados: {{ p.total_productos }}</div>
+        </div>
+
+        <div class="prov-card__body">
+          {% if lista %}
+            <table class="prov-table">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th class="prov-right">Entrada</th>
+                  <th class="prov-right">Salida</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for prod in lista %}
+                  <tr>
+                    <td>{{ prod.nombre }}</td>
+                    <td class="prov-right">{{ prod.entradas }}</td>
+                    <td class="prov-right">{{ prod.salidas }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <div class="prov-empty">Sin productos asociados.</div>
+          {% endif %}
+        </div>
+      </section>
+      {% endwith %}
+    {% endfor %}
+  {% else %}
+    <div class="prov-no-data">No hay proveedores registrados.</div>
+  {% endif %}
+</div>
+{% endblock %}

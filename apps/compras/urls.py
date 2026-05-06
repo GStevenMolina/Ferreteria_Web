@@ -18,6 +18,7 @@ app_name = "compras"
 urlpatterns = [
     # Página principal
     path("", views.index, name="index"),
+    path("proveedor/", views.proveedor, name="proveedor"),
 
     # Registrar compra (POST)
     path("nueva/", views.nueva_compra, name="nueva_compra"),

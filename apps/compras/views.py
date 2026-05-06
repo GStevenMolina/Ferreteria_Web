@@ -17,7 +17,8 @@ import json
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
-from django.db.models import F, Max
+from django.db.models import F, Max, Q, Sum, Value, IntegerField
+from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -97,6 +98,72 @@ def index(request):
     Este template carga el JS y CSS necesarios para operar la compra.
     """
     return render(request, "compras/index.html")
+
+
+@login_required_custom
+@require_GET
+def proveedor(request):
+    """
+    Vista de consulta por proveedor.
+
+    Muestra cada proveedor con sus productos y el total de movimientos
+    de inventario de tipo Entrada y Salida por producto.
+    """
+    proveedores = list(
+        Proveedor.objects
+        .values("id_proveedor", "nombre")
+        .order_by("nombre")
+    )
+
+    productos = (
+        Producto.objects
+        .values("id_producto", "id_proveedor_id", "nombre")
+        .annotate(
+            entradas=Coalesce(
+                Sum(
+                    "movimientoinventario__cantidad",
+                    filter=Q(movimientoinventario__tipo_movimiento__iexact="Entrada"),
+                ),
+                Value(0),
+                output_field=IntegerField(),
+            ),
+            salidas=Coalesce(
+                Sum(
+                    "movimientoinventario__cantidad",
+                    filter=Q(movimientoinventario__tipo_movimiento__iexact="Salida"),
+                ),
+                Value(0),
+                output_field=IntegerField(),
+            ),
+        )
+        .order_by("id_proveedor_id", "nombre")
+    )
+
+    productos_por_proveedor = {}
+    for producto in productos:
+        proveedor_id = producto["id_proveedor_id"]
+        if proveedor_id not in productos_por_proveedor:
+            productos_por_proveedor[proveedor_id] = []
+        productos_por_proveedor[proveedor_id].append(producto)
+
+    proveedores_data = []
+    for p in proveedores:
+        productos_del_proveedor = productos_por_proveedor.get(p["id_proveedor"], [])
+        p["total_productos"] = len(productos_del_proveedor)
+        proveedores_data.append(
+            {
+                "proveedor": p,
+                "productos": productos_del_proveedor,
+            }
+        )
+
+    return render(
+        request,
+        "compras/proveedor.html",
+        {
+            "proveedores_data": proveedores_data,
+        },
+    )
 
 
 # APIs: Proveedores y Productos

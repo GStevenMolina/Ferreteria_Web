@@ -24,6 +24,20 @@
 
       <div class="divider"></div>
 
+      {% if request.session.usuario_nombre %}
+      <div class="user-profile">
+        <div class="user-avatar">
+          {% if request.session.usuario_nombre %}{{ request.session.usuario_nombre|first|upper }}{% else %}U{% endif %}
+        </div>
+        <div class="user-info">
+          <div class="user-name">{{ request.session.usuario_nombre }}</div>
+          <div class="user-role">{{ request.session.usuario_rol }}</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      {% endif %}
+
       <button id="btnToggleMenu" class="toggle" title="Plegar menú" aria-label="Plegar menú">≡</button>
 
       <div class="menu-title">Menú principal</div>
@@ -31,6 +45,10 @@
 <nav class="menu">
   <a class="menu-link" href="{% url 'compras:index' %}" data-permission="compras">
     <span class="menu-link__icon">🛒</span><span class="menu-link__text">Compras</span>
+  </a>
+
+  <a class="menu-link" href="{% url 'compras:proveedor' %}" data-permission="compras">
+    <span class="menu-link__icon">🏷️</span><span class="menu-link__text">Proveedor</span>
   </a>
 
   <a class="menu-link" href="{% url 'ventas:index' %}" data-permission="ventas">
@@ -46,11 +64,6 @@
   </a>
 
   <div class="divider"></div>
-
-  <!-- (6) Cambiar contraseña -->
-  <a class="menu-link" href="{% url 'change_password' %}">
-    <span class="menu-link__icon">🔑</span><span class="menu-link__text">Cambiar contraseña</span>
-  </a>
   
   {% if request.session.usuario_rol == "Administrador" %}
   <a class="menu-link" href="{% url 'users_list' %}">

@@ -17,8 +17,7 @@ import json
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
-from django.db.models import F, Max, Q, Sum, Value, IntegerField
-from django.db.models.functions import Coalesce
+from django.db.models import Count, F, Max
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -106,54 +105,46 @@ def proveedor(request):
     """
     Vista de consulta por proveedor.
 
-    Muestra cada proveedor con sus productos y el total de movimientos
-    de inventario de tipo Entrada y Salida por producto.
+    Muestra cada proveedor con TODOS sus datos (contacto, dirección, etc.)
+    y las categorías que ofrece con cantidad de productos en cada una.
     """
     proveedores = list(
         Proveedor.objects
-        .values("id_proveedor", "nombre")
+        .values("id_proveedor", "nombre", "telefono", "email", "numero_contacto", "direccion", "tipo_proveedor", "fecha_registro")
         .order_by("nombre")
     )
 
-    productos = (
+    categorias = (
         Producto.objects
-        .values("id_producto", "id_proveedor_id", "nombre")
+        .values("id_proveedor_id", "id_categoria_id", "id_categoria__nombre")
         .annotate(
-            entradas=Coalesce(
-                Sum(
-                    "movimientoinventario__cantidad",
-                    filter=Q(movimientoinventario__tipo_movimiento__iexact="Entrada"),
-                ),
-                Value(0),
-                output_field=IntegerField(),
-            ),
-            salidas=Coalesce(
-                Sum(
-                    "movimientoinventario__cantidad",
-                    filter=Q(movimientoinventario__tipo_movimiento__iexact="Salida"),
-                ),
-                Value(0),
-                output_field=IntegerField(),
-            ),
+            productos=Count("id_producto"),
         )
-        .order_by("id_proveedor_id", "nombre")
+        .order_by("id_proveedor_id", "id_categoria__nombre")
     )
 
-    productos_por_proveedor = {}
-    for producto in productos:
-        proveedor_id = producto["id_proveedor_id"]
-        if proveedor_id not in productos_por_proveedor:
-            productos_por_proveedor[proveedor_id] = []
-        productos_por_proveedor[proveedor_id].append(producto)
+    categorias_por_proveedor = {}
+    for categoria in categorias:
+        proveedor_id = categoria["id_proveedor_id"]
+        if proveedor_id not in categorias_por_proveedor:
+            categorias_por_proveedor[proveedor_id] = []
+        categorias_por_proveedor[proveedor_id].append(
+            {
+                "id_categoria": categoria["id_categoria_id"],
+                "nombre": categoria["id_categoria__nombre"] or "Sin categoría",
+                "productos": categoria["productos"],
+            }
+        )
 
     proveedores_data = []
     for p in proveedores:
-        productos_del_proveedor = productos_por_proveedor.get(p["id_proveedor"], [])
-        p["total_productos"] = len(productos_del_proveedor)
+        categorias_del_proveedor = categorias_por_proveedor.get(p["id_proveedor"], [])
+        p["total_categorias"] = len(categorias_del_proveedor)
+        p["total_productos"] = sum(categoria["productos"] for categoria in categorias_del_proveedor)
         proveedores_data.append(
             {
                 "proveedor": p,
-                "productos": productos_del_proveedor,
+                "categorias": categorias_del_proveedor,
             }
         )
 

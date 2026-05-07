@@ -21,6 +21,18 @@
   box-shadow: var(--shadow);
 }
 
+.compras-layout{
+  display:grid;
+  grid-template-columns: minmax(430px, 1fr) minmax(520px, 1.3fr);
+  gap:16px;
+  align-items:start;
+}
+
+.compras-left,
+.compras-right{
+  min-width:0;
+}
+
 /* layout */
 .grid2{
   display:grid;
@@ -124,6 +136,36 @@ tbody tr:hover{background:rgba(255,255,255,.03);}
 .totline b{font-size:15px;}
 .saveBtn{width:100%;margin-top:12px;}
 
+.compras-right table{margin-top:0;}
+
+/* Nuevo flujo vertical de tres niveles */
+.compras-header{
+  display:flex;
+  gap:14px;
+  align-items:end;
+  justify-content:flex-start;
+  margin-bottom:12px;
+}
+.compras-header__item{min-width:180px;}
+
+.action-bar{
+  display:flex;
+  gap:12px;
+  align-items:end;
+  margin-bottom:14px;
+  flex-wrap:wrap;
+}
+.action-item{min-width:120px;}
+.action-item--btn{display:flex;align-items:flex-end;}
+
+.table-wrap{display:block; width:100%;}
+.table-wrap table{width:100%;}
+
+.totals-panel{display:flex;justify-content:flex-end;margin-top:12px;}
+
+/* asegurar que totbox no ocupe toda la fila en pantallas pequeñas */
+.totbox{max-width:380px; width:100%;}
+
 /* toast */
 .toast{
   position:fixed;right:18px;top:18px;width:min(420px, calc(100vw - 36px));
@@ -218,6 +260,21 @@ tbody tr:hover{background:rgba(255,255,255,.03);}
   .modal__grid{ grid-template-columns: 1fr; }
 }
 
+@media (max-width: 1200px){
+  .compras-layout{
+    grid-template-columns: 1fr;
+  }
+
+  .footerRow{
+    grid-template-columns: 1fr;
+  }
+
+  /* En pantallas pequeñas apilar la barra de acción verticalmente */
+  .action-bar{flex-direction:column;align-items:stretch;}
+  .action-item{width:100%;}
+  .totals-panel{justify-content:flex-start;}
+}
+
 /* autocomplete proveedor */
 .ac__list{
   position: fixed;
@@ -301,6 +358,34 @@ tbody tr:hover{background:rgba(255,255,255,.03);}
 
 .prov-card__body{
   padding:14px 18px 18px;
+}
+
+.prov-card__details{
+  padding:14px 18px;
+  background: rgba(5, 59, 110, 0.15);
+  border-top: 1px solid rgba(34, 211, 238, 0.10);
+  display: grid;
+  gap: 8px;
+}
+
+.prov-detail{
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  align-items: flex-start;
+}
+
+.prov-label{
+  color: rgba(34, 211, 238, 0.85);
+  font-weight: 700;
+  min-width: 90px;
+  white-space: nowrap;
+}
+
+.prov-detail span:last-child{
+  color: rgba(255, 255, 255, 0.88);
+  flex: 1;
+  word-break: break-word;
 }
 
 .prov-muted{

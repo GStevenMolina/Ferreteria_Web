@@ -24,38 +24,68 @@
 
       <div class="divider"></div>
 
+      {% if request.session.usuario_nombre %}
+      <div class="user-profile">
+        <div class="user-avatar">
+          {% if request.session.usuario_nombre %}{{ request.session.usuario_nombre|first|upper }}{% else %}U{% endif %}
+        </div>
+        <div class="user-info">
+          <div class="user-name">{{ request.session.usuario_nombre }}</div>
+          <div class="user-role">{{ request.session.usuario_rol }}</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      {% endif %}
+
       <button id="btnToggleMenu" class="toggle" title="Plegar menú" aria-label="Plegar menú">≡</button>
 
       <div class="menu-title">Menú principal</div>
 
-      <nav class="menu">
-        <a class="menu-link" href="{% url 'compras:index' %}" data-permission="compras">
-          <span class="menu-link__icon">🛒</span><span class="menu-link__text">Compras</span>
-        </a>
+<nav class="menu">
+  <a class="menu-link" href="{% url 'compras:index' %}" data-permission="compras">
+    <span class="menu-link__icon">🛒</span><span class="menu-link__text">Compras</span>
+  </a>
 
-        <a class="menu-link" href="{% url 'ventas:index' %}" data-permission="ventas">
-          <span class="menu-link__icon">💵</span><span class="menu-link__text">Ventas</span>
-        </a>
+  <a class="menu-link" href="{% url 'compras:proveedor' %}" data-permission="compras">
+    <span class="menu-link__icon">🏷️</span><span class="menu-link__text">Proveedor</span>
+  </a>
 
-        <a class="menu-link" href="{% url 'devolucion:index' %}" data-permission="devolucion">
-          <span class="menu-link__icon">↩️</span><span class="menu-link__text">Devolución</span>
-        </a>
+  <a class="menu-link" href="{% url 'ventas:index' %}" data-permission="ventas">
+    <span class="menu-link__icon">💵</span><span class="menu-link__text">Ventas</span>
+  </a>
 
-        <a class="menu-link" href="{% url 'registro:index' %}" data-permission="registro">
-          <span class="menu-link__icon">📦</span><span class="menu-link__text">Inventario</span>
-        </a>
+  <a class="menu-link" href="{% url 'devolucion:index' %}" data-permission="devolucion">
+    <span class="menu-link__icon">↩️</span><span class="menu-link__text">Devolución</span>
+  </a>
 
-        <div class="divider"></div>
+  <a class="menu-link" href="{% url 'registro:index' %}" data-permission="registro">
+    <span class="menu-link__icon">📁</span><span class="menu-link__text">Registro</span>
+  </a>
 
-        <a class="menu-link menu-link--gray" href="{% url 'logout' %}" id="linkCerrarSeccion">
-          <form method="post" action="{% url 'logout' %}" style="margin:0;">
-  {% csrf_token %}
-  <button type="submit" class="menu-link menu-link--gray" id="linkCerrarSesion" style="width:100%; background:none; border:0; padding:0; text-align:left;">
-    <span class="menu-link__icon">🔒</span><span class="menu-link__text">Cerrar sesión</span>
-  </button>
-</form>
-        </a>
-      </nav>
+  <div class="divider"></div>
+  
+  {% if request.session.usuario_rol == "Administrador" %}
+  <a class="menu-link" href="{% url 'users_list' %}">
+    <span class="menu-link__icon">👥</span><span class="menu-link__text">Usuarios</span>
+  </a>
+  {% endif %}
+  <div class="divider"></div>
+
+  <!-- Logout SOLO por POST (sin <a> envolviendo <form>) -->
+  <form method="post" action="{% url 'logout' %}" style="margin:0;">
+    {% csrf_token %}
+    <button
+      type="submit"
+      class="menu-link menu-link--gray"
+      id="linkCerrarSesion"
+      style="width:100%; background:none; border:0; padding:0; text-align:left; cursor:pointer;"
+      title="Cerrar sesión"
+    >
+      <span class="menu-link__icon">🔒</span><span class="menu-link__text">Cerrar sesión</span>
+    </button>
+  </form>
+</nav>
     </aside>
 
     <main class="main">

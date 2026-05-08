@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Usuarios{% endblock %}
+
+{% block extra_css %}
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/users_list.css' %}">
+{% endblock %}
+
+{% block content %}
+  <div class="card users-page">
+    <div class="users-page__header">
+      <div class="users-page__titleWrap">
+        <h1 class="page-title" style="margin:0;">Usuarios</h1>
+        <p class="page-subtitle" style="margin:0;">
+          Administra usuarios: activar / desactivar.
+        </p>
+      </div>
+
+      <div class="users-page__actions">
+        <form method="get" action="{% url 'create_user' %}" style="margin:0;">
+          <button type="submit" class="btn btn--primary">+ Nuevo usuario</button>
+        </form>
+      </div>
+    </div>
+
+    {% if messages %}
+      <div style="margin-top:14px; display:flex; flex-direction:column; gap:10px;">
+        {% for message in messages %}
+          <div class="alert alert--danger">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="users-page__tableWrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="width:80px;">ID</th>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th style="width:170px;">Rol</th>
+            <th style="width:110px;">Activo</th>
+            <th style="width:160px; text-align:right;">Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in usuarios %}
+            <tr>
+              <td>#{{ u.id_usuario }}</td>
+              <td>{{ u.nombre }}</td>
+              <td>{{ u.email }}</td>
+              <td><span class="badge">{{ u.rol }}</span></td>
+              <td>
+                {% if u.activo %}
+                  <span class="status status--ok">Activo</span>
+                {% else %}
+                  <span class="status status--off">Inactivo</span>
+                {% endif %}
+              </td>
+              <td style="text-align:right;">
+                {% if request.session.id_usuario|add:0 == u.id_usuario %}
+                  <span class="muted">No disponible</span>
+                {% else %}
+                  <form method="post" action="{% url 'toggle_user_active' u.id_usuario %}" style="margin:0;">
+                    {% csrf_token %}
+                    {% if u.activo %}
+                      <button class="btn btn--danger" type="submit">Desactivar</button>
+                    {% else %}
+                      <button class="btn btn--primary" type="submit">Activar</button>
+                    {% endif %}
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6" class="muted">No hay usuarios.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

@@ -31,9 +31,9 @@
       const data = safeParse(row.dataset.product);
       // Comparar la categoría del producto con el filtro activo
       const matchesCategory = !category || String(data.categoria || '') === String(category);
-      // Buscar el término en el código y el nombre del producto
-      const haystack = [data.codigo, data.nombre].join(' ').toLowerCase();
-      const matchesTerm = !term || haystack.includes(term);
+      // Buscar el término SOLO en el nombre del producto
+      const name = (data.nombre || '').toLowerCase();
+      const matchesTerm = !term || name.includes(term);
       // Mostrar u ocultar la fila según ambas condiciones
       row.style.display = matchesCategory && matchesTerm ? '' : 'none';
     });

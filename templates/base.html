@@ -63,6 +63,10 @@
     <span class="menu-link__icon">📁</span><span class="menu-link__text">Registro</span>
   </a>
 
+  <a class="menu-link" href="{% url 'registro:reportes' %}" data-permission="registro">
+    <span class="menu-link__icon">📊</span><span class="menu-link__text">Reportes</span>
+  </a>
+
   <div class="divider"></div>
   
   {% if request.session.usuario_rol == "Administrador" %}

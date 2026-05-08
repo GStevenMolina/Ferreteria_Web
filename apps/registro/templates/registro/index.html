@@ -7,94 +7,13 @@
 {% endblock %}
 
 {% block content %}
-<div class="inventory-page" data-selected-product-id="{{ selected_product_id }}">
+<div class="inventory-page">
   <section class="inventory-topbar card">
     <div>
       <p class="eyebrow">Control de inventario</p>
       <h1 class="page-title">Registro de inventario</h1>
-      <p class="page-subtitle">Crea productos, ajusta stock y registra movimientos sin cargar historial ni reportes en esta pantalla.</p>
-    </div>
-    <div class="inventory-topbar__actions">
-      <button type="button" class="action-btn action-btn--soft" data-action="new-product">Agregar producto</button>
-      <button type="submit" form="product-form" name="action" value="save_product" class="action-btn action-btn--primary">Guardar</button>
-      <button type="button" class="action-btn" data-action="edit-product">Editar</button>
-      <button type="submit" form="delete-form" class="action-btn action-btn--danger" onclick="return confirm('¿Eliminar este producto? Esta acción no se puede deshacer.')">Eliminar</button>
-      <button type="button" class="action-btn action-btn--soft" data-action="focus-movement">Actualizar stock</button>
-      <a class="action-btn action-btn--soft" href="{% url 'registro:reportes' %}">Ver reportes</a>
     </div>
   </section>
-
-  <div id="createProductModal" class="inventory-modal" aria-hidden="true">
-    <div class="inventory-modal__backdrop" data-action="close-create-modal"></div>
-    <div class="inventory-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="createProductTitle">
-      <div class="inventory-modal__header">
-        <h2 id="createProductTitle">Agregar producto</h2>
-        <button type="button" class="inventory-modal__close" data-action="close-create-modal" aria-label="Cerrar">×</button>
-      </div>
-      <p class="inventory-modal__subtitle">Completa los datos y guarda. El stock actual inicia en 0 y se ajusta con movimientos.</p>
-
-      <form id="create-product-form" method="post" class="form-grid form-grid--compact">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="save_product">
-        <input type="hidden" name="product_id" value="">
-
-        <div class="form-field form-field--full">
-          <label for="create_nombre">Nombre del producto</label>
-          <input id="create_nombre" name="nombre" maxlength="100" required>
-        </div>
-        <div class="form-field form-field--full">
-          <label for="create_descripcion">Descripción</label>
-          <textarea id="create_descripcion" name="descripcion" rows="3"></textarea>
-        </div>
-        <div class="form-field">
-          <label for="create_categoria">Categoría</label>
-          <select id="create_categoria" name="categoria" required>
-            {% for category in categories %}
-              <option value="{{ category.id_categoria }}">{{ category.nombre }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-field">
-          <label for="create_proveedor">Proveedor</label>
-          <select id="create_proveedor" name="proveedor">
-            <option value="">Sin proveedor</option>
-            {% for provider in providers %}
-              <option value="{{ provider.id_proveedor }}">{{ provider.nombre }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-field">
-          <label for="create_unidad_medida">Unidad de medida</label>
-          <select id="create_unidad_medida" name="unidad_medida" required>
-            <option value="unidad">Unidad</option>
-            <option value="caja">Caja</option>
-            <option value="metro">Metro</option>
-            <option value="litro">Litro</option>
-            <option value="kilogramo">Kilogramo</option>
-            <option value="paquete">Paquete</option>
-            <option value="rollo">Rollo</option>
-          </select>
-        </div>
-        <div class="form-field">
-          <label for="create_stock_minimo">Stock mínimo</label>
-          <input id="create_stock_minimo" name="stock_minimo" type="number" min="0" step="1" value="0" required>
-        </div>
-        <div class="form-field">
-          <label for="create_precio_compra">Precio de compra</label>
-          <input id="create_precio_compra" name="precio_compra" type="number" min="0.01" step="0.01" required>
-        </div>
-        <div class="form-field">
-          <label for="create_precio_venta">Precio de venta</label>
-          <input id="create_precio_venta" name="precio_venta" type="number" min="0.01" step="0.01" required>
-        </div>
-
-        <div class="form-field form-field--full inventory-modal__actions">
-          <button type="button" class="action-btn action-btn--soft" data-action="close-create-modal">Cancelar</button>
-          <button type="submit" class="action-btn action-btn--primary">Guardar producto</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
   <section class="inventory-toolbar card">
     <div class="toolbar-field toolbar-field--wide">
@@ -114,115 +33,13 @@
       <label>Resumen</label>
       <div class="summary-pill">{{ rows|length }} productos visibles</div>
     </div>
-    <div class="toolbar-field toolbar-field--actions">
-      <label>Flujo</label>
-      <div class="segmented-actions">
-        <span class="segmented-actions__item is-active">Registro</span>
-        <a class="segmented-actions__item" href="{% url 'registro:reportes' %}">Reportes</a>
-      </div>
-    </div>
   </section>
 
   <div class="inventory-layout">
-    <aside class="inventory-panel card">
-      <div class="panel-heading">
-        <h2>Formulario de producto</h2>
-        <p>Usa este bloque para crear o editar productos. La edición es inmediata y no interrumpe el flujo de trabajo.</p>
-      </div>
-
-      <form id="product-form" method="post" class="form-grid">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="save_product">
-        {{ product_form.product_id }}
-
-        <div class="form-field form-field--full">
-          <label for="id_codigo_producto">Código de producto</label>
-          {{ product_form.codigo_producto }}
-        </div>
-        <div class="form-field form-field--full">
-          <label for="id_nombre">Nombre del producto</label>
-          {{ product_form.nombre }}
-          {{ product_form.nombre.errors }}
-        </div>
-        <div class="form-field form-field--full">
-          <label for="id_descripcion">Descripción</label>
-          {{ product_form.descripcion }}
-        </div>
-        <div class="form-field">
-          <label for="id_categoria">Categoría</label>
-          {{ product_form.categoria }}
-        </div>
-        <div class="form-field">
-          <label for="id_proveedor">Proveedor</label>
-          {{ product_form.proveedor }}
-        </div>
-        <div class="form-field">
-          <label for="id_unidad_medida">Unidad de medida</label>
-          {{ product_form.unidad_medida }}
-        </div>
-        <div class="form-field">
-          <label for="id_precio_compra">Precio de compra</label>
-          {{ product_form.precio_compra }}
-        </div>
-        <div class="form-field">
-          <label for="id_precio_venta">Precio de venta</label>
-          {{ product_form.precio_venta }}
-        </div>
-        <div class="form-field">
-          <label for="id_stock_actual">Stock actual</label>
-          {{ product_form.stock_actual }}
-        </div>
-        <div class="form-field">
-          <label for="id_stock_minimo">Stock mínimo</label>
-          {{ product_form.stock_minimo }}
-        </div>
-      </form>
-
-      <form id="delete-form" method="post" class="hidden-delete-form">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="delete_product">
-        <input type="hidden" name="product_id" id="deleteProductId" value="{{ selected_product_id }}">
-      </form>
-
-      <div class="panel-heading panel-heading--spaced">
-        <h2>Movimiento de inventario</h2>
-        <p>Las entradas, salidas y ajustes actualizan el stock de forma transaccional sin salir de Registro.</p>
-      </div>
-
-      <form id="movement-form" method="post" class="form-grid form-grid--compact">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="save_movement">
-        <div class="form-field form-field--full">
-          <label for="movementProductInput">Producto</label>
-          <input id="movementProductInput" name="producto" list="product-options" placeholder="Escribe el código o nombre" value="{{ selected_product_id }} | {{ selected_product_name }}">
-          <datalist id="product-options">
-            {% for option in product_options %}
-              <option value="{{ option.id_producto }} | {{ option.nombre }}">
-            {% endfor %}
-          </datalist>
-        </div>
-        <div class="form-field">
-          <label for="id_tipo_movimiento">Tipo de movimiento</label>
-          {{ movement_form.tipo_movimiento }}
-        </div>
-        <div class="form-field">
-          <label for="id_cantidad">Cantidad</label>
-          {{ movement_form.cantidad }}
-        </div>
-        <div class="form-field form-field--full">
-          <label for="id_observacion">Observación</label>
-          {{ movement_form.observacion }}
-        </div>
-        <div class="form-field form-field--full">
-          <button type="submit" form="movement-form" class="action-btn action-btn--primary action-btn--full">Registrar movimiento</button>
-        </div>
-      </form>
-    </aside>
-
     <section class="inventory-panel inventory-panel--table card">
       <div class="panel-heading">
         <h2>Inventario actual</h2>
-        <p>Haz clic en una fila para cargar el producto en el formulario de edición.</p>
+        <p>Consulta los productos y usa filtros para encontrar rápidamente lo que buscas.</p>
       </div>
 
       <div class="inventory-table-wrap">

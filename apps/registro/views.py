@@ -22,6 +22,9 @@ from .services import (
     report_summary,
     sort_rows,
 )
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
 
 
 # --------------------------------------------------------------------------
@@ -107,6 +110,17 @@ def index(request):
     queryset = inventory_queryset(query_text=query_text, category_id=category_id)
     rows = sort_rows(build_rows(queryset), sort_key)
 
+    # Paginación server-side
+    page = request.GET.get('page', 1)
+    per_page = 25
+    paginator = Paginator(rows, per_page)
+    try:
+        rows_page = paginator.page(page)
+    except PageNotAnInteger:
+        rows_page = paginator.page(1)
+    except EmptyPage:
+        rows_page = paginator.page(paginator.num_pages)
+
     # Determinar el producto seleccionado (URL o primero de la lista)
     selected_product = _selected_product_from_request(request)
     if not selected_product and rows:
@@ -129,7 +143,9 @@ def index(request):
 
     context = {
         "categories": categories,
-        "rows": rows,
+        "rows": rows_page.object_list,
+        "page_obj": rows_page,
+        "paginator": paginator,
         "selected_row": selected_row,
         "product_form": product_form,
         "movement_form": movement_form,
@@ -141,6 +157,20 @@ def index(request):
         "product_options": product_options,
     }
     return render(request, "registro/index.html", context)
+
+
+@require_GET
+def autocomplete_products(request):
+    """API simple que devuelve sugerencias de productos para autocompletar.
+    Parámetro: `q` texto de búsqueda (min 1 caracter). Devuelve JSON list de objetos {id_producto, nombre}.
+    """
+    q = (request.GET.get('q') or '').strip()
+    if not q:
+        return JsonResponse([], safe=False)
+
+    qs = inventory_queryset(query_text=q)
+    suggestions = list(qs.values('id_producto', 'nombre')[:12])
+    return JsonResponse(suggestions, safe=False)
 
 
 # --------------------------------------------------------------------------

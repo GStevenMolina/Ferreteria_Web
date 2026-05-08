@@ -39,9 +39,45 @@
     });
   }
 
-  // Escuchar cambios en los controles de filtrado para actualizar la tabla en tiempo real
-  searchBox?.addEventListener('input', filterRows);
-  categoryFilter?.addEventListener('change', filterRows);
+  // Debounced autocomplete for search box (updates datalist)
+  let acTimeout = null;
+  const acUrl = searchBox?.dataset.autocompleteUrl;
+  const datalist = document.getElementById('search-suggestions');
+
+  function updateDatalist(items) {
+    if (!datalist) return;
+    datalist.innerHTML = '';
+    items.forEach((it) => {
+      const option = document.createElement('option');
+      option.value = `${it.id_producto} | ${it.nombre}`;
+      datalist.appendChild(option);
+    });
+  }
+
+  searchBox?.addEventListener('input', (e) => {
+    // keep client-side filtering too
+    filterRows();
+    const q = (e.target.value || '').trim();
+    if (!acUrl) return;
+    if (acTimeout) clearTimeout(acTimeout);
+    if (q.length < 2) {
+      updateDatalist([]);
+      return;
+    }
+    acTimeout = setTimeout(() => {
+      fetch(`${acUrl}?q=${encodeURIComponent(q)}`)
+        .then((r) => r.json())
+        .then((data) => updateDatalist(data))
+        .catch(() => {});
+    }, 220);
+  });
+
+  categoryFilter?.addEventListener('change', () => {
+    // submit the surrounding form to apply server-side filters
+    const frm = categoryFilter.closest('form');
+    if (frm) frm.requestSubmit();
+    else filterRows();
+  });
 
   // Aplicar los filtros iniciales al cargar la página (por si hay parámetros en la URL)
   filterRows();

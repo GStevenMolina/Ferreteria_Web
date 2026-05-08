@@ -16,23 +16,31 @@
   </section>
 
   <section class="inventory-toolbar card">
-    <div class="toolbar-field toolbar-field--wide">
-      <label for="searchBox">Búsqueda en tiempo real</label>
-      <input id="searchBox" type="search" placeholder="Buscar por código o nombre" value="{{ query_text }}">
-    </div>
-    <div class="toolbar-field">
-      <label for="categoryFilter">Categoría</label>
-      <select id="categoryFilter">
+    <form method="get" class="report-filters" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+      <div class="toolbar-field toolbar-field--wide">
+        <label for="searchBox">Búsqueda en tiempo real</label>
+        <input id="searchBox" name="q" list="search-suggestions" data-autocomplete-url="{% url 'registro:autocomplete_products' %}" type="search" placeholder="Buscar por código o nombre" value="{{ query_text }}">
+        <datalist id="search-suggestions"></datalist>
+      </div>
+      <div class="toolbar-field">
+        <label for="categoryFilter">Categoría</label>
+        <select id="categoryFilter" name="category">
         <option value="">Todas</option>
         {% for category in categories %}
           <option value="{{ category.id_categoria }}" {% if category_id|stringformat:"s" == category.id_categoria|stringformat:"s" %}selected{% endif %}>{{ category.nombre }}</option>
         {% endfor %}
       </select>
     </div>
-    <div class="toolbar-field">
-      <label>Resumen</label>
-      <div class="summary-pill">{{ rows|length }} productos visibles</div>
-    </div>
+      <div class="toolbar-field">
+        <label>Resumen</label>
+        <div class="summary-pill">{{ paginator.count }} productos</div>
+      </div>
+
+      <div class="toolbar-field toolbar-field--actions">
+        <label>&nbsp;</label>
+        <button type="submit" class="action-btn action-btn--primary">Aplicar</button>
+      </div>
+    </form>
   </section>
 
   <div class="inventory-layout">
@@ -57,7 +65,7 @@
             </tr>
           </thead>
           <tbody>
-            {% for row in rows %}
+              {% for row in rows %}
               <tr class="inventory-row inventory-row--{{ row.estado|lower }} {% if selected_product_id|stringformat:'s' == row.codigo|stringformat:'s' %}is-selected{% endif %}"
                   data-product='{"codigo":"{{ row.codigo }}","nombre":"{{ row.nombre|escapejs }}","descripcion":"{{ row.descripcion|escapejs }}","categoria":"{{ row.categoria_id|default:'' }}","proveedor":"{{ row.proveedor_id|default:'' }}","unidad_medida":"{{ row.unidad_medida|escapejs }}","precio_compra":"{{ row.precio_compra }}","precio_venta":"{{ row.precio_venta }}","stock_actual":"{{ row.stock_actual }}","stock_minimo":"{{ row.stock_minimo }}"}'>
                 <td>{{ row.codigo }}</td>
@@ -68,7 +76,7 @@
                 <td>{{ row.stock_minimo }}</td>
                 <td><span class="status-badge status-badge--{{ row.estado|lower }}">{{ row.estado }}</span></td>
                 <td>
-                  <a class="row-link" href="?product={{ row.codigo }}">Ver</a>
+                    <a class="row-link" href="?product={{ row.codigo }}">Ver</a>
                 </td>
               </tr>
             {% empty %}
@@ -79,6 +87,25 @@
           </tbody>
         </table>
       </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="pagination" style="margin-top:12px;display:flex;gap:8px;align-items:center;">
+          {% if page_obj.has_previous %}
+            <a class="action-btn action-btn--soft" href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&page={{ page_obj.previous_page_number }}">Anterior</a>
+          {% else %}
+            <span class="action-btn action-btn--soft action-btn--disabled">Anterior</span>
+          {% endif %}
+
+          <span>Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+
+          {% if page_obj.has_next %}
+            <a class="action-btn action-btn--soft" href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&page={{ page_obj.next_page_number }}">Siguiente</a>
+          {% else %}
+            <span class="action-btn action-btn--soft action-btn--disabled">Siguiente</span>
+          {% endif %}
+        </div>
+        {% endif %}
     </section>
   </div>
 </div>

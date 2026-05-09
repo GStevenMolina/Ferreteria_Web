@@ -3,6 +3,7 @@ from io import BytesIO
 from openpyxl import Workbook
 from django.contrib import messages
 from django.db import IntegrityError, transaction
+from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -25,6 +26,9 @@ from .services import (
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_POST
+from django.middleware.csrf import get_token
+from django.views.decorators.csrf import csrf_exempt
 
 
 # --------------------------------------------------------------------------
@@ -105,14 +109,23 @@ def index(request):
     query_text = (request.GET.get("q") or "").strip()
     category_id = (request.GET.get("category") or "").strip()
     sort_key = (request.GET.get("sort") or "codigo").strip()
+    per_page_raw = (request.GET.get("per_page") or "25").strip()
+    try:
+        per_page = max(5, min(int(per_page_raw), 100))
+    except ValueError:
+        per_page = 25
 
     # Obtener y ordenar las filas del inventario según los filtros activos
     queryset = inventory_queryset(query_text=query_text, category_id=category_id)
     rows = sort_rows(build_rows(queryset), sort_key)
+    total_registros = len(rows)
+    stock_bajo = sum(1 for row in rows if row["estado"] == "Bajo")
+    stock_cero = sum(1 for row in rows if row["estado"] == "Agotado")
+    hoy = timezone.localdate()
+    movimientos_hoy = MovimientoInventario.objects.filter(fecha_movimiento__date=hoy).count()
 
     # Paginación server-side
     page = request.GET.get('page', 1)
-    per_page = 25
     paginator = Paginator(rows, per_page)
     try:
         rows_page = paginator.page(page)
@@ -146,12 +159,17 @@ def index(request):
         "rows": rows_page.object_list,
         "page_obj": rows_page,
         "paginator": paginator,
+        "per_page": per_page,
         "selected_row": selected_row,
         "product_form": product_form,
         "movement_form": movement_form,
         "query_text": query_text,
         "category_id": category_id,
         "sort_key": sort_key,
+        "total_registros": total_registros,
+        "stock_bajo": stock_bajo,
+        "stock_cero": stock_cero,
+        "movimientos_hoy": movimientos_hoy,
         "selected_product_id": selected_product.id_producto if selected_product else "",
         "selected_product_name": selected_product.nombre if selected_product else "",
         "product_options": product_options,
@@ -171,6 +189,58 @@ def autocomplete_products(request):
     qs = inventory_queryset(query_text=q)
     suggestions = list(qs.values('id_producto', 'nombre')[:12])
     return JsonResponse(suggestions, safe=False)
+
+
+@require_POST
+def quick_update_product(request):
+    """API para actualizar rápidamente campos editables de un producto.
+    Espera JSON: { "id_producto": "123", "precio_venta": "12.5", "stock_minimo": 5 }
+    Retorna JSON con los campos actualizados o error.
+    """
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    prod_id = data.get('id_producto')
+    if not prod_id:
+        return JsonResponse({'error': 'id_producto required'}, status=400)
+
+    from apps.core.models import Producto, Inventario
+
+    product = Producto.objects.filter(id_producto=prod_id).first()
+    if not product:
+        return JsonResponse({'error': 'Product not found'}, status=404)
+
+    # Campos permitidos para edición rápida
+    allowed = ['precio_venta', 'stock_minimo', 'nombre']
+    updated = {}
+    try:
+        # actualizar campos de producto
+        if 'nombre' in data:
+            product.nombre = data['nombre']
+            updated['nombre'] = product.nombre
+        if 'precio_venta' in data:
+            try:
+                product.precio_venta = float(data['precio_venta'])
+                updated['precio_venta'] = product.precio_venta
+            except Exception:
+                pass
+        product.save()
+
+        # actualizar inventario mínimo / crear inventario si no existe
+        inv, _ = Inventario.objects.get_or_create(id_producto=product)
+        if 'stock_minimo' in data:
+            try:
+                inv.stock_minimo = int(data['stock_minimo'])
+                updated['stock_minimo'] = inv.stock_minimo
+            except Exception:
+                pass
+        inv.save()
+
+        return JsonResponse({'ok': True, 'updated': updated})
+    except Exception as exc:
+        return JsonResponse({'error': str(exc)}, status=500)
 
 
 # --------------------------------------------------------------------------

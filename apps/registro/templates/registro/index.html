@@ -16,31 +16,85 @@
   </section>
 
   <section class="inventory-toolbar card">
-    <form method="get" class="report-filters" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
-      <div class="toolbar-field toolbar-field--wide">
-        <label for="searchBox">Búsqueda en tiempo real</label>
-        <input id="searchBox" name="q" list="search-suggestions" data-autocomplete-url="{% url 'registro:autocomplete_products' %}" type="search" placeholder="Buscar por código o nombre" value="{{ query_text }}">
-        <datalist id="search-suggestions"></datalist>
-      </div>
-      <div class="toolbar-field">
-        <label for="categoryFilter">Categoría</label>
-        <select id="categoryFilter" name="category">
-        <option value="">Todas</option>
-        {% for category in categories %}
-          <option value="{{ category.id_categoria }}" {% if category_id|stringformat:"s" == category.id_categoria|stringformat:"s" %}selected{% endif %}>{{ category.nombre }}</option>
-        {% endfor %}
-      </select>
-    </div>
-      <div class="toolbar-field">
-        <label>Resumen</label>
-        <div class="summary-pill">{{ paginator.count }} productos</div>
+    <form method="get" class="report-filters" style="display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;gap:12px;">
+        <div class="toolbar-field toolbar-field--wide" style="flex:1;">
+          <label for="searchBox">Búsqueda en tiempo real</label>
+          <input id="searchBox" name="q" list="search-suggestions" data-autocomplete-url="{% url 'registro:autocomplete_products' %}" type="search" placeholder="Buscar por código o nombre" value="{{ query_text }}">
+          <datalist id="search-suggestions"></datalist>
+        </div>
       </div>
 
-      <div class="toolbar-field toolbar-field--actions">
-        <label>&nbsp;</label>
-        <button type="submit" class="action-btn action-btn--primary">Aplicar</button>
+      <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+        <div class="toolbar-field">
+          <label for="categoryFilter">Categoría</label>
+          <select id="categoryFilter" name="category">
+            <option value="">Todas</option>
+            {% for category in categories %}
+              <option value="{{ category.id_categoria }}" {% if category_id|stringformat:"s" == category.id_categoria|stringformat:"s" %}selected{% endif %}>{{ category.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="toolbar-field">
+          <label for="sortFilter">Ordenar por</label>
+          <select id="sortFilter" name="sort">
+            <option value="codigo" {% if sort_key == "codigo" %}selected{% endif %}>Código</option>
+            <option value="nombre" {% if sort_key == "nombre" %}selected{% endif %}>Nombre</option>
+            <option value="categoria" {% if sort_key == "categoria" %}selected{% endif %}>Categoría</option>
+            <option value="stock_actual" {% if sort_key == "stock_actual" %}selected{% endif %}>Stock</option>
+            <option value="stock_minimo" {% if sort_key == "stock_minimo" %}selected{% endif %}>Stock mínimo</option>
+            <option value="estado" {% if sort_key == "estado" %}selected{% endif %}>Estado</option>
+          </select>
+        </div>
+
+        <div class="toolbar-field">
+          <label for="perPageSelect">Cantidad</label>
+          <select id="perPageSelect" name="per_page">
+            <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+            <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+            <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+            <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+          </select>
+        </div>
+
+        <div class="toolbar-field">
+          <label>Resumen</label>
+          <div class="summary-pill">{{ total_registros }} productos</div>
+        </div>
+
+        <div class="toolbar-field toolbar-field--actions" style="margin-left:auto;">
+          <label>&nbsp;</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <a class="action-btn action-btn--outline" href="{% url 'registro:export_excel' %}?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort={{ sort_key|urlencode }}&per_page={{ per_page }}">Exportar Excel</a>
+            <button type="submit" class="action-btn action-btn--primary">Aplicar</button>
+          </div>
+        </div>
       </div>
     </form>
+  </section>
+
+  <section class="report-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
+    <article class="report-card card">
+      <p class="report-card__label">Productos</p>
+      <strong class="report-card__value">{{ total_registros }}</strong>
+      <span class="report-card__hint">Total de registros filtrados</span>
+    </article>
+    <article class="report-card card">
+      <p class="report-card__label">Stock bajo</p>
+      <strong class="report-card__value">{{ stock_bajo }}</strong>
+      <span class="report-card__hint">Productos en alerta</span>
+    </article>
+    <article class="report-card card">
+      <p class="report-card__label">Sin stock</p>
+      <strong class="report-card__value">{{ stock_cero }}</strong>
+      <span class="report-card__hint">Productos agotados</span>
+    </article>
+    <article class="report-card card">
+      <p class="report-card__label">Movimientos hoy</p>
+      <strong class="report-card__value">{{ movimientos_hoy }}</strong>
+      <span class="report-card__hint">Movimientos registrados hoy</span>
+    </article>
   </section>
 
   <div class="inventory-layout">
@@ -54,14 +108,14 @@
         <table class="inventory-table" id="inventoryTable">
           <thead>
             <tr>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=codigo">Código</a></th>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=nombre">Nombre</a></th>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=categoria">Categoría</a></th>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=precio_venta">Precio venta</a></th>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=stock_actual">Stock actual</a></th>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=stock_minimo">Stock mínimo</a></th>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=estado">Estado</a></th>
-              <th>Acciones</th>
+              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=codigo&per_page={{ per_page }}">Código</a></th>
+              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=nombre&per_page={{ per_page }}">Nombre</a></th>
+              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=precio_venta&per_page={{ per_page }}">Precio venta</a></th>
+              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=precio_compra&per_page={{ per_page }}">Precio compra</a></th>
+              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=categoria&per_page={{ per_page }}">Categoría</a></th>
+              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=stock_actual&per_page={{ per_page }}">Stock actual</a></th>
+              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=stock_minimo&per_page={{ per_page }}">Stock mínimo</a></th>
+              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=estado&per_page={{ per_page }}">Estado</a></th>
             </tr>
           </thead>
           <tbody>
@@ -70,14 +124,12 @@
                   data-product='{"codigo":"{{ row.codigo }}","nombre":"{{ row.nombre|escapejs }}","descripcion":"{{ row.descripcion|escapejs }}","categoria":"{{ row.categoria_id|default:'' }}","proveedor":"{{ row.proveedor_id|default:'' }}","unidad_medida":"{{ row.unidad_medida|escapejs }}","precio_compra":"{{ row.precio_compra }}","precio_venta":"{{ row.precio_venta }}","stock_actual":"{{ row.stock_actual }}","stock_minimo":"{{ row.stock_minimo }}"}'>
                 <td>{{ row.codigo }}</td>
                 <td>{{ row.nombre }}</td>
-                <td>{{ row.categoria }}</td>
                 <td>${{ row.precio_venta }}</td>
+                <td>${{ row.precio_compra }}</td>
+                <td>{{ row.categoria }}</td>
                 <td>{{ row.stock_actual }}</td>
                 <td>{{ row.stock_minimo }}</td>
                 <td><span class="status-badge status-badge--{{ row.estado|lower }}">{{ row.estado }}</span></td>
-                <td>
-                    <a class="row-link" href="?product={{ row.codigo }}">Ver</a>
-                </td>
               </tr>
             {% empty %}
               <tr>
@@ -92,7 +144,7 @@
         {% if page_obj.has_other_pages %}
         <div class="pagination" style="margin-top:12px;display:flex;gap:8px;align-items:center;">
           {% if page_obj.has_previous %}
-            <a class="action-btn action-btn--soft" href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&page={{ page_obj.previous_page_number }}">Anterior</a>
+            <a class="action-btn action-btn--soft" href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort={{ sort_key|urlencode }}&per_page={{ per_page }}&page={{ page_obj.previous_page_number }}">Anterior</a>
           {% else %}
             <span class="action-btn action-btn--soft action-btn--disabled">Anterior</span>
           {% endif %}
@@ -100,7 +152,7 @@
           <span>Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
 
           {% if page_obj.has_next %}
-            <a class="action-btn action-btn--soft" href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&page={{ page_obj.next_page_number }}">Siguiente</a>
+            <a class="action-btn action-btn--soft" href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort={{ sort_key|urlencode }}&per_page={{ per_page }}&page={{ page_obj.next_page_number }}">Siguiente</a>
           {% else %}
             <span class="action-btn action-btn--soft action-btn--disabled">Siguiente</span>
           {% endif %}

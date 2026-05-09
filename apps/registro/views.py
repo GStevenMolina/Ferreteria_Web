@@ -28,7 +28,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 from django.views.decorators.http import require_POST
 from django.middleware.csrf import get_token
-from django.views.decorators.csrf import csrf_exempt
+import json
 
 
 # --------------------------------------------------------------------------
@@ -192,55 +192,75 @@ def autocomplete_products(request):
 
 
 @require_POST
+@login_required_custom
 def quick_update_product(request):
     """API para actualizar rápidamente campos editables de un producto.
-    Espera JSON: { "id_producto": "123", "precio_venta": "12.5", "stock_minimo": 5 }
+    PROTEGIDA CON AUTENTICACIÓN. Espera JSON:
+    { "id_producto": "123", "precio_venta": "12.5", "stock_minimo": 5 }
     Retorna JSON con los campos actualizados o error.
     """
+    # Validar token CSRF desde header (requerido para AJAX POST)
+    from django.middleware.csrf import CsrfViewMiddleware
+    csrf_middleware = CsrfViewMiddleware(lambda r: None)
+    try:
+        csrf_middleware.process_request(request)
+    except Exception:
+        return JsonResponse({'error': 'CSRF validation failed'}, status=403)
+
     try:
         data = json.loads(request.body.decode('utf-8'))
-    except Exception:
-        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({'error': 'Invalid JSON format'}, status=400)
 
-    prod_id = data.get('id_producto')
-    if not prod_id:
-        return JsonResponse({'error': 'id_producto required'}, status=400)
-
-    from apps.core.models import Producto, Inventario
+    prod_id = str(data.get('id_producto', '')).strip()
+    if not prod_id or len(prod_id) > 20:
+        return JsonResponse({'error': 'id_producto invalid'}, status=400)
 
     product = Producto.objects.filter(id_producto=prod_id).first()
     if not product:
         return JsonResponse({'error': 'Product not found'}, status=404)
 
-    # Campos permitidos para edición rápida
-    allowed = ['precio_venta', 'stock_minimo', 'nombre']
     updated = {}
     try:
-        # actualizar campos de producto
-        if 'nombre' in data:
-            product.nombre = data['nombre']
-            updated['nombre'] = product.nombre
-        if 'precio_venta' in data:
-            try:
-                product.precio_venta = float(data['precio_venta'])
-                updated['precio_venta'] = product.precio_venta
-            except Exception:
-                pass
-        product.save()
+        with transaction.atomic():
+            # Validar y actualizar nombre (máx 100 caracteres)
+            if 'nombre' in data:
+                nombre = str(data['nombre']).strip()[:100]
+                if not nombre:
+                    return JsonResponse({'error': 'nombre cannot be empty'}, status=400)
+                product.nombre = nombre
+                updated['nombre'] = product.nombre
 
-        # actualizar inventario mínimo / crear inventario si no existe
-        inv, _ = Inventario.objects.get_or_create(id_producto=product)
-        if 'stock_minimo' in data:
-            try:
-                inv.stock_minimo = int(data['stock_minimo'])
-                updated['stock_minimo'] = inv.stock_minimo
-            except Exception:
-                pass
-        inv.save()
+            # Validar y actualizar precio_venta (0.01 a 999999.99)
+            if 'precio_venta' in data:
+                try:
+                    precio = float(data['precio_venta'])
+                    if not (0.01 <= precio <= 999999.99):
+                        return JsonResponse({'error': 'precio_venta must be between 0.01 and 999999.99'}, status=400)
+                    product.precio_venta = precio
+                    updated['precio_venta'] = product.precio_venta
+                except (ValueError, TypeError):
+                    return JsonResponse({'error': 'precio_venta must be numeric'}, status=400)
+
+            product.save()
+
+            # Validar y actualizar stock_minimo (0 a 1000000)
+            inv, _ = Inventario.objects.get_or_create(id_producto=product)
+            if 'stock_minimo' in data:
+                try:
+                    stock_min = int(data['stock_minimo'])
+                    if not (0 <= stock_min <= 1000000):
+                        return JsonResponse({'error': 'stock_minimo must be between 0 and 1000000'}, status=400)
+                    inv.stock_minimo = stock_min
+                    updated['stock_minimo'] = inv.stock_minimo
+                except (ValueError, TypeError):
+                    return JsonResponse({'error': 'stock_minimo must be integer'}, status=400)
+
+            inv.save()
 
         return JsonResponse({'ok': True, 'updated': updated})
     except Exception as exc:
-        return JsonResponse({'error': str(exc)}, status=500)
+        return JsonResponse({'error': 'Server error'}, status=500)
 
 
 # --------------------------------------------------------------------------
@@ -446,8 +466,10 @@ def export_excel(request):
     Genera y descarga un archivo Excel con dos hojas:
       - 'Inventario': listado completo de productos con su estado de stock.
       - 'Movimientos': hasta 200 movimientos filtrados por producto, tipo y fechas.
+    PROTEGIDA: solo usuarios autenticados pueden exportar.
     """
-    query_text = (request.GET.get("q") or "").strip()
+    # Validar y sanitizar parámetros GET
+    query_text = (request.GET.get("q") or "").strip()[:100]  # Máx 100 caracteres
     category_id = (request.GET.get("category") or "").strip()
     product_id = (request.GET.get("product") or "").strip()
     movement_type = (request.GET.get("movement_type") or "").strip()
@@ -512,8 +534,10 @@ def reportes(request):
     Vista de reportes del inventario.
     Muestra KPIs de stock, un resumen estadístico y el historial de movimientos
     filtrable por producto, tipo de movimiento y rango de fechas.
+    PROTEGIDA: solo usuarios autenticados pueden ver reportes.
     """
-    query_text = (request.GET.get("q") or "").strip()
+    # Validar y sanitizar parámetros GET
+    query_text = (request.GET.get("q") or "").strip()[:100]  # Máx 100 caracteres
     category_id = (request.GET.get("category") or "").strip()
     product_id = (request.GET.get("product") or "").strip()
     movement_type = (request.GET.get("movement_type") or "").strip()

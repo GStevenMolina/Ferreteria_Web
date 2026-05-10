@@ -10,15 +10,11 @@ from apps.core.models import (
     Cliente, Usuario, Inventario, MovimientoInventario
 )
 
-# ===============================
-# ⚙️ CONFIG MONEDA
-# ===============================
+# CONFIG MONEDA
 TIPO_CAMBIO = 36.5  # 1 USD = 36.5 C$
 
 
-# ===============================
-# 🏠 VISTA PRINCIPAL
-# ===============================
+# VISTA PRINCIPAL
 def index(request):
     productos = Producto.objects.all()
 
@@ -41,9 +37,7 @@ def index(request):
     })
 
 
-# ===============================
-# 👤 OBTENER USUARIO
-# ===============================
+# OBTENER USUARIO
 def _current_user(request):
     user_id = request.session.get("id_usuario")
     if user_id:
@@ -53,9 +47,7 @@ def _current_user(request):
     return Usuario.objects.first()
 
 
-# ===============================
-# 🔍 BUSCAR CLIENTE
-# ===============================
+# BUSCAR CLIENTE
 def buscar_cliente(request):
     q = request.GET.get('q', '')
 
@@ -73,9 +65,7 @@ def buscar_cliente(request):
     ], safe=False)
 
 
-# ===============================
-# 👤 CREAR CLIENTE
-# ===============================
+# CREAR CLIENTE
 @csrf_exempt
 def crear_cliente(request):
     if request.method != 'POST':
@@ -104,9 +94,7 @@ def crear_cliente(request):
         return JsonResponse({'status': 'error', 'message': str(e)})
 
 
-# ===============================
-# 💳 GUARDAR VENTA + INVENTARIO
-# ===============================
+#  GUARDAR VENTA + INVENTARIO
 @csrf_exempt
 @transaction.atomic
 def guardar_venta(request):
@@ -122,9 +110,7 @@ def guardar_venta(request):
         moneda = data.get('moneda', 'NIO')
         cliente_id = data.get('cliente_id')
 
-        # ===============================
         # VALIDACIONES
-        # ===============================
         if not carrito or not isinstance(carrito, list):
             return JsonResponse({'status': 'error', 'message': 'Carrito inválido'})
 
@@ -142,16 +128,12 @@ def guardar_venta(request):
         if not usuario:
             return JsonResponse({'status': 'error', 'message': 'No hay usuario disponible'})
 
-        # ===============================
         # CONVERTIR TOTAL A CÓRDOBAS
-        # ===============================
         total_cordobas = float(total)
         if moneda == "USD":
             total_cordobas *= TIPO_CAMBIO
 
-        # ===============================
         # VALIDAR STOCK
-        # ===============================
         productos_map = {}
 
         for item in carrito:
@@ -172,9 +154,7 @@ def guardar_venta(request):
 
             productos_map[item['id']] = (producto, inventario)
 
-        # ===============================
         # CREAR VENTA
-        # ===============================
         venta = Venta.objects.create(
             id_cliente=cliente,
             id_usuario=usuario,
@@ -182,9 +162,7 @@ def guardar_venta(request):
             total=total_cordobas
         )
 
-        # ===============================
         # DETALLE + STOCK + MOVIMIENTO
-        # ===============================
         for item in carrito:
             producto, inventario = productos_map[item['id']]
 
@@ -216,7 +194,7 @@ def guardar_venta(request):
                 cantidad=item['cantidad'],
                 referencia=f"Venta #{venta.id_venta}",
                 fecha_movimiento=timezone.now(),
-                observaciones=f"Salida)"
+                observaciones=f"Salida"
             )
 
         return JsonResponse({

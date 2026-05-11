@@ -17,7 +17,6 @@
     <div class="inventory-topbar__actions">
       <a class="action-btn action-btn--soft" href="{% url 'registro:index' %}">Volver a registro</a>
       <a class="action-btn action-btn--primary" href="{% url 'registro:export_excel' %}?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&product={{ product_id|urlencode }}&movement_type={{ movement_type|urlencode }}&from={{ start_date|urlencode }}&to={{ end_date|urlencode }}">Exportar Excel</a>
-      <span class="action-btn action-btn--soft action-btn--disabled" aria-disabled="true">Exportar PDF</span>
     </div>
   </section>
 

@@ -164,6 +164,12 @@ body{
   padding-left: 7px;
 }
 
+.menu-link.is-active{
+  background: rgba(14, 165, 233, 0.22);
+  border-left: 3px solid #7dd3fc;
+  padding-left: 7px;
+}
+
 .menu-link[aria-disabled="true"]{
   opacity: .5;
   pointer-events: none;

@@ -1,13 +1,9 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect
 
 from apps.accounts.auth import login_required_custom
-
-
-@login_required_custom
-def dashboard(request):
-    return render(request, "dashboard.html")
+from apps.core.views import dashboard_view
 
 
 def home(request):
@@ -24,7 +20,7 @@ urlpatterns = [
 
     # Root router + dashboard
     path("", home, name="home"),
-    path("dashboard/", dashboard, name="dashboard"),
+    path("dashboard/", dashboard_view, name="dashboard"),
 
     # Accounts en raíz (porque tu login está en /login/)
     path("", include("apps.accounts.urls")),

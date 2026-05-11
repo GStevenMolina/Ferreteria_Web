@@ -10,18 +10,79 @@
 {% block content %}
 <div class="prov-wrap">
   <h1 class="prov-title">Consulta de proveedores</h1>
-  <p class="prov-subtitle">Visualiza proveedores, productos y movimientos de inventario por tipo (Entrada/Salida).</p>
+  <p class="prov-subtitle">Visualiza proveedores y las categorías que ofrecen, junto con la cantidad de productos registrados en cada una.</p>
 
   {% if proveedores_data %}
     {% for item in proveedores_data %}
-      {% with p=item.proveedor lista=item.productos %}
+      {% with p=item.proveedor lista=item.categorias %}
       <section class="prov-card">
         <div class="prov-card__head">
           <div>
             <strong>{{ p.nombre }}</strong>
             <div class="prov-muted">ID proveedor: {{ p.id_proveedor }}</div>
           </div>
-          <div class="prov-muted">Productos registrados: {{ p.total_productos }}</div>
+          <div class="prov-card__actions">
+            <div class="prov-muted">Categorías: {{ p.total_categorias }} · Productos: {{ p.total_productos }}</div>
+            <a
+              class="btn prov-edit-btn"
+              href="{% url 'compras:index' %}?open_np=1&id_proveedor={{ p.id_proveedor }}&proveedor={{ p.nombre|urlencode }}"
+            >
+              Nuevo producto
+            </a>
+
+            <button
+              type="button"
+              class="btn prov-edit-btn"
+              data-id="{{ p.id_proveedor }}"
+              data-nombre="{{ p.nombre|default_if_none:''|escape }}"
+              data-telefono="{{ p.telefono|default_if_none:''|escape }}"
+              data-email="{{ p.email|default_if_none:''|escape }}"
+              data-contacto="{{ p.numero_contacto|default_if_none:''|escape }}"
+              data-direccion="{{ p.direccion|default_if_none:''|escape }}"
+              data-tipo="{{ p.tipo_proveedor|default_if_none:''|escape }}"
+            >
+              Editar proveedor
+            </button>
+          </div>
+        </div>
+
+        <div class="prov-card__details">
+          {% if p.tipo_proveedor %}
+            <div class="prov-detail">
+              <span class="prov-label">Tipo:</span>
+              <span>{{ p.tipo_proveedor }}</span>
+            </div>
+          {% endif %}
+          {% if p.telefono %}
+            <div class="prov-detail">
+              <span class="prov-label">Teléfono:</span>
+              <span>{{ p.telefono }}</span>
+            </div>
+          {% endif %}
+          {% if p.email %}
+            <div class="prov-detail">
+              <span class="prov-label">Email:</span>
+              <span>{{ p.email }}</span>
+            </div>
+          {% endif %}
+          {% if p.numero_contacto %}
+            <div class="prov-detail">
+              <span class="prov-label">Contacto:</span>
+              <span>{{ p.numero_contacto }}</span>
+            </div>
+          {% endif %}
+          {% if p.direccion %}
+            <div class="prov-detail">
+              <span class="prov-label">Dirección:</span>
+              <span>{{ p.direccion }}</span>
+            </div>
+          {% endif %}
+          {% if p.fecha_registro %}
+            <div class="prov-detail">
+              <span class="prov-label">Registrado:</span>
+              <span>{{ p.fecha_registro|date:"d/m/Y H:i" }}</span>
+            </div>
+          {% endif %}
         </div>
 
         <div class="prov-card__body">
@@ -29,23 +90,21 @@
             <table class="prov-table">
               <thead>
                 <tr>
-                  <th>Producto</th>
-                  <th class="prov-right">Entrada</th>
-                  <th class="prov-right">Salida</th>
+                  <th>Categoría</th>
+                  <th class="prov-right">Productos</th>
                 </tr>
               </thead>
               <tbody>
-                {% for prod in lista %}
+                {% for categoria in lista %}
                   <tr>
-                    <td>{{ prod.nombre }}</td>
-                    <td class="prov-right">{{ prod.entradas }}</td>
-                    <td class="prov-right">{{ prod.salidas }}</td>
+                    <td>{{ categoria.nombre }}</td>
+                    <td class="prov-right">{{ categoria.productos }}</td>
                   </tr>
                 {% endfor %}
               </tbody>
             </table>
           {% else %}
-            <div class="prov-empty">Sin productos asociados.</div>
+            <div class="prov-empty">Sin categorías asociadas.</div>
           {% endif %}
         </div>
       </section>
@@ -55,4 +114,138 @@
     <div class="prov-no-data">No hay proveedores registrados.</div>
   {% endif %}
 </div>
+
+<form id="csrfFormProveedor">{% csrf_token %}</form>
+
+<div id="modalEditarProveedor" class="modal" style="display:none;">
+  <div class="modal__backdrop" id="modalEditBackdrop"></div>
+
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Editar proveedor">
+    <div class="modal__header">
+      <div>
+        <div class="modal__title">Editar proveedor</div>
+        <div class="modal__subtitle">Actualiza los datos del proveedor seleccionado</div>
+      </div>
+      <button class="modal__close" type="button" id="btnCloseModalEditProv">✕</button>
+    </div>
+
+    <div class="modal__grid modal__grid--single">
+      <div class="modal__card card-blue">
+        <input type="hidden" id="ep_id_proveedor" />
+
+        <label class="label">Nombre</label>
+        <input id="ep_nombre" class="inp" placeholder="Nombre del proveedor" />
+
+        <label class="label">Teléfono</label>
+        <input id="ep_telefono" class="inp" placeholder="Ej: 8888-8888" />
+
+        <label class="label">Email</label>
+        <input id="ep_email" class="inp" placeholder="Ej: proveedor@correo.com" />
+
+        <label class="label">Contacto</label>
+        <input id="ep_contacto" class="inp" placeholder="Nombre de contacto" />
+
+        <label class="label">Dirección</label>
+        <input id="ep_direccion" class="inp" placeholder="Dirección" />
+
+        <label class="label">Tipo proveedor</label>
+        <input id="ep_tipo" class="inp" placeholder="Ej: Mayorista" />
+
+        <button class="btn" type="button" id="btnGuardarEdicionProveedor">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  function $(id) { return document.getElementById(id); }
+
+  function getCsrf() {
+    const el = document.querySelector("#csrfFormProveedor input[name=csrfmiddlewaretoken]");
+    return el ? el.value : "";
+  }
+
+  function openModalFromButton(btn) {
+    $("ep_id_proveedor").value = btn.dataset.id || "";
+    $("ep_nombre").value = btn.dataset.nombre || "";
+    $("ep_telefono").value = btn.dataset.telefono || "";
+    $("ep_email").value = btn.dataset.email || "";
+    $("ep_contacto").value = btn.dataset.contacto || "";
+    $("ep_direccion").value = btn.dataset.direccion || "";
+    $("ep_tipo").value = btn.dataset.tipo || "";
+
+    document.body.style.overflow = "hidden";
+    $("modalEditarProveedor").style.display = "flex";
+  }
+
+  function closeModal() {
+    $("modalEditarProveedor").style.display = "none";
+    document.body.style.overflow = "";
+  }
+
+  async function guardarEdicion() {
+    const idProveedor = $("ep_id_proveedor").value.trim();
+    const nombre = $("ep_nombre").value.trim();
+
+    if (!idProveedor) {
+      alert("No se encontró el proveedor a editar.");
+      return;
+    }
+    if (!nombre) {
+      alert("El nombre del proveedor es requerido.");
+      return;
+    }
+
+    const form = new FormData();
+    form.append("id_proveedor", idProveedor);
+    form.append("nombre", nombre);
+    form.append("telefono", $("ep_telefono").value);
+    form.append("email", $("ep_email").value);
+    form.append("numero_contacto", $("ep_contacto").value);
+    form.append("direccion", $("ep_direccion").value);
+    form.append("tipo_proveedor", $("ep_tipo").value);
+
+    const btn = $("btnGuardarEdicionProveedor");
+    btn.disabled = true;
+
+    try {
+      const r = await fetch("/compras/api/proveedor/actualizar/", {
+        method: "POST",
+        headers: { "X-CSRFToken": getCsrf() },
+        body: form,
+      });
+      const j = await r.json().catch(() => ({}));
+
+      if (!r.ok || !j.ok) {
+        alert(j.error || "No se pudo actualizar el proveedor.");
+        return;
+      }
+
+      closeModal();
+      window.location.reload();
+    } catch (e) {
+      alert("Error de red o servidor.");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".prov-edit-btn").forEach((btn) => {
+      btn.addEventListener("click", () => openModalFromButton(btn));
+    });
+
+    $("btnCloseModalEditProv")?.addEventListener("click", closeModal);
+    $("modalEditBackdrop")?.addEventListener("click", closeModal);
+    $("btnGuardarEdicionProveedor")?.addEventListener("click", guardarEdicion);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && $("modalEditarProveedor")?.style.display === "flex") {
+        closeModal();
+      }
+    });
+  });
+})();
+</script>
 {% endblock %}

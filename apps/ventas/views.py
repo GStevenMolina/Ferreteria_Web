@@ -90,10 +90,7 @@ def buscar_cliente(request):
 @csrf_exempt
 def crear_cliente(request):
     if request.method != 'POST':
-        return JsonResponse({
-            'status': 'error',
-            'message': 'Método no permitido'
-        })
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'})
 
     try:
         data = json.loads(request.body)
@@ -122,10 +119,7 @@ def crear_cliente(request):
         })
 
     except Exception as e:
-        return JsonResponse({
-            'status': 'error',
-            'message': str(e)
-        })
+        return JsonResponse({'status': 'error', 'message': str(e)})
 
 
 # ===============================
@@ -149,10 +143,7 @@ def generar_numero_factura():
 @transaction.atomic
 def guardar_venta(request):
     if request.method != 'POST':
-        return JsonResponse({
-            'status': 'error',
-            'message': 'Método inválido'
-        })
+        return JsonResponse({'status': 'error', 'message': 'Método inválido'})
 
     try:
         data = json.loads(request.body)
@@ -170,16 +161,10 @@ def guardar_venta(request):
             })
 
         if total is None:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Total inválido'
-            })
+            return JsonResponse({'status': 'error', 'message': 'Total inválido'})
 
         if not cliente_id:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Debe seleccionar un cliente'
-            })
+            return JsonResponse({'status': 'error', 'message': 'Seleccione cliente'})
 
         cliente = Cliente.objects.filter(id_cliente=cliente_id).first()
         if not cliente:
@@ -190,10 +175,7 @@ def guardar_venta(request):
 
         usuario = _current_user(request)
         if not usuario:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'No hay usuario disponible'
-            })
+            return JsonResponse({'status': 'error', 'message': 'No hay usuario disponible'})
 
         total_cordobas = float(total)
         if moneda == 'USD':
@@ -252,6 +234,7 @@ def guardar_venta(request):
             subtotal = precio * cantidad
             subtotal_general += subtotal
 
+            # DETALLE
             DetalleVenta.objects.create(
                 id_venta=venta,
                 id_producto=producto,

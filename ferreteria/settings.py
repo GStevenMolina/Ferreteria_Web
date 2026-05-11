@@ -102,3 +102,11 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # al cerrar navegador pide login otra ve
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "dashboard"
 LOGOUT_REDIRECT_URL = "/login/"
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_HOST_USER = "admin.ferreteria@gmail.com"          # ← El correo creado para la app
+EMAIL_HOST_PASSWORD = "uyqvcbecqmrcawsr"     # ← La contraseña de aplicación
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

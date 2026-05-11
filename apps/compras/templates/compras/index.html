@@ -35,7 +35,6 @@
       <div>
         <label class="label">IVA %</label>
         <input id="iva_rate" class="inp" type="number" min="0" max="100" step="0.01" value="15">
-        <div class="hint">Editable por compra.</div>
       </div>
     </div>
 
@@ -68,7 +67,7 @@
 
       <div>
         <label class="label">Precio venta</label>
-        <input id="precio_venta" class="inp" value="0.00" readonly>
+        <input id="precio_venta" class="inp" type="number" min="0" step="0.01" value="0.00">
       </div>
 
       <button class="btn" id="btnAdd" type="button">Agregar</button>
@@ -121,7 +120,7 @@
     <div class="modal__header">
       <div>
         <div class="modal__title">Nuevo producto</div>
-        <div class="modal__subtitle">Proveedor + Producto + Categoría</div>
+        <div class="  modal__subtitle">Proveedor + Producto + Categoría</div>
       </div>
       <button class="modal__close" type="button" id="btnCloseModalNP">✕</button>
     </div>
@@ -184,6 +183,9 @@
 
         <label class="label">Nombre</label>
         <input id="np_cat_nombre" class="inp" placeholder="Ej: Iluminación" />
+        <div class="ac" id="catAcWrap">
+          <div class="ac__list" id="catAcList" style="display:none;"></div>
+        </div>
 
         <label class="label">Descripción</label>
         <input id="np_cat_desc" class="inp" placeholder="Descripción" />

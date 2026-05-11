@@ -61,12 +61,17 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ferreteria.wsgi.application'
 
+# DB_HOST debe incluir servidor e instancia, por ejemplo: MSI\SQLEXPRESS o .\SQLEXPRESS.
+db_host = os.getenv("DB_HOST", r"MSI")
+if db_host == "MSI":
+    db_host = r"MSI"
+
 # DATABASE (SQL Server)
 DATABASES = {
     "default": {
         "ENGINE": "mssql",
         "NAME": os.getenv("DB_NAME", "Ferreteria"),
-        "HOST": os.getenv("DB_HOST", r"MSI"),
+        "HOST": db_host,
         "OPTIONS": {
             "driver": "ODBC Driver 17 for SQL Server",
             "TrustServerCertificate": "yes",

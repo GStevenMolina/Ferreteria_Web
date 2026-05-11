@@ -356,6 +356,28 @@ tbody tr:hover{background:rgba(255,255,255,.03);}
   font-size:16px;
 }
 
+.prov-card__actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+
+.prov-edit-btn{
+  height:34px;
+  padding:0 12px;
+  border-radius:10px;
+  font-size:12px;
+  font-weight:800;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  line-height:1;
+  box-sizing:border-box;
+  text-decoration:none;
+}
+
 .prov-card__body{
   padding:14px 18px 18px;
 }
@@ -438,4 +460,9 @@ tbody tr:hover{background:rgba(255,255,255,.03);}
   color: rgba(255, 255, 255, 0.80);
   text-align:center;
   backdrop-filter: blur(8px);
+}
+
+.modal__grid--single{
+  grid-template-columns: minmax(320px, 640px);
+  justify-content:center;
 }

@@ -148,6 +148,39 @@ def users_list_view(request):
     usuarios = Usuario.objects.all()
     return render(request, "accounts/users_list.html", {"usuarios": usuarios})
 
+
+@require_http_methods(["POST"])
+def edit_user_view(request, id_usuario):
+    try:
+        usuario = Usuario.objects.get(id_usuario=id_usuario)
+    except Usuario.DoesNotExist:
+        messages.error(request, "Usuario no encontrado.")
+        return redirect("users_list")
+
+    nombre = (request.POST.get("nombre") or "").strip()
+    email = (request.POST.get("email") or "").strip()
+    rol = (request.POST.get("rol") or "").strip()
+    activo = request.POST.get("activo") == "1"
+
+    if not nombre or not email:
+        messages.error(request, "Nombre y email son requeridos.")
+        return redirect("users_list")
+
+    # validar email único
+    other = Usuario.objects.filter(email=email).exclude(id_usuario=usuario.id_usuario).first()
+    if other:
+        messages.error(request, "El email ya está en uso por otro usuario.")
+        return redirect("users_list")
+
+    usuario.nombre = nombre
+    usuario.email = email
+    usuario.rol = rol
+    usuario.activo = activo
+    usuario.save(update_fields=["nombre", "email", "rol", "activo"])
+
+    messages.success(request, f"Usuario '{usuario.nombre}' actualizado.")
+    return redirect("users_list")
+
 # --- CREAR USUARIO ---
 @require_http_methods(["GET", "POST"])
 def create_user_view(request):

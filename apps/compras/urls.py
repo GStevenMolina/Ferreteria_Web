@@ -29,10 +29,12 @@ urlpatterns = [
 
     # API: autocomplete de proveedores
     path("api/proveedores/buscar/", views.api_proveedores_buscar, name="api_proveedores_buscar"),
+    path("api/categorias/buscar/", views.api_categorias_buscar, name="api_categorias_buscar"),
 
     # APIs: Modal nuevo producto
     # Upsert = si existe lo reutiliza/actualiza, si no existe lo crea
     path("api/proveedor/upsert/", views.api_proveedor_upsert, name="api_proveedor_upsert"),
+    path("api/proveedor/actualizar/", views.api_proveedor_actualizar, name="api_proveedor_actualizar"),
     path("api/categoria/upsert/", views.api_categoria_upsert, name="api_categoria_upsert"),
     path("api/producto/crear/", views.api_producto_crear, name="api_producto_crear"),
 ]

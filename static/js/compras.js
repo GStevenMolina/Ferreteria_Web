@@ -14,7 +14,7 @@
   // State global del módulo (en memoria)
   const state = {
     productosMap: new Map(), // cache: id_producto(string) -> {id_producto, nombre, precio_compra, precio_venta, ...}
-    items: [],               // items agregados a la compra actual: [{id_producto, nombre, cantidad, precio_unitario}, ...]
+    items: [],               // items agregados a la compra actual: [{id_producto, nombre, cantidad, precio_unitario, precio_venta}, ...]
     currency: "NIO",         // moneda de visualización (lo que se guarda en BD siempre será NIO)
   };
 
@@ -22,6 +22,11 @@
   let provAcSelected = null; // proveedor seleccionado del autocomplete (objeto)
   let provAcTimer = null;    // timer para debounce al escribir
   let provAcLastItems = [];  // últimos resultados mostrados
+
+  // Variables de Autocomplete para categoría (en modal)
+  let catAcSelected = null;  // categoría seleccionada del autocomplete (objeto)
+  let catAcTimer = null;     // timer para debounce al escribir
+  let catAcLastItems = [];   // últimos resultados mostrados
 
   // Helper para acceder por ID
   function $(id) { return document.getElementById(id); }
@@ -178,6 +183,17 @@
     calc();
   }
 
+  function syncSelectedProductCache() {
+    const idProducto = $("producto")?.value;
+    if (!idProducto) return;
+
+    const p = state.productosMap.get(String(idProducto));
+    if (!p) return;
+
+    p.precio_compra = Number($("precio_compra")?.value || 0);
+    p.precio_venta = Number($("precio_venta")?.value || 0);
+  }
+
   // CSRF y helpers de POST (Django)
   function getCsrf() {
     // Obtiene el token CSRF del formulario oculto #csrfForm
@@ -274,6 +290,13 @@
     });
   }
 
+  function setCategoriaFieldsLocked(locked) {
+    const el = $("np_cat_desc");
+    if (!el) return;
+    el.readOnly = !!locked;
+    el.style.opacity = locked ? "0.85" : "";
+  }
+
   function fillProveedorFields(p) {
     // Copia los datos del proveedor seleccionado hacia los inputs del modal
     $("np_prov_nombre").value = p.nombre || "";
@@ -287,6 +310,13 @@
   // Autocomplete: mostrar/ocultar lista y manejar selección
   function hideProvList() {
     const list = $("provAcList");
+    if (!list) return;
+    list.style.display = "none";
+    list.innerHTML = "";
+  }
+
+  function hideCatList() {
+    const list = $("catAcList");
     if (!list) return;
     list.style.display = "none";
     list.innerHTML = "";
@@ -328,9 +358,52 @@
     });
   }
 
+  function showCatList(items) {
+    const list = $("catAcList");
+    if (!list) return;
+
+    catAcLastItems = Array.isArray(items) ? items : [];
+
+    if (catAcLastItems.length === 0) {
+      hideCatList();
+      return;
+    }
+
+    list.innerHTML = catAcLastItems.map(c => `
+      <div class="ac__item" data-id="${c.id_categoria}">
+        <div><b>${c.nombre}</b></div>
+        <div class="ac__muted">${c.descripcion || "Sin descripción"}</div>
+      </div>
+    `).join("");
+
+    list.style.display = "block";
+
+    list.querySelectorAll(".ac__item").forEach(el => {
+      el.addEventListener("click", () => {
+        const id = Number(el.getAttribute("data-id"));
+        const c = catAcLastItems.find(x => Number(x.id_categoria) === id);
+        if (!c) return;
+
+        catAcSelected = c;
+        $("np_cat_nombre").value = c.nombre || "";
+        $("np_cat_desc").value = c.descripcion || "";
+        setCategoriaFieldsLocked(true);
+        hideCatList();
+      });
+    });
+  }
+
   async function searchProveedores(q) {
     // GET /compras/api/proveedores/buscar/?q=... (autocomplete)
     const r = await fetch("/compras/api/proveedores/buscar/?q=" + encodeURIComponent(q));
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) return [];
+    return j.data || [];
+  }
+
+  async function searchCategorias(q) {
+    // GET /compras/api/categorias/buscar/?q=... (autocomplete)
+    const r = await fetch("/compras/api/categorias/buscar/?q=" + encodeURIComponent(q));
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) return [];
     return j.data || [];
@@ -360,9 +433,12 @@
     // Estado del autocomplete
     provAcSelected = null;
     hideProvList();
+    catAcSelected = null;
+    hideCatList();
 
     // Campos editables por defecto (para proveedor nuevo)
     setProveedorFieldsLocked(false);
+    setCategoriaFieldsLocked(false);
   }
 
   function openNuevoProducto() {
@@ -393,6 +469,34 @@
     document.body.style.overflow = "";
     hideProvList();
     clearNuevoProductoForm();
+  }
+
+  async function bootstrapNuevoProductoFromQuery() {
+    const qs = new URLSearchParams(window.location.search);
+    const shouldOpen = qs.get("open_np") === "1";
+    if (!shouldOpen) return;
+
+    const idProveedor = (qs.get("id_proveedor") || "").trim();
+    const nombreProveedor = (qs.get("proveedor") || "").trim();
+
+    if (idProveedor) {
+      const selProv = $("proveedor");
+
+      if (selProv && !selProv.querySelector(`option[value="${idProveedor}"]`) && nombreProveedor) {
+        const opt = document.createElement("option");
+        opt.value = idProveedor;
+        opt.textContent = nombreProveedor;
+        selProv.appendChild(opt);
+      }
+
+      if (selProv) selProv.value = idProveedor;
+      await loadProductosByProveedor(idProveedor);
+    }
+
+    openNuevoProducto();
+
+    // Limpia query params para no reabrir el modal al recargar
+    window.history.replaceState({}, "", window.location.pathname);
   }
 
   // Modal: Guardar proveedor/categoría/producto (secuencia de POST)
@@ -524,17 +628,23 @@
       $("precio_venta").value = Number(p.precio_venta || 0).toFixed(2);
     });
 
+    $("precio_compra").addEventListener("input", syncSelectedProductCache);
+    $("precio_venta").addEventListener("input", syncSelectedProductCache);
+
     // Agregar item a la lista
     $("btnAdd").addEventListener("click", () => {
       const id_producto = $("producto").value;
       const p = state.productosMap.get(String(id_producto));
       const cantidad = parseInt($("cantidad").value, 10);
       const precio_unitario = parseFloat($("precio_compra").value);
+      const precio_venta = parseFloat($("precio_venta").value);
 
       if (!p) return toast("err", "Falta producto", "Selecciona un producto.");
       if (!cantidad || cantidad <= 0) return toast("err", "Cantidad inválida", "La cantidad debe ser mayor que 0.");
       if (isNaN(precio_unitario) || precio_unitario < 0)
         return toast("err", "Precio inválido", "Revisa el precio de compra.");
+      if (isNaN(precio_venta) || precio_venta < 0)
+        return toast("err", "Precio inválido", "Revisa el precio de venta.");
 
       // Si ya existe en la lista:
       // - suma cantidad
@@ -543,11 +653,13 @@
       if (existing) {
         existing.cantidad += cantidad;
         existing.precio_unitario = precio_unitario;
+        existing.precio_venta = precio_venta;
       } else {
-        state.items.push({ id_producto: p.id_producto, nombre: p.nombre, cantidad, precio_unitario });
+        state.items.push({ id_producto: p.id_producto, nombre: p.nombre, cantidad, precio_unitario, precio_venta });
       }
 
       renderTable();
+      $("cantidad").value = "1";
     });
 
     // Guardar compra (POST)
@@ -585,6 +697,7 @@
         id_producto: it.id_producto,
         cantidad: it.cantidad,
         precio_unitario: money(it.precio_unitario),
+        precio_venta: money(it.precio_venta ?? 0),
       }))));
 
       const btn = $("btnSave");
@@ -649,11 +762,36 @@
       });
     }
 
+    if ($("np_cat_nombre")) {
+      $("np_cat_nombre").setAttribute("autocomplete", "off");
+
+      $("np_cat_nombre").addEventListener("input", () => {
+        const q = $("np_cat_nombre").value.trim();
+
+        catAcSelected = null;
+        setCategoriaFieldsLocked(false);
+
+        if (!q) {
+          hideCatList();
+          return;
+        }
+
+        clearTimeout(catAcTimer);
+        catAcTimer = setTimeout(async () => {
+          const items = await searchCategorias(q);
+          showCatList(items);
+        }, 180);
+      });
+    }
+
     // Click fuera del wrapper para cerrar lista del autocomplete
     document.addEventListener("click", (e) => {
       const wrap = $("provAcWrap");
       if (!wrap) return;
       if (!wrap.contains(e.target)) hideProvList();
+
+      const catWrap = $("catAcWrap");
+      if (catWrap && !catWrap.contains(e.target)) hideCatList();
     });
 
     // ESC cierra el modal si está abierto
@@ -669,6 +807,7 @@
     mountModalToBody();
     bindEvents();
     await loadProveedores();
+    await bootstrapNuevoProductoFromQuery();
     setCurrencyUI();
     renderTable();
   });

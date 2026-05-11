@@ -1,161 +1,205 @@
-/* 🎯 BASE */
-body {
-    font-family: 'Segoe UI', Tahoma, sans-serif;
+/* ===== ÁREA PRINCIPAL ===== */
+
+.main{
+    background: linear-gradient(135deg,#1b63c1,#0f3f85) !important;
 }
 
-.main-content {
-    padding: 25px;
+.content{
+    background: transparent !important;
+    min-height: 100vh;
+    padding: 30px;
 }
 
-/* CONTENEDOR */
-.container-devolucion {
+/* ===== CONTENEDOR ===== */
+
+.container-devolucion{
     display: flex;
-    gap: 25px;
+    gap: 30px;
     align-items: flex-start;
 }
 
-/* 🟦 FORMULARIO */
-.form-card {
-    background: #f8fafc;
-    padding: 25px;
-    border-radius: 18px;
-    width: 340px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e2e8f0;
-    transition: 0.2s;
+/* ===== TARJETAS OSCURAS ===== */
+
+.form-card,
+.tabla-card{
+    background: #1e293b;
+    border-radius: 22px;
+    padding: 30px;
+    box-shadow: 0 12px 35px rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(6px);
 }
 
-.form-card:hover {
-    transform: translateY(-3px);
+/* ===== FORMULARIO ===== */
+
+.form-card{
+    width: 380px;
 }
 
-.form-card h3 {
-    color: #2563eb;
-    margin-bottom: 20px;
-    font-size: 20px;
+.form-card h3{
+    color: #60a5fa;
+    font-size: 38px;
+    font-weight: 700;
+    margin-bottom: 30px;
 }
 
-/* LABELS */
-.form-card label {
+.form-card label{
     display: block;
-    margin-top: 12px;
-    font-size: 13px;
-    color: #475569;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    color: #e2e8f0;
+    font-size: 15px;
+    font-weight: 500;
 }
 
-/* INPUTS */
+/* ===== INPUTS ===== */
+
 .form-card input,
-.form-card textarea {
+.form-card textarea,
+.form-card select{
     width: 100%;
-    padding: 10px;
-    border-radius: 12px;
-    border: 1px solid #d1d5db;
-    margin-top: 6px;
-    background: #ffffff;
-    font-size: 14px;
-}
-
-/* FOCUS */
-.form-card input:focus,
-.form-card textarea:focus {
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid #475569;
+    background: #334155;
+    color: #ffffff;
+    font-size: 15px;
+    transition: .3s;
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
-.form-card textarea {
-    height: 90px;
+.form-card textarea{
+    min-height: 120px;
     resize: none;
 }
 
-/* BOTÓN */
-.btn-orange {
-    margin-top: 18px;
+.form-card input:focus,
+.form-card textarea:focus,
+.form-card select:focus{
+    border-color: #60a5fa;
+    background: #3b4b61;
+    box-shadow: 0 0 0 4px rgba(96,165,250,.15);
+}
+
+/* ===== BOTÓN ===== */
+
+.btn-orange{
     width: 100%;
-    padding: 12px;
-    background: linear-gradient(135deg, #f59e0b, #f97316);
+    margin-top: 28px;
+    padding: 15px;
     border: none;
-    border-radius: 12px;
+    border-radius: 14px;
+    background: linear-gradient(135deg,#ff9800,#ff6b00);
     color: white;
+    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: 0.2s;
+    transition: .3s;
 }
 
-.btn-orange:hover {
+.btn-orange:hover{
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(249, 115, 22, 0.4);
+    box-shadow: 0 8px 20px rgba(255,115,0,.35);
 }
 
-/* 🟫 TABLA CONTENEDOR */
-.tabla-card {
+/* ===== TABLA ===== */
+
+.tabla-card{
     flex: 1;
-    background: #f8fafc;
-    border-radius: 18px;
-    padding: 15px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e2e8f0;
-    max-height: 520px;
-    overflow-y: auto;
 }
 
-/* TABLA */
-.tabla-card table {
+/* ===== BUSCADOR ===== */
+
+.search-form{
+    margin-bottom: 20px;
+}
+
+.search-form input{
+    width: 100%;
+    padding: 15px 18px;
+    border-radius: 14px;
+    border: 1px solid #475569;
+    background: #334155;
+    color: white;
+    font-size: 15px;
+    outline: none;
+    transition: .3s;
+}
+
+.search-form input::placeholder{
+    color: #cbd5e1;
+}
+
+.search-form input:focus{
+    border-color: #60a5fa;
+    background: #3b4b61;
+    box-shadow: 0 0 0 4px rgba(96,165,250,.12);
+}
+
+/* ===== TABLA ===== */
+
+table{
     width: 100%;
     border-collapse: collapse;
-    border-radius: 12px;
     overflow: hidden;
+    border-radius: 18px;
 }
 
-/* HEADER */
-.tabla-card th {
-    background: #1e293b;
-    color: #ffffff;
-    padding: 12px;
+thead{
+    background: linear-gradient(135deg,#0f172a,#020617);
+}
+
+thead th{
+    padding: 18px;
+    text-align: center;
+    font-size: 15px;
     font-weight: 600;
+    color: white;
+}
+
+tbody tr{
+    background: #1e293b;
+    transition: .2s;
+}
+
+tbody tr:nth-child(even){
+    background: #273449;
+}
+
+tbody tr:hover{
+    background: #334155;
+}
+
+tbody td{
+    padding: 16px;
+    text-align: center;
+    border-bottom: 1px solid #475569;
+    color: #f1f5f9;
     font-size: 14px;
-    text-align: center;
 }
 
-/* 🔥 CELDAS (CORREGIDO) */
-.tabla-card td {
-    color: #111827 !important;        /* negro visible */
-    background-color: #ffffff !important; /* sin fondo azul */
-    padding: 10px;
-    text-align: center;
-    font-size: 13px;
-    border-bottom: 1px solid #e5e7eb;
+/* ===== ERROR ===== */
+
+.error-message{
+    background: rgba(220,38,38,.15);
+    color: #fecaca;
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 18px;
+    font-size: 14px;
+    border: 1px solid rgba(248,113,113,.25);
 }
 
-/* 🔥 ELIMINAR CUALQUIER FONDO RARO */
-.tabla-card td span {
-    background: transparent !important;
-    color: #111827 !important;
-}
+/* ===== RESPONSIVE ===== */
 
-/* ZEBRA */
-.tabla-card tr:nth-child(even) td {
-    background-color: #f9fafb !important;
-}
+@media(max-width: 1100px){
 
-/* HOVER */
-.tabla-card tr:hover td {
-    background-color: #e2e8f0 !important;
-}
-
-/* 🔴 SELECCIÓN DE TEXTO */
-::selection {
-    background: #93c5fd;
-    color: #000;
-}
-
-/* RESPONSIVE */
-@media (max-width: 900px) {
-    .container-devolucion {
+    .container-devolucion{
         flex-direction: column;
     }
 
-    .form-card {
+    .form-card{
         width: 100%;
     }
+
 }

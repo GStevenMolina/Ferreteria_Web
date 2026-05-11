@@ -1,69 +1,117 @@
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from django.db import transaction
-from decimal import Decimal
 
 from apps.core.models import (
-    Devolucion, Producto, Venta, DetalleVenta,
-    Inventario, MovimientoInventario
+    Devolucion,
+    Producto,
+    Venta,
+    Cliente,
+    DetalleVenta,
+    Inventario,
+    MovimientoInventario
 )
 
 
 def index(request):
+
+    # ===== BUSCADOR =====
+    buscar = request.GET.get("buscar")
+
     devoluciones = Devolucion.objects.select_related(
-        "id_producto", "id_venta"
+        "id_producto",
+        "id_venta"
     ).all().order_by("-fecha")
 
+    # ===== FILTRAR POR PRODUCTO =====
+    if buscar:
+        devoluciones = devoluciones.filter(
+            id_producto__nombre__icontains=buscar
+        )
+
+    # ===== DATOS PARA EL FORMULARIO =====
+    clientes = Cliente.objects.all().order_by("nombre")
+    productos = Producto.objects.all().order_by("nombre")
+
+    # ===== REGISTRAR DEVOLUCIÓN =====
     if request.method == "POST":
 
         fecha = request.POST.get("fecha")
         plazo = request.POST.get("plazo")
         condiciones = request.POST.get("condiciones")
-        nombre_producto = request.POST.get("producto")
 
-        # 🔴 VALIDACIONES
-        if not all([fecha, plazo, condiciones, nombre_producto]):
+        # FORM
+        id_cliente = request.POST.get("id_cliente")
+        id_producto = request.POST.get("id_producto")
+
+        # ===== VALIDACIONES =====
+        if not all([
+            fecha,
+            plazo,
+            condiciones,
+            id_cliente,
+            id_producto
+        ]):
             return render(request, "devolucion/index.html", {
                 "error": "Todos los campos son obligatorios",
-                "devoluciones": devoluciones
+                "devoluciones": devoluciones,
+                "clientes": clientes,
+                "productos": productos
             })
 
         try:
             plazo = int(plazo)
+
         except:
             return render(request, "devolucion/index.html", {
                 "error": "El plazo debe ser numérico",
-                "devoluciones": devoluciones
+                "devoluciones": devoluciones,
+                "clientes": clientes,
+                "productos": productos
             })
 
         try:
             with transaction.atomic():
 
-                # 🔍 BUSCAR PRODUCTO
-                producto = Producto.objects.filter(
-                    nombre__icontains=nombre_producto
-                ).first()
+                # ===== CLIENTE =====
+                cliente = Cliente.objects.get(
+                    id_cliente=id_cliente
+                )
 
-                if not producto:
+                # ===== PRODUCTO =====
+                producto = Producto.objects.get(
+                    id_producto=id_producto
+                )
+
+                # ===== BUSCAR ÚLTIMA VENTA DEL CLIENTE =====
+                venta = Venta.objects.filter(
+                    id_cliente=cliente
+                ).order_by("-id_venta").first()
+
+                # ===== VALIDAR VENTA =====
+                if not venta:
                     return render(request, "devolucion/index.html", {
-                        "error": "Producto no encontrado",
-                        "devoluciones": devoluciones
+                        "error": "El cliente no tiene ventas registradas",
+                        "devoluciones": devoluciones,
+                        "clientes": clientes,
+                        "productos": productos
                     })
 
-                # 🔍 BUSCAR ÚLTIMA VENTA DEL PRODUCTO
-                detalle = DetalleVenta.objects.filter(
+                # ===== VALIDAR PRODUCTO EN ESA VENTA =====
+                existe_detalle = DetalleVenta.objects.filter(
+                    id_venta=venta,
                     id_producto=producto
-                ).order_by("-id_venta__id_venta").first()
+                ).exists()
 
-                if not detalle:
+                if not existe_detalle:
                     return render(request, "devolucion/index.html", {
-                        "error": "El producto no tiene ventas registradas",
-                        "devoluciones": devoluciones
+                        "error": "Ese producto no pertenece a la última factura del cliente",
+                        "devoluciones": devoluciones,
+                        "clientes": clientes,
+                        "productos": productos
                     })
 
-                venta = detalle.id_venta
-
-                # 🔴 VALIDAR SI YA FUE DEVUELTO
+                # ===== VALIDAR DEVOLUCIÓN DUPLICADA =====
                 ya_devuelto = Devolucion.objects.filter(
                     id_venta=venta,
                     id_producto=producto
@@ -72,10 +120,12 @@ def index(request):
                 if ya_devuelto:
                     return render(request, "devolucion/index.html", {
                         "error": "Este producto ya fue devuelto",
-                        "devoluciones": devoluciones
+                        "devoluciones": devoluciones,
+                        "clientes": clientes,
+                        "productos": productos
                     })
 
-                # 🔄 REGISTRAR DEVOLUCIÓN
+                # ===== REGISTRAR DEVOLUCIÓN =====
                 devolucion = Devolucion.objects.create(
                     id_venta=venta,
                     id_producto=producto,
@@ -85,12 +135,15 @@ def index(request):
                     estado="Aceptada"
                 )
 
-                # 📦 ACTUALIZAR INVENTARIO (DEVOLUCIÓN = ENTRADA)
-                inventario = Inventario.objects.get(id_producto=producto)
-                inventario.stock_actual += 1  # puedes ajustar cantidad si quieres
+                # ===== ACTUALIZAR INVENTARIO =====
+                inventario = Inventario.objects.get(
+                    id_producto=producto
+                )
+
+                inventario.stock_actual += 1
                 inventario.save()
 
-                # 📊 MOVIMIENTO INVENTARIO
+                # ===== MOVIMIENTO INVENTARIO =====
                 MovimientoInventario.objects.create(
                     id_producto=producto,
                     tipo_movimiento="ENTRADA",
@@ -102,11 +155,16 @@ def index(request):
                 return redirect("devolucion:index")
 
         except Exception as e:
+
             return render(request, "devolucion/index.html", {
                 "error": str(e),
-                "devoluciones": devoluciones
+                "devoluciones": devoluciones,
+                "clientes": clientes,
+                "productos": productos
             })
 
     return render(request, "devolucion/index.html", {
-        "devoluciones": devoluciones
+        "devoluciones": devoluciones,
+        "clientes": clientes,
+        "productos": productos
     })

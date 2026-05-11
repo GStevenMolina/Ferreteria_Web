@@ -13,18 +13,23 @@
     <h1>Punto de Venta</h1>
 </header>
 
-<!-- 🔥 IMPORTANTE: pos-theme -->
 <main class="pos-layout pos-theme">
 
-    <!-- ===== IZQUIERDA ===== -->
+    <!-- ===================================== -->
+    <!-- IZQUIERDA: PRODUCTOS -->
+    <!-- ===================================== -->
     <section class="pos-left">
 
-        <!-- 🔍 BUSCADOR -->
+        <!-- BUSCADOR -->
         <div class="search-box">
-            <input type="text" id="search" placeholder="🔍 Buscar por nombre o categoria...">
+            <input
+                type="text"
+                id="search"
+                placeholder="🔍 Buscar por nombre o categoria..."
+            >
         </div>
 
-        <!-- 🧱 PRODUCTOS -->
+        <!-- PRODUCTOS -->
         <div class="products-grid">
             {% for product in productos %}
             <div class="product-card">
@@ -45,7 +50,7 @@
                     Stock: {{ product.stock }}
                 </div>
 
-                <button 
+                <button
                     type="button"
                     class="add-to-cart btn-add"
                     data-id="{{ product.id_producto }}"
@@ -55,47 +60,80 @@
                 </button>
 
             </div>
+            {% empty %}
+            <p>No hay productos disponibles.</p>
             {% endfor %}
         </div>
 
     </section>
 
-    <!-- ===== DERECHA ===== -->
+    <!-- ===================================== -->
+    <!-- DERECHA -->
+    <!-- ===================================== -->
     <aside class="pos-right">
 
-        <!-- 👤 CLIENTE -->
+        <!-- ============================== -->
+        <!-- CLIENTE -->
+        <!-- ============================== -->
         <div class="card cliente-card">
             <h3>Cliente</h3>
 
-            <input 
-                type="text" 
-                id="buscar-cliente" 
+            <input
+                type="text"
+                id="buscar-cliente"
                 placeholder="Buscar cliente..."
                 autocomplete="off"
             >
 
             <ul id="lista-clientes"></ul>
 
-            <button id="nuevo-cliente-btn" class="btn btn-secondary">
+            <button
+                type="button"
+                id="nuevo-cliente-btn"
+                class="btn btn-secondary">
                 + Nuevo Cliente
             </button>
 
-            <div id="form-cliente" class="form-cliente">
-                <input type="text" id="nuevo-nombre" placeholder="Nombre completo">
-                <input type="text" id="nuevo-telefono" placeholder="Teléfono">
-                <input type="text" id="nuevo-direccion" placeholder="Dirección">
+            <!-- FORMULARIO OCULTO -->
+            <div
+                id="form-cliente"
+                class="form-cliente"
+                style="display: none;">
 
-                <button id="guardar-cliente" class="btn btn-primary">
+                <input
+                    type="text"
+                    id="nuevo-nombre"
+                    placeholder="Nombre completo"
+                >
+
+                <input
+                    type="text"
+                    id="nuevo-telefono"
+                    placeholder="Teléfono"
+                >
+
+                <input
+                    type="text"
+                    id="nuevo-direccion"
+                    placeholder="Dirección"
+                >
+
+                <button
+                    type="button"
+                    id="guardar-cliente"
+                    class="btn btn-primary">
                     Guardar Cliente
                 </button>
             </div>
         </div>
 
-        <!-- 💱 MONEDA -->
+        <!-- ============================== -->
+        <!-- MONEDA -->
+        <!-- ============================== -->
         <div class="card currency-card">
 
             <div class="currency-row">
-                <label>Moneda</label>
+                <label for="currencySelect">Moneda</label>
                 <select id="currencySelect">
                     <option value="NIO">C$ NIO</option>
                     <option value="USD">$ USD</option>
@@ -103,18 +141,20 @@
             </div>
 
             <div class="currency-row">
-                <label>Tipo de Cambio</label>
-                <input 
-                    type="number" 
-                    id="fxRate" 
-                    value="36.60" 
+                <label for="fxRate">Tipo de Cambio</label>
+                <input
+                    type="number"
+                    id="fxRate"
+                    value="{{ tipo_cambio|default:'36.60' }}"
                     step="0.01"
                 >
             </div>
 
         </div>
 
-        <!-- 🛒 CARRITO -->
+        <!-- ============================== -->
+        <!-- CARRITO -->
+        <!-- ============================== -->
         <div class="card cart-card">
 
             <h2>Detalle de Venta</h2>
@@ -123,7 +163,7 @@
                 <p class="empty">No hay productos</p>
             </div>
 
-            <!-- 💰 TOTALES -->
+            <!-- TOTALES -->
             <div class="totals">
 
                 <div class="total-row">
@@ -152,17 +192,24 @@
 
             </div>
 
-            <!-- 💳 PAGO -->
+            <!-- PAGO -->
             <div class="payment-box">
 
-                <label>Método de Pago</label>
+                <label for="payment">Método de Pago</label>
                 <select id="payment">
                     <option value="efectivo">Efectivo</option>
                     <option value="tarjeta">Tarjeta</option>
+                    <option value="transferencia">Transferencia</option>
                 </select>
 
-                <label>Efectivo recibido</label>
-                <input type="number" id="cash-received" value="0" step="0.01">
+                <label for="cash-received">Efectivo recibido</label>
+                <input
+                    type="number"
+                    id="cash-received"
+                    value="0"
+                    step="0.01"
+                    min="0"
+                >
 
                 <p class="change">
                     Vuelto:
@@ -174,9 +221,34 @@
 
             </div>
 
-            <!-- 🔘 BOTONES -->
+            <!-- ENVÍO -->
+            <div class="shipping-box">
+                <label>
+                    <input type="checkbox" id="envio">
+                    ¿Desea envío?
+                </label>
+
+                <div
+                    id="shipping-fields"
+                    style="display: none; margin-top: 12px;">
+
+                    <input
+                        type="text"
+                        id="direccion-envio"
+                        placeholder="Dirección de envío"
+                    >
+
+                    <input
+                        type="date"
+                        id="fecha-entrega"
+                    >
+                </div>
+            </div>
+
+            <!-- BOTONES -->
             <div class="actions">
-                <button 
+
+                <button
                     id="pay"
                     type="button"
                     data-url="{% url 'ventas:guardar_venta' %}"
@@ -185,12 +257,13 @@
                     Finalizar Venta
                 </button>
 
-                <button 
-                    id="cancel" 
-                    type="button" 
+                <button
+                    id="cancel"
+                    type="button"
                     class="btn btn-danger">
                     Cancelar
                 </button>
+
             </div>
 
         </div>

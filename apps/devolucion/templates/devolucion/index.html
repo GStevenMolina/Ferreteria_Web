@@ -1,78 +1,200 @@
 {% extends "base.html" %}
+{% load static %}
+
 {% block title %}Devolución{% endblock %}
 
-{% block content %}
-{% load static %}
+<!-- ===== CSS ===== -->
+{% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/devolucion.css' %}">
+{% endblock %}
 
-<main class="main-content">
+{% block content %}
 
-  <div class="container-devolucion">
+<div class="container-devolucion">
 
-    <!-- 🟦 FORMULARIO -->
+    <!-- ===== FORMULARIO ===== -->
     <section class="form-card">
 
-      <h3>Devolución</h3>
+        <h3>Devolución</h3>
 
-      <form method="POST">
-        {% csrf_token %}
+        {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+        {% endif %}
 
-        <label>Fecha</label>
-        <input type="date" name="fecha">
+        <form method="POST">
+            {% csrf_token %}
 
-        <label>Plazo</label>
-        <input type="number" name="plazo">
+            <!-- ===== FECHA ===== -->
+            <label>Fecha</label>
 
-        <label>Condiciones</label>
-        <textarea name="condiciones"></textarea>
+            <input
+                type="date"
+                name="fecha"
+                required
+            >
 
-        <label>Producto a Devolver</label>
-        <input type="text" name="producto">
+            <!-- ===== PLAZO ===== -->
+            <label>Plazo</label>
 
-        <button type="submit" class="btn-orange">
-          Registrar devolución
-        </button>
+            <input
+                type="number"
+                name="plazo"
+                placeholder="Ingrese el plazo"
+                required
+            >
 
-      </form>
+            <!-- ===== CONDICIONES ===== -->
+            <label>Condiciones</label>
+
+            <textarea
+                name="condiciones"
+                placeholder="Describa las condiciones del producto"
+                required
+            ></textarea>
+
+            <!-- ===== CLIENTE ===== -->
+            <label>Cliente</label>
+
+            <input
+                type="text"
+                id="buscadorCliente"
+                placeholder="Buscar cliente..."
+                list="listaClientes"
+                autocomplete="off"
+                required
+            >
+
+            <datalist id="listaClientes">
+
+                {% for cliente in clientes %}
+                <option
+                    value="{{ cliente.nombre }}"
+                    data-id="{{ cliente.id_cliente }}">
+                </option>
+                {% endfor %}
+
+            </datalist>
+
+            <input
+                type="hidden"
+                name="id_cliente"
+                id="idCliente"
+            >
+
+            <!-- ===== PRODUCTO ===== -->
+            <label>Producto a devolver</label>
+
+            <input
+                type="text"
+                id="buscadorProducto"
+                placeholder="Buscar producto..."
+                list="listaProductos"
+                autocomplete="off"
+                required
+            >
+
+            <datalist id="listaProductos">
+
+                {% for producto in productos %}
+                <option
+                    value="{{ producto.nombre }}"
+                    data-id="{{ producto.id_producto }}">
+                </option>
+                {% endfor %}
+
+            </datalist>
+
+            <input
+                type="hidden"
+                name="id_producto"
+                id="idProducto"
+            >
+
+            <!-- ===== BOTÓN ===== -->
+            <button type="submit" class="btn-orange">
+                Registrar devolución
+            </button>
+
+        </form>
 
     </section>
 
-    <!-- 🟫 TABLA -->
+    <!-- ===== TABLA ===== -->
     <section class="tabla-card">
 
-      <table>
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Plazo</th>
-            <th>Condiciones</th>
-            <th>IDVenta</th>
-            <th>Producto</th>
-          </tr>
-        </thead>
+        <!-- ===== BUSCADOR ===== -->
+        <div class="search-form">
 
-        <tbody>
-          {% for d in devoluciones %}
-          <tr>
-            <td>{{ d.fecha }}</td>
-            <td>{{ d.plazo }}</td>
-            <td>{{ d.condiciones }}</td>
-            <td>{{ d.id_venta.id_venta }}</td>
-            <td>{{ d.id_producto.nombre }}</td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="5">No hay devoluciones registradas</td>
-          </tr>
-          {% endfor %}
-        </tbody>
+            <input
+                type="text"
+                id="buscador"
+                placeholder="Buscar por producto..."
+                autocomplete="off"
+            >
 
-      </table>
+        </div>
+
+        <!-- ===== TABLA ===== -->
+        <table id="tablaDevoluciones">
+
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Plazo</th>
+                    <th>Condiciones</th>
+                    <th>Factura</th>
+                    <th>Producto</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for d in devoluciones %}
+                <tr>
+
+                    <td>{{ d.fecha }}</td>
+
+                    <!-- CLIENTE -->
+                    <td>
+                        {{ d.id_venta.id_cliente.nombre }}
+                    </td>
+
+                    <td>{{ d.plazo }}</td>
+
+                    <td>{{ d.condiciones }}</td>
+
+                    <td>
+                        #{{ d.id_venta.id_venta }}
+                    </td>
+
+                    <td class="producto">
+                        {{ d.id_producto.nombre }}
+                    </td>
+
+                </tr>
+
+                {% empty %}
+                <tr>
+                    <td colspan="6">
+                        No hay devoluciones registradas
+                    </td>
+                </tr>
+                {% endfor %}
+
+            </tbody>
+
+        </table>
 
     </section>
 
-  </div>
+</div>
 
-</main>
+{% endblock %}
 
+<!-- ===== JS ===== -->
+{% block extra_js %}
+<script src="{% static 'js/devolucion.js' %}"></script>
 {% endblock %}

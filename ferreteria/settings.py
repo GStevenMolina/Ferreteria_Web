@@ -66,7 +66,7 @@ DATABASES = {
     "default": {
         "ENGINE": "mssql",
         "NAME": os.getenv("DB_NAME", "Ferreteria"),
-        "HOST": os.getenv("DB_HOST", r"MARCEL-TM\SQLEXPRESS"),
+        "HOST": os.getenv("DB_HOST", r"MSI"),
         "OPTIONS": {
             "driver": "ODBC Driver 17 for SQL Server",
             "TrustServerCertificate": "yes",

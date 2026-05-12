@@ -63,6 +63,11 @@
     <span class="menu-link__text">Proveedor</span>
   </a>
   {% endif %}
+  <!--cliente-->
+<a class="menu-link" href="{% url 'cliente:index' %}" data-permission="cliente">
+    <span class="menu-link__icon">👤</span>
+    <span class="menu-link__text">Clientes</span>
+</a>
 
   <!-- Ventas -->
   <a class="menu-link" href="{% url 'ventas:index' %}" data-permission="ventas">

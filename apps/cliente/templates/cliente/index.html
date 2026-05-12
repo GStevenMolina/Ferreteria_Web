@@ -1,0 +1,527 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Clientes{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/cliente.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="clientes-page">
+
+    <!-- =========================================
+         HEADER
+    ========================================== -->
+    <section class="page-header">
+
+        <div class="header-info">
+
+            <span class="page-badge">
+                Gestión de Clientes
+            </span>
+
+            <h1>
+                ¡Bienvenido,
+                {{ request.session.usuario_nombre|default:"Carlos López" }}!
+            </h1>
+
+            <p>
+                Administra tu cartera de clientes,
+                visualiza estadísticas y controla
+                su actividad comercial.
+            </p>
+
+        </div>
+
+        <div class="header-actions">
+
+            <button
+                type="button"
+                class="icon-btn"
+                title="Notificaciones"
+            >
+                🔔
+            </button>
+
+            <button
+                type="button"
+                class="icon-btn"
+                title="Configuración"
+            >
+                ⚙️
+            </button>
+
+          <!---- <button
+                type="button"
+                class="btn btn-primary btn-lg"
+                id="btnNuevoCliente"
+            >
+                <span>➕</span>
+                Nuevo Cliente
+            </button>-->
+
+        </div>
+
+    </section>
+
+    <!-- =========================================
+         TARJETAS
+    ========================================== -->
+    <section class="stats-grid">
+
+        <div class="stat-card">
+
+            <div class="stat-icon blue">
+                👥
+            </div>
+
+            <div class="stat-content">
+
+                <span>Clientes Totales</span>
+
+                <h3>
+                    {{ total_clientes }}
+                </h3>
+
+                <small class="positive">
+                    Registrados en el sistema
+                </small>
+
+            </div>
+
+        </div>
+
+        <div class="stat-card">
+
+            <div class="stat-icon green">
+                ✅
+            </div>
+
+            <div class="stat-content">
+
+                <span>Clientes Activos</span>
+
+                <h3>
+                    {{ clientes_activos }}
+                </h3>
+
+                <small class="positive">
+                    Han realizado compras
+                </small>
+
+            </div>
+
+        </div>
+
+        <div class="stat-card">
+
+            <div class="stat-icon orange">
+                🆕
+            </div>
+
+            <div class="stat-content">
+
+                <span>Nuevos este Mes</span>
+
+                <h3>
+                    {{ clientes_nuevos_mes }}
+                </h3>
+
+                <small class="positive">
+                    Últimos 30 días
+                </small>
+
+            </div>
+
+        </div>
+
+        <div class="stat-card">
+
+            <div class="stat-icon red">
+                ⚠️
+            </div>
+
+            <div class="stat-content">
+
+                <span>Clientes Inactivos</span>
+
+                <h3>
+                    {{ clientes_inactivos }}
+                </h3>
+
+                <small class="negative">
+                    Sin compras registradas
+                </small>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- =========================================
+         TABLA
+    ========================================== -->
+    <section class="content-grid">
+
+        <div class="card table-card">
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+                        Lista de Clientes
+                    </h2>
+
+                    <p>
+                        Consulta, edita y administra
+                        la información de tus clientes.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <!-- Toolbar -->
+            <div class="toolbar">
+
+                <div class="search-box">
+
+                    <span class="search-icon">
+                        🔍
+                    </span>
+
+                    <input
+                        type="text"
+                        class="search-input"
+                        placeholder="Buscar cliente..."
+                    >
+
+                </div>
+
+            </div>
+
+            <!-- Tabla -->
+            <div class="table-responsive">
+
+                <table class="clientes-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>ID</th>
+                            <th>Cliente</th>
+                            <th>Teléfono</th>
+                            <th>Dirección</th>
+                            <th>Compras</th>
+                            <th>Estado</th>
+                            <th class="text-center">
+                                Acciones
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for cliente in clientes %}
+
+                        <tr>
+
+                            <!-- ID -->
+                            <td>
+                                #CLI-{{ cliente.id_cliente|stringformat:"05d" }}
+                            </td>
+
+                            <!-- Cliente -->
+                            <td>
+
+                                <div class="client-info">
+
+                                    <div class="client-avatar">
+                                        {{ cliente.nombre|first|upper }}
+                                    </div>
+
+                                    <div>
+
+                                        <strong>
+                                            {{ cliente.nombre }}
+                                        </strong>
+
+                                        <small>
+
+                                            {% if cliente.fecha_registro %}
+
+                                                Registrado el
+                                                {{ cliente.fecha_registro|date:"d/m/Y" }}
+
+                                            {% else %}
+
+                                                Sin fecha de registro
+
+                                            {% endif %}
+
+                                        </small>
+
+                                    </div>
+
+                                </div>
+
+                            </td>
+
+                            <!-- Teléfono -->
+                            <td>
+                                {{ cliente.telefono|default:"No registrado" }}
+                            </td>
+
+                            <!-- Dirección -->
+                            <td>
+                                {{ cliente.direccion|default:"No registrada"|truncatechars:35 }}
+                            </td>
+
+                            <!-- Compras -->
+                            <td>
+                                C$
+                                {{ cliente.total_compras|default:0|floatformat:2 }}
+                            </td>
+
+                            <!-- Estado -->
+                            <td>
+
+                                <span class="badge {% if cliente.estado == 'Activo' %}active{% else %}inactive{% endif %}">
+                                    {{ cliente.estado }}
+                                </span>
+
+                            </td>
+
+                            <!-- ACCIONES -->
+                            <td class="actions">
+
+                                <!-- VER -->
+                                <button
+                                    type="button"
+                                    class="action-btn btnVer"
+                                    data-id="{{ cliente.id_cliente }}"
+                                    data-nombre="{{ cliente.nombre }}"
+                                    data-telefono="{{ cliente.telefono }}"
+                                    data-direccion="{{ cliente.direccion }}"
+                                    title="Ver"
+                                >
+                                    👁️
+                                </button>
+
+                                <!-- EDITAR -->
+                                <button
+                                    type="button"
+                                    class="action-btn btnEditar"
+                                    data-id="{{ cliente.id_cliente }}"
+                                    data-nombre="{{ cliente.nombre }}"
+                                    data-telefono="{{ cliente.telefono }}"
+                                    data-direccion="{{ cliente.direccion }}"
+                                    title="Editar"
+                                >
+                                    ✏️
+                                </button>
+
+                                <!-- ELIMINAR 
+                                <button
+                                    type="button"
+                                    class="action-btn danger btnEliminar"
+                                    data-id="{{ cliente.id_cliente }}"
+                                    data-nombre="{{ cliente.nombre }}"
+                                    data-telefono="{{ cliente.telefono }}"
+                                    data-direccion="{{ cliente.direccion }}"
+                                    title="Eliminar"
+                                >
+                                    🗑️
+                                </button>
+                                -->
+
+                            </td>
+
+                        </tr>
+
+                        {% empty %}
+
+                        <tr>
+
+                            <td colspan="7" class="text-center">
+                                No hay clientes registrados.
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </section>
+
+</div>
+
+<!-- =========================================
+     VENTANA FLOTANTE CLIENTE
+========================================= -->
+<div
+    id="modalCliente"
+    class="modal"
+    style="display:none;"
+>
+
+    <!-- BACKDROP -->
+    <div
+        class="modal__backdrop"
+        id="modalBackdrop"
+    ></div>
+
+    <!-- PANEL -->
+    <div
+        class="modal__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Cliente"
+    >
+
+        <!-- HEADER -->
+        <div class="modal__header">
+
+            <div>
+
+                <div
+                    class="modal__title"
+                    id="modalTitulo"
+                >
+                    Información del Cliente
+                </div>
+
+                <div class="modal__subtitle">
+
+                    Gestión y administración
+                    de clientes
+
+                </div>
+
+            </div>
+
+            <button
+                class="modal__close"
+                type="button"
+                id="btnCerrarModalCliente"
+            >
+                ✕
+            </button>
+
+        </div>
+
+        <!-- BODY -->
+        <div class="modal__body">
+
+            <form
+                method="POST"
+                id="formCliente"
+            >
+
+                {% csrf_token %}
+
+                <!-- NOMBRE -->
+                <div class="form-group">
+
+                    <label>
+                        Nombre
+                    </label>
+
+                    <input
+                        type="text"
+                        name="nombre"
+                        id="clienteNombre"
+                        placeholder="Nombre del cliente"
+                    >
+
+                </div>
+
+                <!-- TELEFONO -->
+                <div class="form-group">
+
+                    <label>
+                        Teléfono
+                    </label>
+
+                    <input
+                        type="text"
+                        name="telefono"
+                        id="clienteTelefono"
+                        placeholder="8888-8888"
+                    >
+
+                </div>
+
+                <!-- DIRECCION -->
+                <div class="form-group">
+
+                    <label>
+                        Dirección
+                    </label>
+
+                    <textarea
+                        name="direccion"
+                        id="clienteDireccion"
+                        placeholder="Dirección del cliente"
+                    ></textarea>
+
+                </div>
+
+                <!-- BOTONES -->
+                <div class="modal__actions">
+
+                    <!-- GUARDAR -->
+                    <button
+                        type="submit"
+                        class="btn btn-primary"
+                        id="btnGuardarCliente"
+                    >
+                        💾 Guardar
+                    </button>
+
+                    <!-- ELIMINAR 
+                    <button
+                        type="submit"
+                        class="btn btn-danger"
+                        id="btnEliminarCliente"
+                        style="display:none;"
+                    >
+                        🗑️ Eliminar
+                    </button>
+                -->
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+{{ ventas_por_dia|json_script:"ventas-por-dia-data" }}
+{{ estado_clientes|json_script:"estado-clientes-data" }}
+
+<script src="{% static 'js/cliente.js' %}"></script>
+
+{% endblock %}

@@ -12,104 +12,112 @@
   <h1 class="prov-title">Consulta de proveedores</h1>
   <p class="prov-subtitle">Visualiza proveedores y las categorías que ofrecen, junto con la cantidad de productos registrados en cada una.</p>
 
+  <div class="prov-toolbar">
+    <div class="prov-search">
+      <span class="prov-search__icon" aria-hidden="true">🔎</span>
+      <input id="provSearchInput" class="prov-search__input" type="search" placeholder="Buscar proveedor..." autocomplete="off">
+    </div>
+
+    <button type="button" class="btn prov-primary-btn" id="btnAbrirNuevoProveedor">
+      + Nuevo proveedor
+    </button>
+  </div>
+
+  <!-- ESTADÍSTICAS -->
+  <div class="stats-container">
+    <div class="stat-card stat-card--blue">
+      <div class="stat-card__icon">📦</div>
+      <div class="stat-card__content">
+        <div class="stat-card__label">Proveedores totales</div>
+        <div class="stat-card__number">{{ stats.total_proveedores }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card stat-card--green">
+      <div class="stat-card__icon">🛍️</div>
+      <div class="stat-card__content">
+        <div class="stat-card__label">Productos registrados</div>
+        <div class="stat-card__number">{{ stats.total_productos }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card stat-card--orange">
+      <div class="stat-card__icon">🏷️</div>
+      <div class="stat-card__content">
+        <div class="stat-card__label">Categorías activas</div>
+        <div class="stat-card__number">{{ stats.total_categorias }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card stat-card--red">
+      <div class="stat-card__icon">💳</div>
+      <div class="stat-card__content">
+        <div class="stat-card__label">Compras registradas</div>
+        <div class="stat-card__number">{{ stats.total_compras }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="provResultsEmpty" class="prov-no-data" style="display:none;">No se encontraron proveedores con ese criterio.</div>
+
   {% if proveedores_data %}
-    {% for item in proveedores_data %}
-      {% with p=item.proveedor lista=item.categorias %}
-      <section class="prov-card">
-        <div class="prov-card__head">
-          <div>
-            <strong>{{ p.nombre }}</strong>
-            <div class="prov-muted">ID proveedor: {{ p.id_proveedor }}</div>
-          </div>
-          <div class="prov-card__actions">
-            <div class="prov-muted">Categorías: {{ p.total_categorias }} · Productos: {{ p.total_productos }}</div>
-            <a
-              class="btn prov-edit-btn"
-              href="{% url 'compras:index' %}?open_np=1&id_proveedor={{ p.id_proveedor }}&proveedor={{ p.nombre|urlencode }}"
-            >
-              Nuevo producto
-            </a>
-
-            <button
-              type="button"
-              class="btn prov-edit-btn"
-              data-id="{{ p.id_proveedor }}"
-              data-nombre="{{ p.nombre|default_if_none:''|escape }}"
-              data-telefono="{{ p.telefono|default_if_none:''|escape }}"
-              data-email="{{ p.email|default_if_none:''|escape }}"
-              data-contacto="{{ p.numero_contacto|default_if_none:''|escape }}"
-              data-direccion="{{ p.direccion|default_if_none:''|escape }}"
-              data-tipo="{{ p.tipo_proveedor|default_if_none:''|escape }}"
-            >
-              Editar proveedor
-            </button>
-          </div>
-        </div>
-
-        <div class="prov-card__details">
-          {% if p.tipo_proveedor %}
-            <div class="prov-detail">
-              <span class="prov-label">Tipo:</span>
-              <span>{{ p.tipo_proveedor }}</span>
-            </div>
-          {% endif %}
-          {% if p.telefono %}
-            <div class="prov-detail">
-              <span class="prov-label">Teléfono:</span>
-              <span>{{ p.telefono }}</span>
-            </div>
-          {% endif %}
-          {% if p.email %}
-            <div class="prov-detail">
-              <span class="prov-label">Email:</span>
-              <span>{{ p.email }}</span>
-            </div>
-          {% endif %}
-          {% if p.numero_contacto %}
-            <div class="prov-detail">
-              <span class="prov-label">Contacto:</span>
-              <span>{{ p.numero_contacto }}</span>
-            </div>
-          {% endif %}
-          {% if p.direccion %}
-            <div class="prov-detail">
-              <span class="prov-label">Dirección:</span>
-              <span>{{ p.direccion }}</span>
-            </div>
-          {% endif %}
-          {% if p.fecha_registro %}
-            <div class="prov-detail">
-              <span class="prov-label">Registrado:</span>
-              <span>{{ p.fecha_registro|date:"d/m/Y H:i" }}</span>
-            </div>
-          {% endif %}
-        </div>
-
-        <div class="prov-card__body">
-          {% if lista %}
-            <table class="prov-table">
-              <thead>
-                <tr>
-                  <th>Categoría</th>
-                  <th class="prov-right">Productos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for categoria in lista %}
-                  <tr>
-                    <td>{{ categoria.nombre }}</td>
-                    <td class="prov-right">{{ categoria.productos }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          {% else %}
-            <div class="prov-empty">Sin categorías asociadas.</div>
-          {% endif %}
-        </div>
-      </section>
-      {% endwith %}
-    {% endfor %}
+    <div class="prov-table-shell">
+      <table class="prov-excel" id="provTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre del proveedor</th>
+            <th>Teléfono</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in proveedores_data %}
+            {% with p=item.proveedor lista=item.categorias %}
+            <tr class="prov-row" data-search="{{ p.id_proveedor }} {{ p.nombre|default_if_none:''|escape }} {{ p.telefono|default_if_none:''|escape }} {{ p.email|default_if_none:''|escape }} {{ p.numero_contacto|default_if_none:''|escape }} {{ p.direccion|default_if_none:''|escape }} {{ p.tipo_proveedor|default_if_none:''|escape }} {{ p.estado|default_if_none:''|escape }}">
+              <td class="prov-id">#PROV-{{ p.id_proveedor|stringformat:"05d" }}</td>
+              <td>
+                <div class="prov-name">{{ p.nombre }}</div>
+                <div class="prov-subline">
+                  {% if p.email %}<span>{{ p.email }}</span>{% endif %}
+                  {% if p.tipo_proveedor %}<span>{{ p.tipo_proveedor }}</span>{% endif %}
+                  {% if p.numero_contacto %}<span>{{ p.numero_contacto }}</span>{% endif %}
+                </div>
+              </td>
+              <td>{{ p.telefono|default:"-" }}</td>
+              <td>
+                <span class="prov-status prov-status--active">{{ p.estado }}</span>
+              </td>
+              <td>
+                <div class="prov-actions">
+                  <a
+                    class="btn prov-edit-btn"
+                    href="{% url 'compras:index' %}?open_np=1&id_proveedor={{ p.id_proveedor }}&proveedor={{ p.nombre|urlencode }}"
+                  >
+                    Nuevo producto
+                  </a>
+                  <button
+                    type="button"
+                    class="btn prov-edit-btn"
+                    data-id="{{ p.id_proveedor }}"
+                    data-nombre="{{ p.nombre|default_if_none:''|escape }}"
+                    data-telefono="{{ p.telefono|default_if_none:''|escape }}"
+                    data-email="{{ p.email|default_if_none:''|escape }}"
+                    data-contacto="{{ p.numero_contacto|default_if_none:''|escape }}"
+                    data-direccion="{{ p.direccion|default_if_none:''|escape }}"
+                    data-tipo="{{ p.tipo_proveedor|default_if_none:''|escape }}"
+                  >
+                    Editar proveedor
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   {% else %}
     <div class="prov-no-data">No hay proveedores registrados.</div>
   {% endif %}
@@ -117,21 +125,22 @@
 
 <form id="csrfFormProveedor">{% csrf_token %}</form>
 
-<div id="modalEditarProveedor" class="modal" style="display:none;">
-  <div class="modal__backdrop" id="modalEditBackdrop"></div>
+<div id="modalProveedor" class="modal" style="display:none;">
+  <div class="modal__backdrop" id="modalProveedorBackdrop"></div>
 
-  <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Editar proveedor">
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Proveedor">
     <div class="modal__header">
       <div>
-        <div class="modal__title">Editar proveedor</div>
-        <div class="modal__subtitle">Actualiza los datos del proveedor seleccionado</div>
+        <div class="modal__title" id="modalProveedorTitle">Editar proveedor</div>
+        <div class="modal__subtitle" id="modalProveedorSubtitle">Actualiza los datos del proveedor seleccionado</div>
       </div>
-      <button class="modal__close" type="button" id="btnCloseModalEditProv">✕</button>
+      <button class="modal__close" type="button" id="btnCloseModalProveedor">✕</button>
     </div>
 
     <div class="modal__grid modal__grid--single">
       <div class="modal__card card-blue">
         <input type="hidden" id="ep_id_proveedor" />
+        <input type="hidden" id="ep_mode" value="edit" />
 
         <label class="label">Nombre</label>
         <input id="ep_nombre" class="inp" placeholder="Nombre del proveedor" />
@@ -151,7 +160,7 @@
         <label class="label">Tipo proveedor</label>
         <input id="ep_tipo" class="inp" placeholder="Ej: Mayorista" />
 
-        <button class="btn" type="button" id="btnGuardarEdicionProveedor">Guardar cambios</button>
+        <button class="btn" type="button" id="btnGuardarProveedor">Guardar cambios</button>
       </div>
     </div>
   </div>
@@ -166,51 +175,80 @@
     return el ? el.value : "";
   }
 
-  function openModalFromButton(btn) {
-    $("ep_id_proveedor").value = btn.dataset.id || "";
-    $("ep_nombre").value = btn.dataset.nombre || "";
-    $("ep_telefono").value = btn.dataset.telefono || "";
-    $("ep_email").value = btn.dataset.email || "";
-    $("ep_contacto").value = btn.dataset.contacto || "";
-    $("ep_direccion").value = btn.dataset.direccion || "";
-    $("ep_tipo").value = btn.dataset.tipo || "";
+  function fillModal({ mode, idProveedor = "", nombre = "", telefono = "", email = "", contacto = "", direccion = "", tipo = "" }) {
+    $("ep_mode").value = mode;
+    $("ep_id_proveedor").value = idProveedor;
+    $("ep_nombre").value = nombre;
+    $("ep_telefono").value = telefono;
+    $("ep_email").value = email;
+    $("ep_contacto").value = contacto;
+    $("ep_direccion").value = direccion;
+    $("ep_tipo").value = tipo;
+
+    const esNuevo = mode === "create";
+    $("modalProveedorTitle").textContent = esNuevo ? "Nuevo proveedor" : "Editar proveedor";
+    $("modalProveedorSubtitle").textContent = esNuevo
+      ? "Completa los datos para registrar un proveedor nuevo"
+      : "Actualiza los datos del proveedor seleccionado";
+    $("btnGuardarProveedor").textContent = esNuevo ? "Crear proveedor" : "Guardar cambios";
 
     document.body.style.overflow = "hidden";
-    $("modalEditarProveedor").style.display = "flex";
+    $("modalProveedor").style.display = "flex";
+  }
+
+  function openModalFromButton(btn) {
+    fillModal({
+      mode: "edit",
+      idProveedor: btn.dataset.id || "",
+      nombre: btn.dataset.nombre || "",
+      telefono: btn.dataset.telefono || "",
+      email: btn.dataset.email || "",
+      contacto: btn.dataset.contacto || "",
+      direccion: btn.dataset.direccion || "",
+      tipo: btn.dataset.tipo || "",
+    });
   }
 
   function closeModal() {
-    $("modalEditarProveedor").style.display = "none";
+    $("modalProveedor").style.display = "none";
     document.body.style.overflow = "";
   }
 
-  async function guardarEdicion() {
+  async function guardarProveedor() {
+    const modo = $("ep_mode").value;
     const idProveedor = $("ep_id_proveedor").value.trim();
     const nombre = $("ep_nombre").value.trim();
 
-    if (!idProveedor) {
-      alert("No se encontró el proveedor a editar.");
-      return;
-    }
     if (!nombre) {
       alert("El nombre del proveedor es requerido.");
       return;
     }
 
+    if (modo !== "create" && !idProveedor) {
+      alert("No se encontró el proveedor a editar.");
+      return;
+    }
+
     const form = new FormData();
-    form.append("id_proveedor", idProveedor);
     form.append("nombre", nombre);
     form.append("telefono", $("ep_telefono").value);
     form.append("email", $("ep_email").value);
     form.append("numero_contacto", $("ep_contacto").value);
     form.append("direccion", $("ep_direccion").value);
     form.append("tipo_proveedor", $("ep_tipo").value);
+    if (modo !== "create") {
+      form.append("id_proveedor", idProveedor);
+    }
 
-    const btn = $("btnGuardarEdicionProveedor");
+    const btn = $("btnGuardarProveedor");
     btn.disabled = true;
 
     try {
-      const r = await fetch("/compras/api/proveedor/actualizar/", {
+      const endpoint = modo === "create"
+        ? "/compras/api/proveedor/upsert/"
+        : "/compras/api/proveedor/actualizar/";
+
+      const r = await fetch(endpoint, {
         method: "POST",
         headers: { "X-CSRFToken": getCsrf() },
         body: form,
@@ -218,7 +256,7 @@
       const j = await r.json().catch(() => ({}));
 
       if (!r.ok || !j.ok) {
-        alert(j.error || "No se pudo actualizar el proveedor.");
+        alert(j.error || (modo === "create" ? "No se pudo crear el proveedor." : "No se pudo actualizar el proveedor."));
         return;
       }
 
@@ -232,16 +270,49 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll(".prov-edit-btn").forEach((btn) => {
+    document.querySelectorAll(".prov-edit-btn[data-id]").forEach((btn) => {
       btn.addEventListener("click", () => openModalFromButton(btn));
     });
 
-    $("btnCloseModalEditProv")?.addEventListener("click", closeModal);
-    $("modalEditBackdrop")?.addEventListener("click", closeModal);
-    $("btnGuardarEdicionProveedor")?.addEventListener("click", guardarEdicion);
+    $("btnAbrirNuevoProveedor")?.addEventListener("click", () => {
+      fillModal({ mode: "create" });
+    });
+
+    $("btnCloseModalProveedor")?.addEventListener("click", closeModal);
+    $("modalProveedorBackdrop")?.addEventListener("click", closeModal);
+    $("btnGuardarProveedor")?.addEventListener("click", guardarProveedor);
+
+    const searchInput = $("provSearchInput");
+    const list = $("provTable");
+    const emptyState = $("provResultsEmpty");
+
+    if (searchInput && list) {
+      const rows = Array.from(list.querySelectorAll("tbody .prov-row"));
+      const applyFilter = () => {
+        const term = searchInput.value.trim().toLowerCase();
+        let visibleCount = 0;
+
+        rows.forEach((row) => {
+          const text = (row.dataset.search || row.textContent || "").toLowerCase();
+          const visible = !term || text.includes(term);
+          row.style.display = visible ? "" : "none";
+          if (visible) visibleCount += 1;
+        });
+
+        if (emptyState) {
+          emptyState.style.display = visibleCount ? "none" : "block";
+          emptyState.textContent = term
+            ? "No se encontraron proveedores con ese criterio."
+            : "No hay proveedores registrados.";
+        }
+      };
+
+      searchInput.addEventListener("input", applyFilter);
+      applyFilter();
+    }
 
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && $("modalEditarProveedor")?.style.display === "flex") {
+      if (e.key === "Escape" && $("modalProveedor")?.style.display === "flex") {
         closeModal();
       }
     });

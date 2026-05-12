@@ -85,17 +85,33 @@ def proveedor(request):
         categorias_del_proveedor = categorias_por_proveedor.get(p["id_proveedor"], [])
         p["total_categorias"] = len(categorias_del_proveedor)
         p["total_productos"] = sum(categoria["productos"] for categoria in categorias_del_proveedor)
+        p["estado"] = "Activo"
         proveedores_data.append(
             {
                 "proveedor": p,
                 "categorias": categorias_del_proveedor,
             }
         )
+    
+    # Calcular estadísticas
+    total_proveedores = len(proveedores)
+    total_productos = Producto.objects.count()
+    total_categorias = Categoria.objects.count()
+    total_compras = Compra.objects.count()
+    
+    stats = {
+        "total_proveedores": total_proveedores,
+        "total_productos": total_productos,
+        "total_categorias": total_categorias,
+        "total_compras": total_compras,
+    }
+    
     return render(
         request,
         "compras/proveedor.html",
         {
             "proveedores_data": proveedores_data,
+            "stats": stats,
         },
     )
 
@@ -172,8 +188,6 @@ def nueva_compra(request):
             return JsonResponse({"ok": False, "error": f"Item #{i} inválido"}, status=400)
         if cantidad <= 0:
             return JsonResponse({"ok": False, "error": f"Item #{i}: cantidad debe ser > 0"}, status=400)
-        if cantidad > 60:
-            return JsonResponse({"ok": False, "error": f"Item #{i}: cantidad no puede ser mayor a 60"}, status=400)
         if precio_unitario < 0:
             return JsonResponse({"ok": False, "error": f"Item #{i}: precio_unitario inválido"}, status=400)
         if precio_venta is None or precio_venta < 0:
@@ -184,11 +198,15 @@ def nueva_compra(request):
                 {"ok": False, "error": f"El producto '{producto.nombre}' no pertenece al proveedor seleccionado."},
                 status=400
             )
-        # Validar que el stock_actual no sea mayor o igual a 60
+        # Validar cantidad contra stock_maximo
         inventario = Inventario.objects.filter(id_producto=producto).first()
-        if inventario and inventario.stock_actual and inventario.stock_actual >= 60:
+        stock_maximo = inventario.stock_maximo if inventario else 60
+        if cantidad > stock_maximo:
+            return JsonResponse({"ok": False, "error": f"Item #{i}: cantidad no puede ser mayor a {stock_maximo}"}, status=400)
+        # Validar que el stock_actual no sea mayor o igual al stock_maximo
+        if inventario and inventario.stock_actual and inventario.stock_actual >= stock_maximo:
             return JsonResponse(
-                {"ok": False, "error": f"No se puede comprar '{producto.nombre}': stock actual ({inventario.stock_actual}) ya alcanzó el límite de 60."},
+                {"ok": False, "error": f"No se puede comprar '{producto.nombre}': stock actual ({inventario.stock_actual}) ya alcanzó el máximo de {stock_maximo}."},
                 status=400
             )
         subtotal += (precio_unitario * cantidad)
@@ -411,6 +429,12 @@ def api_producto_crear(request):
     unidad_medida = _clean(request.POST.get("unidad_medida"))
     precio_compra = _dec(request.POST.get("precio_compra"), "0")
     precio_venta = _dec(request.POST.get("precio_venta"), "0")
+    stock_maximo = request.POST.get("stock_maximo", "60")
+    try:
+        stock_maximo = int(stock_maximo) if stock_maximo else 60
+    except (ValueError, TypeError):
+        stock_maximo = 60
+    
     if not id_proveedor:
         return JsonResponse({"ok": False, "error": "Falta proveedor."}, status=400)
     if not id_categoria:
@@ -439,7 +463,7 @@ def api_producto_crear(request):
         defaults={
             "stock_actual": 0,
             "stock_minimo": 0,
-            "stock_maximo": 0,
+            "stock_maximo": stock_maximo,
             "fecha_actualizacion": timezone.now(),
         }
     )

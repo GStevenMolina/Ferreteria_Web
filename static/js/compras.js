@@ -521,6 +521,7 @@
       descripcion: $("np_prod_desc").value,
       precio_compra: $("np_prod_pc").value,
       precio_venta: $("np_prod_pv").value,
+      stock_maximo: $("np_prod_stock_max").value,
       unidad_medida: $("np_prod_um").value,
     };
 

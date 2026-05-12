@@ -621,15 +621,40 @@
     // Cambio de producto:
     // - lee el producto desde productosMap
     // - rellena inputs de precios
+    // - valida si el stock_actual es >= 60
     $("producto").addEventListener("change", (e) => {
       const p = state.productosMap.get(String(e.target.value));
-      if (!p) return;
+      
+      // Si no hay producto seleccionado, habilitar botón
+      if (!p) {
+        $("btnAdd").disabled = false;
+        return;
+      }
+      
       $("precio_compra").value = Number(p.precio_compra || 0).toFixed(2);
       $("precio_venta").value = Number(p.precio_venta || 0).toFixed(2);
+      
+      // Validar stock actual
+      if (p.stock_actual >= 60) {
+        toast("err", "Stock lleno", `El producto "${p.nombre}" ya tiene ${p.stock_actual} unidades. No se puede comprar más.`);
+        $("cantidad").value = "1";
+        $("btnAdd").disabled = true;
+      } else {
+        $("btnAdd").disabled = false;
+      }
     });
 
     $("precio_compra").addEventListener("input", syncSelectedProductCache);
     $("precio_venta").addEventListener("input", syncSelectedProductCache);
+
+    // Validar cantidad: máximo 60
+    $("cantidad").addEventListener("input", (e) => {
+      let val = parseInt(e.target.value, 10);
+      if (val > 60) {
+        e.target.value = "60";
+        toast("err", "Cantidad límite", "La cantidad máxima es 60.");
+      }
+    });
 
     // Agregar item a la lista
     $("btnAdd").addEventListener("click", () => {
@@ -641,6 +666,7 @@
 
       if (!p) return toast("err", "Falta producto", "Selecciona un producto.");
       if (!cantidad || cantidad <= 0) return toast("err", "Cantidad inválida", "La cantidad debe ser mayor que 0.");
+      if (cantidad > 60) return toast("err", "Cantidad excedida", "La cantidad no puede ser mayor a 60.");
       if (isNaN(precio_unitario) || precio_unitario < 0)
         return toast("err", "Precio inválido", "Revisa el precio de compra.");
       if (isNaN(precio_venta) || precio_venta < 0)

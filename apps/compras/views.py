@@ -114,6 +114,7 @@ def api_proveedores(request):
 @require_GET
 def api_productos(request):
     # Devuelve productos filtrados por proveedor (param id_proveedor)
+    # Incluye stock_actual del inventario
     id_proveedor = request.GET.get("id_proveedor")
     if not id_proveedor:
         return JsonResponse({"ok": False, "error": "Falta id_proveedor"}, status=400)
@@ -121,7 +122,16 @@ def api_productos(request):
           .filter(id_proveedor_id=id_proveedor)
           .order_by("nombre")
           .values("id_producto", "nombre", "precio_compra", "precio_venta"))
-    return JsonResponse({"ok": True, "data": list(qs)})
+    
+    # Agregar stock_actual de cada producto
+    productos = []
+    for p in qs:
+        inventario = Inventario.objects.filter(id_producto_id=p["id_producto"]).first()
+        stock_actual = inventario.stock_actual if inventario else 0
+        p["stock_actual"] = stock_actual
+        productos.append(p)
+    
+    return JsonResponse({"ok": True, "data": productos})
 
 @login_required_custom
 @require_http_methods(["POST"])
@@ -162,6 +172,8 @@ def nueva_compra(request):
             return JsonResponse({"ok": False, "error": f"Item #{i} inválido"}, status=400)
         if cantidad <= 0:
             return JsonResponse({"ok": False, "error": f"Item #{i}: cantidad debe ser > 0"}, status=400)
+        if cantidad > 60:
+            return JsonResponse({"ok": False, "error": f"Item #{i}: cantidad no puede ser mayor a 60"}, status=400)
         if precio_unitario < 0:
             return JsonResponse({"ok": False, "error": f"Item #{i}: precio_unitario inválido"}, status=400)
         if precio_venta is None or precio_venta < 0:
@@ -170,6 +182,13 @@ def nueva_compra(request):
         if producto.id_proveedor_id and int(producto.id_proveedor_id) != int(id_proveedor):
             return JsonResponse(
                 {"ok": False, "error": f"El producto '{producto.nombre}' no pertenece al proveedor seleccionado."},
+                status=400
+            )
+        # Validar que el stock_actual no sea mayor o igual a 60
+        inventario = Inventario.objects.filter(id_producto=producto).first()
+        if inventario and inventario.stock_actual and inventario.stock_actual >= 60:
+            return JsonResponse(
+                {"ok": False, "error": f"No se puede comprar '{producto.nombre}': stock actual ({inventario.stock_actual}) ya alcanzó el límite de 60."},
                 status=400
             )
         subtotal += (precio_unitario * cantidad)

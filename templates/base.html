@@ -49,6 +49,10 @@
 <nav class="menu">
   <!-- Compras: solo visible para administradores -->
      {% if request.session.usuario_rol == "Administrador" %}
+  <a class="menu-link {% if request.path == '/dashboard/' %}is-active{% endif %}" href="{% url 'dashboard' %}">
+    <span class="menu-link__icon">🏠</span><span class="menu-link__text">Dashboard</span>
+  </a>
+
   <a class="menu-link" href="{% url 'compras:index' %}" data-permission="compras">
     <span class="menu-link__icon">🛒</span>
     <span class="menu-link__text">Compras</span>

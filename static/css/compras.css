@@ -318,6 +318,23 @@ tbody tr:hover{background:rgba(255,255,255,.03);}
   min-height: 100vh;
 }
 
+.prov-hero{
+  margin-bottom:14px;
+}
+
+.page-badge{
+  display:inline-block;
+  padding:6px 14px;
+  border-radius:999px;
+  background: rgba(34, 211, 238, 0.14);
+  color:#67e8f9;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  margin-bottom:12px;
+}
+
 .prov-title{
   margin:0 0 14px;
   font-size:28px;

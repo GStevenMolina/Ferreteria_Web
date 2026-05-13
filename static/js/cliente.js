@@ -184,3 +184,42 @@ document.querySelectorAll(".btnEliminar")
     });
 
 });
+
+// =========================================
+// BUSCADOR DE CLIENTES
+// =========================================
+const buscador =
+    document.querySelector(".search-input");
+
+const filasClientes =
+    document.querySelectorAll(
+        ".clientes-table tbody tr"
+    );
+
+
+// =========================================
+// EVENTO BUSCAR
+// =========================================
+buscador.addEventListener("keyup", () => {
+
+    const texto =
+        buscador.value.toLowerCase();
+
+    filasClientes.forEach(fila => {
+
+        const contenido =
+            fila.textContent.toLowerCase();
+
+        // MOSTRAR / OCULTAR
+        if (contenido.includes(texto)) {
+
+            fila.style.display = "";
+
+        } else {
+
+            fila.style.display = "none";
+        }
+
+    });
+
+});

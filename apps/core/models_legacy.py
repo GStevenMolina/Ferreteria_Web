@@ -38,6 +38,7 @@ class Cliente(models.Model):
     telefono = models.CharField(max_length=20, db_collation='Modern_Spanish_CI_AS', blank=True, null=True)
     direccion = models.TextField(db_collation='Modern_Spanish_CI_AS', blank=True, null=True)  # This field type is a guess.
     fecha_registro = models.DateTimeField(blank=True, null=True)
+    estado = models.CharField(max_length=10, db_collation='Modern_Spanish_CI_AS', blank=True, null=True)  # <--- NUEVO
 
     class Meta:
         managed = False
@@ -182,6 +183,8 @@ class Proveedor(models.Model):
     direccion = models.TextField(db_collation='Modern_Spanish_CI_AS', blank=True, null=True)  # This field type is a guess.
     tipo_proveedor = models.CharField(max_length=50, db_collation='Modern_Spanish_CI_AS', blank=True, null=True)
     fecha_registro = models.DateTimeField(blank=True, null=True)
+    estado = models.CharField(max_length=10, db_collation='Modern_Spanish_CI_AS', blank=True, null=True)  # <--- NUEVO
+    
 
     class Meta:
         managed = False

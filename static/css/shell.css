@@ -56,7 +56,10 @@ body{
   width: 220px;               /* Ancho expandido */
   background: var(--sidebar);
   padding: 10px 0;
-  overflow: hidden;           /* Oculta contenido que sobresale */
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;           /* El scroll se maneja dentro de .menu-scroll */
   transition: width .18s ease; /* Animación suave al cambiar ancho */
 }
 
@@ -264,6 +267,38 @@ body{
   display:none;
 }
 
+/* Contenedor desplazable del menú lateral */
+.menu-scroll{
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  padding-bottom: 10px;
+}
+
+.menu-scroll{
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.45) transparent;
+}
+
+.menu-scroll::-webkit-scrollbar{
+  width: 8px;
+}
+
+.menu-scroll::-webkit-scrollbar-track{
+  background: transparent;
+}
+
+.menu-scroll::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.32);
+  border-radius: 999px;
+}
+
+.menu-scroll::-webkit-scrollbar-thumb:hover{
+  background: rgba(255,255,255,.48);
+}
+
 /* Contenedor del menú */
 .menu{
   display:flex;
@@ -304,16 +339,12 @@ body{
   padding-left: 7px;          /* Pequeña animación de movimiento */
 }
 
-<<<<<<< HEAD
-/* Enlaces deshabilitados */
-=======
 .menu-link.is-active{
   background: rgba(14, 165, 233, 0.22);
   border-left: 3px solid #7dd3fc;
   padding-left: 7px;
 }
 
->>>>>>> origin/panel_control
 .menu-link[aria-disabled="true"]{
   opacity: .5;                /* Semi-transparente */
   pointer-events: none;       /* No clickeable */

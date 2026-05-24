@@ -46,6 +46,7 @@
 
       <div class="menu-title">Menú principal</div>
 
+<div class="menu-scroll">
 <nav class="menu">
   <!-- Compras: solo visible para administradores -->
      {% if request.session.usuario_rol == "Administrador" %}
@@ -121,6 +122,7 @@
     </button>
   </form>
 </nav>
+</div>
     </aside>
 
     <main class="main">

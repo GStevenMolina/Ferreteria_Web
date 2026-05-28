@@ -1,26 +1,50 @@
 # Ferretería Web
 
-Sistema web de ferretería desarrollado con Django y SQL Server. El proyecto está organizado por módulos funcionales para cubrir autenticación, compras, ventas, inventario, devoluciones y una capa compartida de modelos.
+Sistema web para la gestión de una ferretería construido con Django y SQL Server.  
+La solución está organizada por módulos funcionales para cubrir autenticación, compras, ventas, inventario, devoluciones y una capa compartida de modelos.
 
-## Estado actual del proyecto
+## Resumen del sistema
 
-El sistema actualmente incluye:
+El sistema centraliza el trabajo operativo en una sola plataforma:
 
-- Autenticación y gestión de usuarios.
-- Módulo de compras a proveedores.
-- Módulo de ventas tipo punto de venta.
-- Módulo de registro e inventario con búsqueda, filtros, reportes y exportación.
-- Módulo de devoluciones.
-- Modelos compartidos centralizados en `apps/core`.
-- Plantilla base general con menú lateral y dashboard.
+- **Usuarios y autenticación**: acceso, sesión, cambio de contraseña y administración de usuarios.
+- **Compras**: registro de compras a proveedores, alta de productos y actualización automática de inventario.
+- **Ventas**: punto de venta con búsqueda de productos, clientes y registro de ventas.
+- **Registro / Inventario**: consulta, búsqueda, edición rápida, reportes y exportación.
+- **Devoluciones**: registro de devoluciones y reversión de stock.
+- **Core**: modelos compartidos y punto de integración con la base de datos existente.
 
 ## Tecnologías
 
 - Python
-- Django 6.x
+- Django 6.0.4
 - SQL Server
 - ODBC Driver 17 for SQL Server
 - HTML, CSS y JavaScript
+
+## Diagrama de interfaces del repositorio
+
+```mermaid
+flowchart TD
+    A[Usuario] --> B[Accounts]
+    A --> C[Compras]
+    A --> D[Ventas]
+    A --> E[Registro]
+    A --> F[Devolución]
+
+    B --> G[Dashboard / Sesión]
+    C --> H[Modelos compartidos]
+    D --> H
+    E --> H
+    F --> H
+
+    H --> I[SQL Server]
+
+    C --> J[Inventario: entradas]
+    D --> K[Inventario: salidas]
+    F --> L[Inventario: reversión]
+    E --> M[Reportes / Exportación]
+```
 
 ## Estructura general
 
@@ -50,130 +74,87 @@ Ferreteria_Web/
     └── dashboard.html
 ```
 
-## Módulos del proyecto
+## Módulos del sistema
 
 ### `apps/accounts`
-Autenticación y administración de usuarios.
+Encargado de la autenticación y administración de usuarios.
 
-Funciones principales:
+Cómo funciona:
 
-- Inicio de sesión.
-- Cierre de sesión.
-- Cambio de contraseña.
-- Creación de usuarios.
-- Listado de usuarios.
-- Activar / desactivar usuarios.
-- Recuperación local de contraseña para pruebas.
-
-Templates asociados:
-
-- `login.html`
-- `change_password.html`
-- `create_user.html`
-- `users_list.html`
-- `forgot_password_local.html`
-- `password_reset_local.html`
+- `login_view` valida credenciales, protege contra fuerza bruta y crea la sesión.
+- `logout_view` elimina la sesión activa.
+- `change_password_view` permite cambiar la contraseña autenticada.
+- `create_user_view` crea usuarios solo para administradores.
+- `users_list_view` lista usuarios registrados.
+- `toggle_user_active_view` activa o desactiva usuarios.
+- `forgot_password_local_view` y `password_reset_local_view` soportan recuperación local para pruebas.
 
 ### `apps/compras`
-Gestión de compras a proveedores.
+Gestiona el proceso de compra a proveedores.
 
-Funciones principales:
+Cómo funciona:
 
-- Registro de compras.
-- Gestión de proveedores.
-- Gestión de categorías.
-- Creación de productos desde compra.
-- Actualización automática de inventario.
-- Registro de movimientos de inventario tipo entrada.
-
-Templates asociados:
-
-- `index.html`
-- `proveedor.html`
+- Carga proveedores y productos asociados.
+- Registra compras completas con detalle, factura interna y totales.
+- Actualiza inventario con entradas de stock.
+- Registra movimientos de inventario para auditoría.
+- Permite crear o reutilizar proveedores, categorías y productos desde el mismo flujo.
 
 ### `apps/ventas`
-Punto de venta y ventas a clientes.
+Gestiona el punto de venta.
 
-Funciones principales:
+Cómo funciona:
 
-- Búsqueda de productos.
-- Búsqueda y creación de clientes.
-- Registro de ventas.
-- Actualización automática del inventario.
-- Registro de movimientos de inventario tipo salida.
-
-Template asociado:
-
-- `index.html`
+- Muestra el catálogo de productos con stock disponible.
+- Permite buscar y crear clientes.
+- Registra una venta con su detalle.
+- Descuenta inventario al confirmar la operación.
+- Guarda los valores en córdobas y convierte cuando la operación se realiza en dólares.
 
 ### `apps/registro`
-Inventario, trazabilidad y reportes.
+Concentra inventario, trazabilidad y reportes.
 
-Funciones principales:
+Cómo funciona:
 
-- Listado del inventario actual.
-- Filtro por categoría.
-- Búsqueda por nombre de producto.
-- Autocompletado de productos.
-- Paginación del listado.
-- Modal de edición rápida por fila.
-- Reportes de inventario.
-- Exportación a Excel.
-- Historial de movimientos.
-- Indicadores de stock bajo y agotado.
-
-Templates asociados:
-
-- `index.html`
-- `reportes.html`
-
-Archivos relevantes:
-
-- `apps/registro/views.py`
-- `apps/registro/services.py`
-- `apps/registro/forms.py`
-- `static/js/inventario.js`
-- `static/css/inventario.css`
+- Lista el inventario actual.
+- Permite búsqueda por nombre y filtro por categoría.
+- Incluye autocompletado de productos.
+- Ofrece edición rápida por fila.
+- Exporta reportes a Excel.
+- Muestra historial de movimientos y alertas de stock.
 
 ### `apps/devolucion`
-Registro de devoluciones.
+Registra devoluciones asociadas a ventas.
 
-Funciones principales:
+Cómo funciona:
 
-- Crear devoluciones.
-- Validar relación con ventas anteriores.
-- Revertir stock.
-- Registrar movimientos de inventario asociados.
-
-Template asociado:
-
-- `index.html`
+- Busca el producto y la última venta relacionada.
+- Evita duplicar devoluciones sobre el mismo producto y venta.
+- Crea el registro de devolución.
+- Devuelve stock al inventario.
+- Crea el movimiento de inventario correspondiente.
 
 ### `apps/core`
-Capa compartida de modelos de base de datos.
+Capa compartida de base de datos.
 
-Propósito:
+Cómo funciona:
 
-- Centralizar los modelos usados por todas las apps.
-- Servir como capa de integración con tablas existentes en SQL Server.
-
-Archivos relevantes:
-
-- `models.py`
-- `models_legacy.py`
-- `migrations/0001_initial.py`
+- Centraliza los modelos usados por las demás aplicaciones.
+- Actúa como puente con las tablas reales de SQL Server.
+- Mantiene la lógica de negocio separada del acceso a datos.
 
 ## Rutas principales
 
-- `/` -> redirección a dashboard o login.
-- `/dashboard/` -> panel principal.
-- `/login/` -> inicio de sesión.
-- `/compras/` -> compras.
-- `/ventas/` -> ventas.
-- `/registro/` -> inventario.
-- `/registro/reportes/` -> reportes de inventario.
-- `/devolucion/` -> devoluciones.
-- `/admin/` -> panel administrativo de Django.
+- `/` → redirección a dashboard o login.
+- `/dashboard/` → panel principal.
+- `/login/` → inicio de sesión.
+- `/logout/` → cierre de sesión.
+- `/compras/` → módulo de compras.
+- `/ventas/` → módulo de ventas.
+- `/registro/` → inventario.
+- `/registro/reportes/` → reportes de inventario.
+- `/devolucion/` → devoluciones.
+- `/admin/` → panel administrativo de Django.
 
 ## Configuración del proyecto
 
@@ -183,8 +164,8 @@ Puntos importantes:
 
 - `DEBUG = True` en desarrollo.
 - Base de datos configurada para SQL Server.
-- Uso de variables de entorno desde `.env`.
-- `STATICFILES_DIRS` apunta a la carpeta `static/`.
+- Variables de entorno cargadas desde `.env`.
+- `STATICFILES_DIRS` apunta a `static/`.
 - Las sesiones expiran por inactividad.
 
 ### Variables de entorno esperadas
@@ -230,24 +211,37 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-## Funcionalidades destacadas de Registro
+## Componentes destacados
 
-La pantalla de inventario actualmente incluye:
+### Inventario
 
 - Tabla principal de productos.
 - Búsqueda por nombre.
 - Filtro por categoría.
-- Autocompletado con sugerencias.
-- Paginación server-side.
-- Botón de edición rápida por fila.
-- Modal de edición rápida.
+- Autocompletado.
+- Paginación.
+- Edición rápida.
 - Exportación de reportes.
-- Estados visuales de stock.
+- Indicadores de stock bajo y agotado.
+
+### Compras
+
+- Selección de proveedor.
+- Registro de productos comprados.
+- Cálculo de subtotal, impuesto y total.
+- Creación automática de factura interna.
+
+### Ventas
+
+- Búsqueda de productos.
+- Gestión de clientes.
+- Registro de carrito y detalle.
+- Descuento automático de inventario.
 
 ## Convenciones del proyecto
 
 - `apps/core` concentra los modelos compartidos.
-- `models.py` importa desde `models_legacy.py`.
+- `models.py` se apoya en `models_legacy.py`.
 - La interfaz usa `base.html` como plantilla base.
 - Los estilos globales están separados por módulo en `static/css/`.
 - La lógica frontend está separada por módulo en `static/js/`.
@@ -255,18 +249,10 @@ La pantalla de inventario actualmente incluye:
 ## Notas importantes
 
 - El proyecto está orientado a una base de datos existente en SQL Server.
-- Los modelos de negocio deben permanecer alineados con las tablas reales.
+- Los modelos de negocio deben mantenerse alineados con las tablas reales.
 - El módulo de autenticación usa sesión personalizada.
-- La vista de inventario se ha ido optimizando para ser más usable y rápida.
-
-## Próximos pasos habituales
-
-- Mejorar el control de permisos por rol en la UI.
-- Añadir acciones en lote para inventario.
-- Completar importación/exportación avanzada.
-- Agregar pruebas para vistas y servicios.
-- Pulir accesibilidad y responsive design.
+- El inventario y los movimientos se actualizan desde compras, ventas y devoluciones.
 
 ## Autoría
 
-Proyecto interno de ferretería desarrollado para operación de inventario, compras, ventas y devoluciones.
+Proyecto interno de ferretería para operación de inventario, compras, ventas y devoluciones.

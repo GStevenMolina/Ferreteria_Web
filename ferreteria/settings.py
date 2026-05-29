@@ -97,7 +97,7 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # --- Sesiones / Seguridad multi-usuario (CRÍTICO) ---
 # 10-15 minutos suele ser bueno para cajas / POS
-SESSION_COOKIE_AGE = 30 * 60  # 30 minutos
+SESSION_COOKIE_AGE = 60 * 60  # 60 minutos
 SESSION_SAVE_EVERY_REQUEST = True  # renueva el timeout con actividad (inactividad real)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # al cerrar navegador pide login otra vez
 

@@ -1,0 +1,51 @@
+/* Estilos para el panel de auditoría — tema oscuro coherente con la interfaz */
+
+:root{
+  --primary: #2563eb; /* azul principal */
+  --muted: #9ca3af; /* texto secundario claro */
+  --bg: rgba(15,23,42,1); /* fondo general oscuro */
+  --card-bg: linear-gradient(180deg, rgba(2,6,23,.66), rgba(15,23,42,.66));
+  --surface: rgba(255,255,255,0.03); /* para headers sutil */
+  --border: rgba(255,255,255,0.06);
+  --success-bg: rgba(16,185,129,0.12);
+  --success-color: #10b981;
+  --danger-bg: rgba(244,63,94,0.08);
+  --danger-color: #f43f5e;
+}
+
+/* Contenedor tipo card integrado al fondo oscuro (sin blanco) */
+.card { background: var(--card-bg); border-radius:12px; box-shadow: 0 8px 24px rgba(2,6,23,0.45); padding: 14px; border:1px solid var(--border); }
+.card__body { padding: 6px 4px; }
+
+.table { width:100%; border-collapse: collapse; font-family: Inter, system-ui, Arial, sans-serif; color: #e6eef8; }
+.table thead th { text-align:left; padding:12px 14px; background: rgba(2,6,23,0.6); color:var(--muted); font-weight:700; font-size:13px; border-bottom:1px solid rgba(255,255,255,0.03); }
+.table tbody td { padding:12px 14px; border-bottom:1px solid rgba(255,255,255,0.03); color:#e6eef8; font-size:14px; }
+.table tbody tr:hover { background: rgba(37,99,235,0.04); }
+.table tbody tr.selected { background: rgba(37,99,235,0.06); }
+
+.status { padding:6px 10px; border-radius:999px; font-size:12px; display:inline-block; font-weight:700; }
+.status--ok { background: var(--success-bg); color: var(--success-color); }
+.status--off { background: var(--danger-bg); color: var(--danger-color); }
+
+/* Filtros: inputs oscuros con borde sutil */
+form[method="get"] input, form[method="get"] select {
+  padding:8px 10px;
+  border:1px solid rgba(255,255,255,0.04);
+  border-radius:8px;
+  background: rgba(2,6,23,0.45);
+  color: #e6eef8;
+}
+form[method="get"] input::placeholder{ color: rgba(230,240,255,0.45); }
+form[method="get"] .btn { padding:8px 12px; background:var(--primary); color:#fff; border-radius:8px; border:0; cursor:pointer; box-shadow: 0 6px 18px rgba(37,99,235,0.14); }
+form[method="get"] .btn:hover { filter:brightness(.98); }
+
+/* Responsive */
+@media (max-width:800px) {
+  .table thead { display:none; }
+  .table tbody td { display:block; width:100%; box-sizing:border-box; }
+  .table tbody tr { margin-bottom:12px; display:block; border:1px solid rgba(255,255,255,0.03); border-radius:10px; padding:10px; }
+}
+
+/* Helpers */
+.muted { color:var(--muted); }
+

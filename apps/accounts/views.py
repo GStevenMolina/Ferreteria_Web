@@ -8,6 +8,7 @@ from django.contrib.auth.hashers import make_password, check_password
 import random
 
 from apps.core.models import Usuario
+from apps.core.models import Auditoria
 
 RESET_PASSWORD_CODE_SECONDS = 15 * 60  # 15 minutos
 
@@ -25,7 +26,11 @@ def login_view(request):
         return render(request, "accounts/login.html", {"email": email})
 
     usuario = Usuario.objects.filter(email=email, activo=True).first()
+    ip = request.META.get("REMOTE_ADDR")
+    exito = False
+
     if not usuario or not usuario.password:
+        Auditoria.objects.create(usuario=None, email=email, exito=exito, ip=ip)
         messages.error(request, "Credenciales incorrectas.")
         return render(request, "accounts/login.html", {"email": email})
 
@@ -36,19 +41,23 @@ def login_view(request):
             password_ok = True
     except Exception:
         password_ok = False
+
+    # Migración automática de contraseñas antiguas en texto plano
     if not password_ok and usuario.password == password:
         password_ok = True
         usuario.password = make_password(password)
         usuario.save(update_fields=["password"])
 
     if not password_ok:
+        Auditoria.objects.create(usuario=usuario, email=email, exito=False, ip=ip)
         messages.error(request, "Credenciales incorrectas.")
         return render(request, "accounts/login.html", {"email": email})
 
-    # Si todo ok, guardar info en sesión
+    # Inicio de sesión exitoso, guardar en sesión y auditar
     request.session["id_usuario"] = int(usuario.id_usuario)
     request.session["usuario_nombre"] = usuario.nombre
     request.session["usuario_rol"] = (usuario.rol or "").strip()
+    Auditoria.objects.create(usuario=usuario, email=email, exito=True, ip=ip)
 
     # Recuerda (opcional)
     remember_me = request.POST.get("remember_me") == "1"
@@ -147,7 +156,6 @@ def password_reset_code_verify(request):
 def users_list_view(request):
     usuarios = Usuario.objects.all()
     return render(request, "accounts/users_list.html", {"usuarios": usuarios})
-
 
 @require_http_methods(["POST"])
 def edit_user_view(request, id_usuario):

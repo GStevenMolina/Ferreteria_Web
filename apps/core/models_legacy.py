@@ -204,6 +204,25 @@ class Usuario(models.Model):
         managed = False
         db_table = 'usuario'
 
+class Auditoria(models.Model):
+    usuario = models.ForeignKey(
+        Usuario, on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="Usuario que intentó iniciar sesión, si existe"
+    )
+    email = models.CharField(max_length=100, help_text="Correo usado para el login")
+    exito = models.BooleanField(help_text="¿El inicio de sesión fue exitoso?")
+    fecha = models.DateTimeField(auto_now_add=True)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        db_table = "auditoria"  # <--- Este nombre se usará en la base de datos
+        managed = False  # <--- Permite que Django administre esta tabla
+
+    def __str__(self):
+        if self.usuario:
+            return f"{self.fecha} - {self.usuario.nombre} - {'Éxito' if self.exito else 'Fallo'}"
+        return f"{self.fecha} - {self.email} - {'Éxito' if self.exito else 'Fallo'}"
+
 
 class Venta(models.Model):
     id_venta = models.AutoField(primary_key=True)

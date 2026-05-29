@@ -22,7 +22,6 @@ urlpatterns = [
     path("", home, name="home"),
     path("dashboard/", dashboard_view, name="dashboard"),
 
-    # Accounts en raíz (porque tu login está en /login/)
     path("", include("apps.accounts.urls")),
 
     # Apps

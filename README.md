@@ -175,6 +175,42 @@ Archivos relevantes:
 - `/devolucion/` -> devoluciones.
 - `/admin/` -> panel administrativo de Django.
 
+## Diagramas de interfaces de repositorio (Inventario y Reportes)
+
+### Inventario (`/registro/`)
+
+```mermaid
+flowchart LR
+    U[Usuario] --> UI[Template: registro/index.html]
+    UI --> URL["URL: /registro/"]
+    URL --> V["View: index()"]
+    V --> S1["Service: inventory_queryset()"]
+    V --> S2["Service: build_rows()"]
+    V --> S3["Service: sort_rows()"]
+    V --> S4["Service: categories_and_providers()"]
+    S1 --> M1["Modelo: Producto"]
+    S2 --> M2["Modelo: Inventario"]
+    V --> M3["Modelo: MovimientoInventario"]
+```
+
+### Reportes (`/registro/reportes/`)
+
+```mermaid
+flowchart LR
+    U[Usuario] --> UI[Template: registro/reportes.html]
+    UI --> URL["URL: /registro/reportes/"]
+    URL --> V["View: reportes()"]
+    V --> S1["Service: inventory_queryset()"]
+    V --> S2["Service: build_rows()"]
+    V --> S3["Service: sort_rows()"]
+    V --> S4["Service: report_summary()"]
+    V --> S5["Service: report_kpis()"]
+    V --> S6["Service: categories_and_providers()"]
+    S1 --> M1["Modelo: Producto"]
+    S2 --> M2["Modelo: Inventario"]
+    S5 --> M3["Modelo: MovimientoInventario"]
+```
+
 ## Configuración del proyecto
 
 La configuración principal está en `ferreteria/settings.py`.

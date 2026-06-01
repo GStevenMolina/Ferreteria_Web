@@ -260,10 +260,19 @@ def guardar_venta(request):
                 observaciones=f'Salida por venta al cliente {cliente.nombre}'
             )
 
-        # Calcular IVA
-        subtotal_sin_iva = round(subtotal_general / 1.15, 2)
-        impuesto = round(subtotal_general - subtotal_sin_iva, 2)
-        total_final = round(subtotal_general, 2)
+                # Calcular IVA ANTES de convertir moneda
+        subtotal_sin_iva_original = round(subtotal_general / 1.15, 2)
+        impuesto_original = round(subtotal_general - subtotal_sin_iva_original, 2)
+
+        # Convertir a córdobas si es necesario
+        if moneda == 'USD':
+            subtotal_sin_iva = round(subtotal_sin_iva_original * TIPO_CAMBIO, 2)
+            impuesto = round(impuesto_original * TIPO_CAMBIO, 2)
+            total_final = round(subtotal_general * TIPO_CAMBIO, 2)
+        else:
+            subtotal_sin_iva = subtotal_sin_iva_original
+            impuesto = impuesto_original
+            total_final = round(subtotal_general, 2)
 
         # Crear factura
         factura = FacturaCliente.objects.create(

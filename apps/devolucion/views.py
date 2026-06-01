@@ -1,5 +1,7 @@
 # apps/devolucion/views.py
-
+from django.conf import settings
+import os
+from reportlab.lib import colors
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from django.db import transaction
@@ -234,10 +236,9 @@ def index(request):
         context
     )
 
-
-# ==========================================================
+# ===============================
 # REPORTE PDF DE DEVOLUCIONES
-# ==========================================================
+# ===============================
 def reporte_devoluciones_pdf(request):
 
     devoluciones = (
@@ -254,86 +255,207 @@ def reporte_devoluciones_pdf(request):
         content_type='application/pdf'
     )
 
-    response[
-        'Content-Disposition'
-    ] = 'attachment; filename="Reporte_Devoluciones.pdf"'
+    response['Content-Disposition'] = 'attachment; filename="Reporte_Devoluciones.pdf"'
 
     pdf = canvas.Canvas(response, pagesize=A4)
 
     width, height = A4
-    y = height - 50
 
-    pdf.setFont("Helvetica-Bold", 16)
-    pdf.drawString(
-        50,
-        y,
-        "REPORTE DE DEVOLUCIONES"
+    azul = colors.HexColor("#0B4EA2")
+
+    # ==================================
+    # LOGO
+    # ==================================
+    logo = os.path.join(
+        settings.BASE_DIR,
+        "static",
+        "assets",
+        "Ferreteria.png"
     )
 
-    y -= 30
+    if os.path.exists(logo):
+        pdf.drawImage(
+            logo,
+            20,
+            height - 180,
+            width=290,
+            height=180,
+            preserveAspectRatio=True
+        )
 
-    pdf.setFont("Helvetica", 10)
+    # ==================================
+    # TÍTULO Y FECHA
+    # ==================================
+    pdf.setLineWidth(1)
+
+    pdf.rect(400, height - 90, 150, 30)
+    pdf.rect(400, height - 120, 150, 30)
+
+    pdf.setFont("Helvetica-Bold", 11)
+
     pdf.drawString(
-        50,
-        y,
-        f"Fecha: {timezone.now().strftime('%d/%m/%Y')}"
+        410,
+        height - 72,
+        "REPORTE DEVOLUCIONES"
     )
 
-    y -= 40
+    pdf.drawString(
+        410,
+        height - 102,
+        f"FECHA: {timezone.now().strftime('%d/%m/%Y')}"
+    )
+
+    # ==================================
+    # DATOS EMPRESA
+    # ==================================
+    pdf.setFont("Helvetica-Bold", 14)
+
+    pdf.drawString(
+        40,
+        height - 180,
+        "DATOS DE LA EMPRESA"
+    )
+
+    pdf.setFont("Helvetica", 11)
+
+    pdf.drawString(40, height - 205, "Dirección: Granada Diriomo, de la entrada principal")
+    pdf.drawString(40, height - 220, " de Diriomo una cuadra al Norte a mano izquierda")
+    pdf.drawString(40, height - 245, "Teléfono: +505 8765-4321")
+    pdf.drawString(40, height - 265, "RUC/NIT: J-12345678-9")
+    pdf.drawString(40, height - 280, "Email: info@ferreteriamicasa.com")
+
+    # ==================================
+    # CABECERA TABLA
+    # ==================================
+    tabla_y = height - 340
+
+    pdf.setFillColor(azul)
+
+    pdf.rect(
+        40,
+        tabla_y,
+        510,
+        25,
+        fill=1
+    )
+
+    pdf.setFillColor(colors.white)
 
     pdf.setFont("Helvetica-Bold", 9)
 
-    pdf.drawString(40, y, "Fecha")
-    pdf.drawString(100, y, "Cliente")
-    pdf.drawString(220, y, "Producto")
-    pdf.drawString(340, y, "Plazo")
-    pdf.drawString(400, y, "Factura")
+    pdf.drawString(50, tabla_y + 8, "FECHA")
+    pdf.drawString(110, tabla_y + 8, "CLIENTE")
+    pdf.drawString(200, tabla_y + 8, "PRODUCTO")
+    pdf.drawString(310, tabla_y + 8, "CONDICIONES")
+    pdf.drawString(430, tabla_y + 8, "PLAZO")
+    pdf.drawString(480, tabla_y + 8, "FACTURA")
 
-    y -= 15
+    # ==================================
+    # DETALLES
+    # ==================================
+    y = tabla_y - 25
 
-    pdf.line(40, y, 550, y)
-
-    y -= 20
+    pdf.setFillColor(colors.black)
 
     pdf.setFont("Helvetica", 8)
 
     for d in devoluciones:
 
+        # Si llega al final de la página, crear una nueva
+        if y < 80:
+            pdf.showPage()
+            y = height - 50
+
+            # Repetir encabezado en nueva página
+            pdf.setFillColor(azul)
+            pdf.rect(40, y, 510, 25, fill=1)
+
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold", 9)
+
+            pdf.drawString(50, y + 8, "FECHA")
+            pdf.drawString(110, y + 8, "CLIENTE")
+            pdf.drawString(200, y + 8, "PRODUCTO")
+            pdf.drawString(310, y + 8, "CONDICIONES")
+            pdf.drawString(430, y + 8, "PLAZO")
+            pdf.drawString(480, y + 8, "FACTURA")
+
+            y -= 25
+            pdf.setFillColor(colors.black)
+            pdf.setFont("Helvetica", 8)
+
+        pdf.rect(40, y, 510, 25)
+
         pdf.drawString(
-            40,
-            y,
+            50,
+            y + 8,
             d.fecha.strftime("%d/%m/%Y")
         )
 
         pdf.drawString(
-            100,
-            y,
-            d.id_venta.id_cliente.nombre[:20]
+            110,
+            y + 8,
+            d.id_venta.id_cliente.nombre[:15]
         )
 
         pdf.drawString(
-            220,
-            y,
-            d.id_producto.nombre[:20]
+            200,
+            y + 8,
+            d.id_producto.nombre[:15]
+        )
+
+        # ← AQUÍ VA EL CAMPO condiciones
+        pdf.drawString(
+            310,
+            y + 8,
+            d.condiciones[:20] if d.condiciones else "N/A"
         )
 
         pdf.drawString(
-            340,
-            y,
+            430,
+            y + 8,
             str(d.plazo)
         )
 
         pdf.drawString(
-            400,
-            y,
+            480,
+            y + 8,
             str(d.id_venta.id_venta)
         )
 
-        y -= 20
+        y -= 25
 
-        if y < 50:
-            pdf.showPage()
-            y = height - 50
+    # ==================================
+    # PIE
+    # ==================================
+    pdf.setFillColor(azul)
+
+    pdf.rect(
+        0,
+        0,
+        width,
+        35,
+        fill=1
+    )
+
+    pdf.setFillColor(colors.white)
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        12
+    )
+
+    pdf.drawString(
+        40,
+        12,
+        "www.ferreteriamicasa.NotenemosDominio.XD"
+    )
+
+    pdf.drawRightString(
+        width - 40,
+        12,
+        "REPORTE DE DEVOLUCIONES"
+    )
 
     pdf.save()
 

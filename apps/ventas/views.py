@@ -1,4 +1,7 @@
 # Agrega estos imports al inicio del archivo
+from reportlab.lib import colors
+from django.conf import settings
+import os
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
@@ -294,6 +297,7 @@ def guardar_venta(request):
 # 📄 GENERAR FACTURA PDF
 # ===============================
 def generar_factura_pdf(request, factura_id):
+
     factura = get_object_or_404(
         FacturaCliente.objects.select_related(
             'id_venta__id_cliente'
@@ -303,82 +307,307 @@ def generar_factura_pdf(request, factura_id):
 
     venta = factura.id_venta
     cliente = venta.id_cliente
+
     detalles = DetalleVenta.objects.filter(
         id_venta=venta
     ).select_related('id_producto')
 
     response = HttpResponse(content_type='application/pdf')
+
     response['Content-Disposition'] = (
-        f'attachment; filename="Factura_{factura.numero_factura}.pdf"'
+        f'inline; filename="Factura_{factura.numero_factura}.pdf"'
     )
 
     pdf = canvas.Canvas(response, pagesize=A4)
+
     width, height = A4
-    y = height - 50
 
-    # Encabezado
-    pdf.setFont("Helvetica-Bold", 18)
-    pdf.drawString(50, y, "FERRETERÍA MiCASA")
+    azul = colors.HexColor("#0B4EA2")
 
-    y -= 30
-    pdf.setFont("Helvetica", 10)
-    pdf.drawString(50, y, f"Factura No: {factura.numero_factura}")
+    # ==================================
+    # LOGO
+    # ==================================
+    logo = os.path.join(
+        settings.BASE_DIR,
+        "static",
+        "assets",
+        "Ferreteria.png"
+    )
 
-    y -= 20
-    pdf.drawString(50, y, f"Fecha: {factura.fecha_emision.strftime('%d/%m/%Y')}")
+    if os.path.exists(logo):
+        pdf.drawImage(
+        logo,
+        20,
+        height - 180,
+        width=290,
+        height=180,
+        preserveAspectRatio=True
 
-    y -= 20
-    pdf.drawString(50, y, f"Cliente: {cliente.nombre}")
+        )
 
-    y -= 20
-    pdf.drawString(50, y, f"Dirección: {cliente.direccion or ''}")
+    # ==================================
+    # FACTURA Y FECHA
+    # ==================================
+    pdf.setLineWidth(1)
 
-    y -= 20
-    pdf.drawString(50, y, f"Teléfono: {cliente.telefono or ''}")
+    pdf.rect(400, height - 90, 150, 30)
+    pdf.rect(400, height - 120, 150, 30)
 
-    # Encabezado tabla
-    y -= 40
+    pdf.setFont("Helvetica-Bold", 11)
+
+    pdf.drawString(
+        410,
+        height - 72,
+        f"FACTURA N°: {factura.numero_factura}"
+    )
+
+    pdf.drawString(
+        410,
+        height - 102,
+        f"FECHA: {factura.fecha_emision.strftime('%d/%m/%Y')}"
+    )
+
+    # ==================================
+    # DATOS EMPRESA
+    # ==================================
+    pdf.setFont("Helvetica-Bold", 14)
+
+    pdf.drawString(
+        40,
+        height - 180,
+        "DATOS DE LA EMPRESA"
+    )
+
+    pdf.setFont("Helvetica", 11)
+
+    pdf.drawString(40, height - 205, "Dirección: Granada Diriomo, de la entrada principal")
+    pdf.drawString(40, height - 220, " de Diriomo una cuadra al Norte a mano izquierda")
+    pdf.drawString(40, height - 245, "Teléfono: +505 8765-4321")
+    pdf.drawString(40, height - 265, "RUC/NIT: J-12345678-9")
+    pdf.drawString(40, height - 280, "Email: info@ferreteriamicasa.com")
+
+    # ==================================
+    # DATOS CLIENTE
+    # ==================================
+    pdf.setFont("Helvetica-Bold", 14)
+
+    pdf.drawString(
+        370,
+        height - 180,
+        "DATOS DEL CLIENTE"
+    )
+
+    pdf.setFont("Helvetica", 11)
+
+    pdf.drawString(
+        370,
+        height - 205,
+        f"Nombre: {cliente.nombre}"
+    )
+
+    pdf.drawString(
+        370,
+        height - 225,
+        f"Dirección: {cliente.direccion or ''}"
+    )
+
+    pdf.drawString(
+        370,
+        height - 245,
+        f"Teléfono: {cliente.telefono or ''}"
+    )
+
+    # ==================================
+    # CABECERA TABLA
+    # ==================================
+    tabla_y = height - 340
+
+    pdf.setFillColor(azul)
+
+    pdf.rect(
+        40,
+        tabla_y,
+        510,
+        25,
+        fill=1
+    )
+
+    pdf.setFillColor(colors.white)
+
     pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(50, y, "Producto")
-    pdf.drawString(280, y, "Cant.")
-    pdf.drawString(340, y, "Precio")
-    pdf.drawString(430, y, "Subtotal")
 
-    y -= 10
-    pdf.line(50, y, 550, y)
-    y -= 20
+    pdf.drawString(50, tabla_y + 8, "CANTIDAD")
+    pdf.drawString(130, tabla_y + 8, "DESCRIPCIÓN")
+    pdf.drawString(360, tabla_y + 8, "PRECIO UNIT.")
+    pdf.drawString(470, tabla_y + 8, "TOTAL")
 
-    # Detalles
-    pdf.setFont("Helvetica", 10)
+    # ==================================
+    # DETALLES
+    # ==================================
+    y = tabla_y - 25
+
+    pdf.setFillColor(colors.black)
 
     for detalle in detalles:
-        pdf.drawString(50, y, detalle.id_producto.nombre[:35])
-        pdf.drawString(280, y, str(detalle.cantidad))
-        pdf.drawString(340, y, f"C$ {detalle.precio_unitario:.2f}")
-        pdf.drawString(430, y, f"C$ {detalle.subtotal:.2f}")
-        y -= 20
 
-        if y < 100:
-            pdf.showPage()
-            y = height - 50
+        pdf.rect(40, y, 510, 25)
 
-    # Totales
-    y -= 20
-    pdf.line(300, y, 550, y)
+        pdf.drawString(
+            55,
+            y + 8,
+            str(detalle.cantidad)
+        )
 
-    y -= 20
-    pdf.drawString(350, y, f"Subtotal: C$ {factura.subtotal:.2f}")
+        pdf.drawString(
+            130,
+            y + 8,
+            detalle.id_producto.nombre[:40]
+        )
 
-    y -= 20
-    pdf.drawString(350, y, f"IVA (15%): C$ {factura.impuesto:.2f}")
+        pdf.drawString(
+            365,
+            y + 8,
+            f"C$ {detalle.precio_unitario:.2f}"
+        )
 
-    y -= 20
+        pdf.drawString(
+            470,
+            y + 8,
+            f"C$ {detalle.subtotal:.2f}"
+        )
+
+        y -= 25
+
+    # ==================================
+    # MODO DE PAGO
+    # ==================================
+    box_y = y - 20
+
+    pdf.setFillColor(azul)
+
+    pdf.rect(40, box_y, 170, 25, fill=1)
+
+    pdf.setFillColor(colors.white)
+
     pdf.setFont("Helvetica-Bold", 11)
-    pdf.drawString(350, y, f"TOTAL: C$ {factura.total:.2f}")
 
-    y -= 40
-    pdf.setFont("Helvetica-Oblique", 9)
-    pdf.drawString(50, y, "Gracias por su compra.")
+    pdf.drawString(
+        75,
+        box_y + 8,
+        "MODO DE PAGO"
+    )
+
+    pdf.setFillColor(colors.black)
+
+    pdf.rect(40, box_y - 120, 170, 120)
+
+    pdf.drawString(50, box_y - 20, "☐ Contado")
+
+    # ==================================
+    # NOTAS
+    # ==================================
+    pdf.setFillColor(colors.black)
+
+    pdf.rect(
+        230,
+        box_y - 120,
+        150,
+        145
+    )
+
+    pdf.drawString(
+        240,
+        box_y + 8,
+        "NOTAS"
+    )
+
+    # ==================================
+    # RESUMEN
+    # ==================================
+    pdf.setFillColor(azul)
+
+    pdf.rect(
+        400,
+        box_y,
+        150,
+        25,
+        fill=1
+    )
+
+    pdf.setFillColor(colors.white)
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        11
+    )
+
+    pdf.drawString(
+        420,
+        box_y + 8,
+        "RESUMEN"
+    )
+
+    pdf.setFillColor(colors.black)
+
+    pdf.rect(400, box_y - 25, 150, 25)
+    pdf.rect(400, box_y - 50, 150, 25)
+    pdf.rect(400, box_y - 75, 150, 25)
+
+    pdf.drawString(
+        410,
+        box_y - 17,
+        f"SUBTOTAL: C$ {factura.subtotal:.2f}"
+    )
+
+    pdf.drawString(
+        410,
+        box_y - 42,
+        f"IVA: C$ {factura.impuesto:.2f}"
+    )
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        10
+    )
+
+    pdf.drawString(
+        410,
+        box_y - 67,
+        f"TOTAL: C$ {factura.total:.2f}"
+    )
+
+    # ==================================
+    # PIE
+    # ==================================
+    pdf.setFillColor(azul)
+
+    pdf.rect(
+        0,
+        0,
+        width,
+        35,
+        fill=1
+    )
+
+    pdf.setFillColor(colors.white)
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        12
+    )
+
+    pdf.drawString(
+        40,
+        12,
+        "www.ferreteriamicasa.NotenemosDominio.XD"
+    )
+
+    pdf.drawRightString(
+        width - 40,
+        12,
+        "GRACIAS POR SU COMPRA"
+    )
 
     pdf.save()
+
     return response

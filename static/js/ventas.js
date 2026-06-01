@@ -54,7 +54,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const inputCliente = document.getElementById("buscar-cliente");
     const listaClientes = document.getElementById("lista-clientes");
-    const formCliente = document.getElementById("form-cliente");
+
+    const clienteModal = document.getElementById("clienteModal");
+    const cerrarModal = document.querySelector(".cerrar-modal");
+    
     const btnNuevoCliente = document.getElementById("nuevo-cliente-btn");
     const btnGuardarCliente = document.getElementById("guardar-cliente");
 
@@ -176,11 +179,23 @@ document.addEventListener("DOMContentLoaded", () => {
             div.className = "cart-item";
 
             div.innerHTML = `
-                <span>${item.nombre} (x${item.cantidad})</span>
-                <span>${simbolo()}${totalConvertido.toFixed(2)}</span>
-                <button type="button" onclick="eliminarItem(${index})">
-                    ❌
-                </button>
+            <div class="cart-item-info">
+            <strong>${item.nombre}</strong>
+            <small>Cantidad: ${item.cantidad}</small>
+            </div>
+
+            <div class="cart-item-actions">
+            <span class="cart-price">
+            ${simbolo()}${totalConvertido.toFixed(2)}
+            </span>
+
+            <button
+            type="button"
+            class="btn-remove"
+            onclick="eliminarItem(${index})">
+            x
+            </button>
+            </div>
             `;
 
             cartItems.appendChild(div);
@@ -193,9 +208,15 @@ document.addEventListener("DOMContentLoaded", () => {
     // ❌ ELIMINAR ITEM
     // ==============================
     window.eliminarItem = function (index) {
+
+    if (carrito[index].cantidad > 1) {
+        carrito[index].cantidad--;
+    } else {
         carrito.splice(index, 1);
-        renderCarrito();
-    };
+    }
+
+    renderCarrito();
+};
 
     // ==============================
     // 💰 TOTALES
@@ -238,18 +259,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==============================
-    // 👤 NUEVO CLIENTE
-    // ==============================
-    if (btnNuevoCliente) {
-        btnNuevoCliente.addEventListener("click", () => {
-            if (!formCliente) return;
+// 👤 MODAL NUEVO CLIENTE
+// ==============================
+if (btnNuevoCliente) {
+    btnNuevoCliente.addEventListener("click", () => {
+        clienteModal.style.display = "flex";
+    });
+}
 
-            formCliente.style.display =
-                formCliente.style.display === "block"
-                    ? "none"
-                    : "block";
-        });
+if (cerrarModal) {
+    cerrarModal.addEventListener("click", () => {
+        clienteModal.style.display = "none";
+    });
+}
+
+window.addEventListener("click", (e) => {
+    if (e.target === clienteModal) {
+        clienteModal.style.display = "none";
     }
+});
+    
 
     // ==============================
     // 🔍 BUSCAR CLIENTE
@@ -332,9 +361,13 @@ document.addEventListener("DOMContentLoaded", () => {
                             inputCliente.value = data.nombre;
                         }
 
-                        if (formCliente) {
-                            formCliente.style.display = "none";
+                        if (clienteModal) {
+                            clienteModal.style.display = "none";
                         }
+
+                        document.getElementById("nuevo-nombre").value = "";
+                        document.getElementById("nuevo-telefono").value = "";
+                        document.getElementById("nuevo-direccion").value = "";
 
                         alert("Cliente registrado correctamente ✅");
 

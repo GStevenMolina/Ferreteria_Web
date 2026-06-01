@@ -20,7 +20,6 @@
     <!-- ===================================== -->
     <section class="pos-left">
 
-        <!-- BUSCADOR -->
         <div class="search-box">
             <input
                 type="text"
@@ -29,7 +28,6 @@
             >
         </div>
 
-        <!-- PRODUCTOS -->
         <div class="products-grid">
             {% for product in productos %}
             <div class="product-card">
@@ -76,6 +74,7 @@
         <!-- CLIENTE -->
         <!-- ============================== -->
         <div class="card cliente-card">
+
             <h3>Cliente</h3>
 
             <input
@@ -94,37 +93,6 @@
                 + Nuevo Cliente
             </button>
 
-            <!-- FORMULARIO OCULTO -->
-            <div
-                id="form-cliente"
-                class="form-cliente"
-                style="display: none;">
-
-                <input
-                    type="text"
-                    id="nuevo-nombre"
-                    placeholder="Nombre completo"
-                >
-
-                <input
-                    type="text"
-                    id="nuevo-telefono"
-                    placeholder="Teléfono"
-                >
-
-                <input
-                    type="text"
-                    id="nuevo-direccion"
-                    placeholder="Dirección"
-                >
-
-                <button
-                    type="button"
-                    id="guardar-cliente"
-                    class="btn btn-primary">
-                    Guardar Cliente
-                </button>
-            </div>
         </div>
 
         <!-- ============================== -->
@@ -163,7 +131,6 @@
                 <p class="empty">No hay productos</p>
             </div>
 
-            <!-- TOTALES -->
             <div class="totals">
 
                 <div class="total-row">
@@ -192,14 +159,12 @@
 
             </div>
 
-            <!-- PAGO -->
             <div class="payment-box">
 
                 <label for="payment">Método de Pago</label>
                 <select id="payment">
                     <option value="efectivo">Efectivo</option>
-                    <option value="tarjeta">Tarjeta</option>
-                    <option value="transferencia">Transferencia</option>
+                    
                 </select>
 
                 <label for="cash-received">Efectivo recibido</label>
@@ -221,8 +186,8 @@
 
             </div>
 
-            <!-- ENVÍO -->
             <div class="shipping-box">
+
                 <label>
                     <input type="checkbox" id="envio">
                     ¿Desea envío?
@@ -242,10 +207,11 @@
                         type="date"
                         id="fecha-entrega"
                     >
+
                 </div>
+
             </div>
 
-            <!-- BOTONES -->
             <div class="actions">
 
                 <button
@@ -271,6 +237,44 @@
     </aside>
 
 </main>
+
+<!-- ===================================== -->
+<!-- MODAL NUEVO CLIENTE -->
+<!-- ===================================== -->
+
+<div id="clienteModal" class="modal-cliente">
+
+    <div class="modal-cliente-content">
+
+        <span class="cerrar-modal">&times;</span>
+
+        <h2>Registrar Cliente</h2>
+
+        <div class="modal-subtitle">
+            Gestión y administración de clientes
+        </div>
+
+        <hr class="modal-divider">
+
+        <label>Nombre</label>
+        <input type="text" id="nuevo-nombre">
+
+        <label>Teléfono</label>
+        <input type="text" id="nuevo-telefono">
+
+        <label>Dirección</label>
+        <textarea id="nuevo-direccion"></textarea>
+
+        <button
+            type="button"
+            id="guardar-cliente"
+            class="btn btn-primary">
+            💾 Guardar
+        </button>
+
+    </div>
+
+</div>
 
 {% csrf_token %}
 <script src="{% static 'js/ventas.js' %}"></script>

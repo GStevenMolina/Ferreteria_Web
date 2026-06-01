@@ -281,3 +281,6 @@ ramas:
 
 comandos aplicar cambios de css,html,js,py
 Presiona: Ctrl + Shift + R (recarga forzada) basura de navegador
+
+# Dependencia necesaria para exportar PDF desde la vista de reportes
+reportlab==3.6.12

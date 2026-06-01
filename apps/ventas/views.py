@@ -293,9 +293,7 @@ def guardar_venta(request):
         })
 
 
-# ===============================
 # 📄 GENERAR FACTURA PDF
-# ===============================
 def generar_factura_pdf(request, factura_id):
 
     factura = get_object_or_404(
@@ -384,7 +382,7 @@ def generar_factura_pdf(request, factura_id):
     pdf.drawString(40, height - 220, " de Diriomo una cuadra al Norte a mano izquierda")
     pdf.drawString(40, height - 245, "Teléfono: +505 8765-4321")
     pdf.drawString(40, height - 265, "RUC/NIT: J-12345678-9")
-    pdf.drawString(40, height - 280, "Email: info@ferreteriamicasa.com")
+    pdf.drawString(40, height - 280, "Email: admin.ferreteria@gmail.com")
 
     # ==================================
     # DATOS CLIENTE

@@ -7,9 +7,7 @@ from django.db.models import Count, Sum
 from apps.core.models import Categoria, Inventario, MovimientoInventario, Producto, Proveedor
 
 
-# --------------------------------------------------------------------------
 # Lógica de estado del stock
-# --------------------------------------------------------------------------
 
 def stock_status(stock_actual, stock_minimo):
     """
@@ -27,9 +25,7 @@ def stock_status(stock_actual, stock_minimo):
     return "Normal"
 
 
-# --------------------------------------------------------------------------
 # Consultas de inventario
-# --------------------------------------------------------------------------
 
 def inventory_queryset(query_text: str = "", category_id: str = ""):
     """
@@ -105,9 +101,7 @@ def sort_rows(rows, sort_key):
     return sorted(rows, key=mapping.get(key, mapping["codigo"]), reverse=reverse)
 
 
-# --------------------------------------------------------------------------
 # Datos iniciales para el formulario de producto
-# --------------------------------------------------------------------------
 
 def build_product_form_initial(product=None):
     """
@@ -135,9 +129,7 @@ def build_product_form_initial(product=None):
     }
 
 
-# --------------------------------------------------------------------------
 # Historial de movimientos
-# --------------------------------------------------------------------------
 
 def movement_history(selected_product=None, limit=20):
     """
@@ -150,9 +142,7 @@ def movement_history(selected_product=None, limit=20):
     return queryset[:limit]
 
 
-# --------------------------------------------------------------------------
 # Resumen y KPIs para reportes
-# --------------------------------------------------------------------------
 
 def report_summary(queryset=None):
     """
@@ -175,7 +165,7 @@ def report_summary(queryset=None):
     }
 
 
-def report_kpis(product_id: str = "", movement_type: str = "", start_date=None, end_date=None):
+def report_kpis(product_id: str = "", movement_type: str = "", start_date=None, end_date=None, query_text: str = "", category_id: str = ""):
     """
     Calcula los KPIs de movimientos de inventario con filtros opcionales:
       - product_id: filtrar por producto específico.
@@ -184,6 +174,11 @@ def report_kpis(product_id: str = "", movement_type: str = "", start_date=None, 
     Retorna los movimientos filtrados y los totales de entradas, salidas y conteo.
     """
     movements = MovimientoInventario.objects.select_related("id_producto", "id_usuario").order_by("-fecha_movimiento")
+    # Filtrar por texto (nombre de producto) y/o categoría si se proporciona
+    if query_text:
+        movements = movements.filter(id_producto__nombre__icontains=query_text)
+    if category_id:
+        movements = movements.filter(id_producto__id_categoria_id=category_id)
     if product_id:
         movements = movements.filter(id_producto_id=product_id)
     if movement_type:
@@ -205,9 +200,7 @@ def report_kpis(product_id: str = "", movement_type: str = "", start_date=None, 
     }
 
 
-# --------------------------------------------------------------------------
 # Catálogos auxiliares
-# --------------------------------------------------------------------------
 
 def categories_and_providers():
     """Devuelve las categorías y proveedores disponibles, ordenados por nombre."""

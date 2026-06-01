@@ -1,6 +1,10 @@
 from io import BytesIO
-
-from openpyxl import Workbook
+import os
+from django.conf import settings
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
 from django.contrib import messages
 from django.db import IntegrityError, transaction
 from django.db.models import Count
@@ -31,9 +35,7 @@ from django.middleware.csrf import get_token
 import json
 
 
-# --------------------------------------------------------------------------
 # Funciones auxiliares privadas
-# --------------------------------------------------------------------------
 
 def _build_product_form(product=None):
     """Construye el formulario de producto con las categorías y proveedores disponibles."""
@@ -85,9 +87,7 @@ def _excel_safe_datetime(value):
     return value
 
 
-# --------------------------------------------------------------------------
 # Vista principal: listado y gestión de inventario
-# --------------------------------------------------------------------------
 
 @login_required_custom
 def index(request):
@@ -263,9 +263,7 @@ def quick_update_product(request):
         return JsonResponse({'error': 'Server error'}, status=500)
 
 
-# --------------------------------------------------------------------------
 # Acciones POST del inventario
-# --------------------------------------------------------------------------
 
 def _save_product(request):
     """
@@ -456,17 +454,17 @@ def _render_with_form(request, product_form=None, movement_form=None):
     return render(request, "registro/index.html", context)
 
 
-# --------------------------------------------------------------------------
 # Vista de exportación a Excel
-# --------------------------------------------------------------------------
 
 @login_required_custom
 def export_excel(request):
     """
-    Genera y descarga un archivo Excel con dos hojas:
+    Genera y descarga un archivo PDF con dos secciones:
       - 'Inventario': listado completo de productos con su estado de stock.
       - 'Movimientos': hasta 200 movimientos filtrados por producto, tipo y fechas.
     PROTEGIDA: solo usuarios autenticados pueden exportar.
+    Nota: la URL y el nombre de la vista se mantienen para compatibilidad; el contenido
+    devuelto ahora es PDF y el archivo se nombra con extensión .pdf.
     """
     # Validar y sanitizar parámetros GET
     query_text = (request.GET.get("q") or "").strip()[:100]  # Máx 100 caracteres
@@ -475,58 +473,138 @@ def export_excel(request):
     movement_type = (request.GET.get("movement_type") or "").strip()
     start_date = _parse_optional_date(request, "from")
     end_date = _parse_optional_date(request, "to")
-    rows = sort_rows(build_rows(inventory_queryset(query_text=query_text, category_id=category_id)), "codigo")
+    # Obtener movimientos filtrados y construir sólo la sección de Movimientos
     movements = report_kpis(
         product_id=product_id,
         movement_type=movement_type,
         start_date=start_date,
         end_date=end_date,
+        query_text=query_text,
+        category_id=category_id,
     )["movements"]
 
-    workbook = Workbook()
-    # Hoja 1: inventario de productos
-    sheet = workbook.active
-    sheet.title = "Inventario"
-    sheet.append(["Código", "Nombre", "Categoría", "Precio venta", "Stock actual", "Stock mínimo", "Estado"])
-    for row in rows:
-        sheet.append([
-            row["codigo"],
-            row["nombre"],
-            row["categoria"],
-            float(row["precio_venta"]),
-            row["stock_actual"],
-            row["stock_minimo"],
-            row["estado"],
-        ])
-
-    # Hoja 2: movimientos de inventario (máximo 200 registros)
-    movements_sheet = workbook.create_sheet("Movimientos")
-    movements_sheet.append(["Fecha", "Producto", "Tipo", "Cantidad", "Usuario", "Observación"])
-    for movement in movements[:200]:
-        movements_sheet.append([
-            _excel_safe_datetime(movement.fecha_movimiento),
-            movement.id_producto.nombre if movement.id_producto else "",
-            movement.tipo_movimiento,
-            movement.cantidad,
-            movement.id_usuario.nombre if movement.id_usuario else "Sistema",
-            movement.observaciones or "",
-        ])
-
-    # Serializar el workbook en memoria y enviarlo como descarga
     buffer = BytesIO()
-    workbook.save(buffer)
-    buffer.seek(0)
-    response = HttpResponse(
-        buffer.getvalue(),
-        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    # Usar A4 apaisado para dar más espacio horizontal a la tabla
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=18, leftMargin=18, topMargin=18, bottomMargin=18)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    # Cabecera con estilo similar al PDF de ventas
+    logo_path = os.path.join(settings.BASE_DIR, "static", "assets", "Ferreteria.png")
+    now_local = timezone.localtime(timezone.now())
+    report_number = f"REP-{now_local.strftime('%Y%m%d-%H%M%S')}"
+
+    if os.path.exists(logo_path):
+        logo_cell = Image(logo_path, width=150, height=78)
+    else:
+        logo_cell = Paragraph("<b>FERRETERIA<br/>MI CASA</b>", styles["Heading1"])
+
+    report_box = Table([
+        [Paragraph(f"<b>REPORTE N°: {report_number}</b>", styles["BodyText"])],
+        [Paragraph(f"<b>FECHA: {now_local.strftime('%d/%m/%Y')}</b>", styles["BodyText"])],
+    ], colWidths=[170])
+    report_box.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 1, colors.black),
+        ("INNERGRID", (0, 0), (-1, -1), 1, colors.black),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+
+    elements.append(Table([
+        [logo_cell, report_box],
+    ], colWidths=[doc.width - 190, 190], style=TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ])))
+    elements.append(Spacer(1, 10))
+
+    elements.append(Table([
+        [Paragraph("<b>DATOS DE LA EMPRESA</b>", styles["Heading2"]), Paragraph("<b>DATOS DEL REPORTE</b>", styles["Heading2"])]
+    ], colWidths=[doc.width / 2, doc.width / 2], style=TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ])))
+
+    info_table = Table([
+        [
+            Paragraph("Dirección: Granada Diriomo, de la entrada principal de Diriomo una cuadra al Norte a mano izquierda", styles["BodyText"]),
+            Paragraph(f"Filtros aplicados:<br/>Producto: {product_id or 'Todos'}<br/>Tipo: {movement_type or 'Todos'}<br/>Desde: {request.GET.get('from', '') or 'N/A'}<br/>Hasta: {request.GET.get('to', '') or 'N/A'}<br/>Búsqueda: {query_text or 'N/A'}<br/>Categoría: {category_id or 'Todas'}", styles["BodyText"]),
+        ],
+        [
+            Paragraph("Teléfono: +505 8765-4321", styles["BodyText"]),
+            Paragraph("Reporte generado desde el módulo de inventario", styles["BodyText"]),
+        ],
+        [
+            Paragraph("RUC/NIT: J-12345678-9", styles["BodyText"]),
+            Paragraph(f"Usuario: {request.session.get('id_usuario') or 'Sistema'}", styles["BodyText"]),
+        ],
+        [
+            Paragraph("Email: admin.ferreteria@gmail.com", styles["BodyText"]),
+            Paragraph("", styles["BodyText"]),
+        ],
+    ], colWidths=[doc.width / 2, doc.width / 2])
+    info_table.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.8, colors.white),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(info_table)
+    elements.append(Spacer(1, 12))
+
+    elements.append(Paragraph("<b>Movimientos de inventario</b>", styles["Heading2"]))
+    elements.append(Spacer(1, 6))
+
+    mov_header = ["Fecha", "Producto", "Tipo", "Cantidad", "Usuario", "Observación"]
+    mov_data = [mov_header]
+    for movement in movements[:200]:
+        mov_data.append([
+            Paragraph(str(_excel_safe_datetime(movement.fecha_movimiento)), styles["BodyText"]),
+            Paragraph(str(movement.id_producto.nombre) if movement.id_producto else "", styles["BodyText"]),
+            Paragraph(str(movement.tipo_movimiento), styles["BodyText"]),
+            Paragraph(str(movement.cantidad), styles["BodyText"]),
+            Paragraph(str(movement.id_usuario.nombre) if movement.id_usuario else "Sistema", styles["BodyText"]),
+            Paragraph(str(movement.observaciones or ""), styles["BodyText"]),
+        ])
+    mov_table = Table(
+        mov_data,
+        repeatRows=1,
+        colWidths=[95, 190, 70, 55, 115, doc.width - 525],
     )
-    response["Content-Disposition"] = 'attachment; filename="inventario_ferreteria.xlsx"'
+    mov_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0B4EA2")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.8, colors.black),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("FONTSIZE", (0, 0), (-1, -1), 7),
+        ("LEADING", (0, 0), (-1, -1), 8),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]))
+    elements.append(mov_table)
+
+    # Construir PDF en memoria
+    doc.build(elements)
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = 'attachment; filename="movimientos_ferreteria.pdf"'
     return response
 
 
-# --------------------------------------------------------------------------
 # Vista de reportes de inventario
-# --------------------------------------------------------------------------
 
 @login_required_custom
 def reportes(request):
@@ -544,11 +622,14 @@ def reportes(request):
     start_date = _parse_optional_date(request, "from")
     end_date = _parse_optional_date(request, "to")
 
-    rows = sort_rows(build_rows(inventory_queryset(query_text=query_text, category_id=category_id)), "codigo")
+    inv_qs = inventory_queryset(query_text=query_text, category_id=category_id)
+    if product_id:
+        inv_qs = inv_qs.filter(id_producto=product_id)
+    rows = sort_rows(build_rows(inv_qs), "codigo")
     # Resumen con totales de productos por estado de stock
     summary = report_summary(inventory_queryset(query_text=query_text, category_id=category_id))
     # KPIs: total de entradas, salidas y conteo de movimientos en el período filtrado
-    kpis = report_kpis(product_id=product_id, movement_type=movement_type, start_date=start_date, end_date=end_date)
+    kpis = report_kpis(product_id=product_id, movement_type=movement_type, start_date=start_date, end_date=end_date, query_text=query_text, category_id=category_id)
 
     selected_product = _selected_product_from_request(request)
     if not selected_product and product_id:

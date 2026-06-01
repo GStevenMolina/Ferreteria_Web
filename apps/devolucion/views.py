@@ -59,6 +59,7 @@ def index(request):
 
     buscar = request.GET.get("buscar", "")
 
+    # Ordenar por ID descendente (más recientes primero)
     devoluciones = (
         Devolucion.objects
         .select_related(
@@ -66,7 +67,7 @@ def index(request):
             "id_venta",
             "id_venta__id_cliente",
         )
-        .order_by("-fecha")
+        .order_by("-id_devolucion")
     )
 
     if buscar:
@@ -109,6 +110,19 @@ def index(request):
         except ValueError:
             return render(request, "devolucion/index.html", {
                 "error": "El plazo debe ser numérico.",
+                "devoluciones": devoluciones,
+                "facturas": facturas,
+                "factura_seleccionada": None,
+                "productos": [],
+                "today": timezone.now().date().isoformat(),
+            })
+
+        # ==========================================
+        # VALIDAR PLAZO (no puede ser negativo ni cero)
+        # ==========================================
+        if plazo <= 0:
+            return render(request, "devolucion/index.html", {
+                "error": "El plazo debe ser un número positivo (mayor a 0).",
                 "devoluciones": devoluciones,
                 "facturas": facturas,
                 "factura_seleccionada": None,
@@ -236,6 +250,7 @@ def index(request):
         context
     )
 
+
 # ===============================
 # REPORTE PDF DE DEVOLUCIONES
 # ===============================
@@ -248,7 +263,7 @@ def reporte_devoluciones_pdf(request):
             "id_venta",
             "id_venta__id_cliente"
         )
-        .order_by("-fecha")
+        .order_by("-id_devolucion")
     )
 
     response = HttpResponse(
@@ -404,7 +419,7 @@ def reporte_devoluciones_pdf(request):
             d.id_producto.nombre[:15]
         )
 
-        # ← AQUÍ VA EL CAMPO condiciones
+        # ← CAMPO condiciones
         pdf.drawString(
             310,
             y + 8,

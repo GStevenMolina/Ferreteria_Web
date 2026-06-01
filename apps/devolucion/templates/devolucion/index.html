@@ -3,7 +3,6 @@
 
 {% block title %}Devolución{% endblock %}
 
-<!-- ===== CSS ===== -->
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/devolucion.css' %}">
 {% endblock %}
@@ -12,7 +11,9 @@
 
 <div class="container-devolucion">
 
-    <!-- ===== FORMULARIO ===== -->
+    <!-- ==========================================
+         FORMULARIO
+    =========================================== -->
     <section class="form-card">
 
         <h3>Devolución</h3>
@@ -23,21 +24,21 @@
         </div>
         {% endif %}
 
-        <form method="POST">
+        <form method="POST" id="formDevolucion">
             {% csrf_token %}
 
-            <!-- ===== FECHA ===== -->
+            <!-- FECHA -->
             <label>Fecha</label>
-
             <input
-                type="date"
-                name="fecha"
-                required
-            >
+            type="date"
+            name="fecha"
+            id="fecha"
+            min="{{ today }}"
+            required
+>
 
-            <!-- ===== PLAZO ===== -->
+            <!-- PLAZO -->
             <label>Plazo</label>
-
             <input
                 type="number"
                 name="plazo"
@@ -45,100 +46,104 @@
                 required
             >
 
-            <!-- ===== CONDICIONES ===== -->
+            <!-- CONDICIONES -->
             <label>Condiciones</label>
-
             <textarea
                 name="condiciones"
                 placeholder="Describa las condiciones del producto"
                 required
             ></textarea>
 
-            <!-- ===== CLIENTE ===== -->
-            <label>Cliente</label>
+            <!-- FACTURA -->
+            <label>Número de Factura</label>
 
-            <input
-                type="text"
-                id="buscadorCliente"
-                placeholder="Buscar cliente..."
-                list="listaClientes"
-                autocomplete="off"
+            <select
+                name="id_factura"
+                id="id_factura"
                 required
             >
+                <option value="">Seleccione una factura</option>
 
-            <datalist id="listaClientes">
-
-                {% for cliente in clientes %}
+                {% for factura in facturas %}
                 <option
-                    value="{{ cliente.nombre }}"
-                    data-id="{{ cliente.id_cliente }}">
+                    value="{{ factura.id_venta }}"
+                    {% if factura_seleccionada and factura.id_venta == factura_seleccionada.id_venta %}
+                        selected
+                    {% endif %}
+                >
+                    Factura #{{ factura.id_venta }}
+                    - {{ factura.id_cliente.nombre }}
                 </option>
                 {% endfor %}
+            </select>
 
-            </datalist>
-
+            <!-- CLIENTE -->
+            {% if factura_seleccionada %}
+            <label>Cliente</label>
             <input
-                type="hidden"
-                name="id_cliente"
-                id="idCliente"
+                type="text"
+                value="{{ factura_seleccionada.id_cliente.nombre }}"
+                readonly
             >
+            {% endif %}
 
-            <!-- ===== PRODUCTO ===== -->
+            <!-- PRODUCTO -->
             <label>Producto a devolver</label>
 
-            <input
-                type="text"
-                id="buscadorProducto"
-                placeholder="Buscar producto..."
-                list="listaProductos"
-                autocomplete="off"
+            <select
+                name="id_producto"
+                id="id_producto"
                 required
             >
-
-            <datalist id="listaProductos">
+                <option value="">Seleccione un producto</option>
 
                 {% for producto in productos %}
-                <option
-                    value="{{ producto.nombre }}"
-                    data-id="{{ producto.id_producto }}">
+                <option value="{{ producto.id_producto }}">
+                    {{ producto.nombre }}
+                </option>
+                {% empty %}
+                <option value="">
+                    Primero seleccione una factura
                 </option>
                 {% endfor %}
+            </select>
 
-            </datalist>
-
-            <input
-                type="hidden"
-                name="id_producto"
-                id="idProducto"
-            >
-
-            <!-- ===== BOTÓN ===== -->
+            <!-- BOTÓN REGISTRAR -->
             <button type="submit" class="btn-orange">
                 Registrar devolución
             </button>
 
         </form>
-
     </section>
 
-    <!-- ===== TABLA ===== -->
+    <!-- ==========================================
+         TABLA DE DEVOLUCIONES
+    =========================================== -->
     <section class="tabla-card">
 
-        <!-- ===== BUSCADOR ===== -->
+        <!-- BUSCADOR -->
         <div class="search-form">
-
             <input
                 type="text"
                 id="buscador"
                 placeholder="Buscar por producto..."
                 autocomplete="off"
             >
-
         </div>
 
-        <!-- ===== TABLA ===== -->
-        <table id="tablaDevoluciones">
+        <!-- BOTÓN PDF -->
+        <div class="acciones-reporte">
+            <a
+                href="{% url 'devolucion:reporte_pdf' %}"
+                class="btn-pdf"
+                target="_blank"
+            >
+                📄 Generar Reporte PDF
+            </a>
+        </div>
 
+        <!-- TABLA -->
+        <table id="tablaDevoluciones">
             <thead>
                 <tr>
                     <th>Fecha</th>
@@ -151,31 +156,17 @@
             </thead>
 
             <tbody>
-
                 {% for d in devoluciones %}
                 <tr>
-
-                    <td>{{ d.fecha }}</td>
-
-                    <!-- CLIENTE -->
-                    <td>
-                        {{ d.id_venta.id_cliente.nombre }}
-                    </td>
-
+                    <td>{{ d.fecha|date:"d/m/Y" }}</td>
+                    <td>{{ d.id_venta.id_cliente.nombre }}</td>
                     <td>{{ d.plazo }}</td>
-
                     <td>{{ d.condiciones }}</td>
-
-                    <td>
-                        #{{ d.id_venta.id_venta }}
-                    </td>
-
+                    <td>#{{ d.id_venta.id_venta }}</td>
                     <td class="producto">
                         {{ d.id_producto.nombre }}
                     </td>
-
                 </tr>
-
                 {% empty %}
                 <tr>
                     <td colspan="6">
@@ -183,9 +174,7 @@
                     </td>
                 </tr>
                 {% endfor %}
-
             </tbody>
-
         </table>
 
     </section>
@@ -194,7 +183,20 @@
 
 {% endblock %}
 
-<!-- ===== JS ===== -->
 {% block extra_js %}
 <script src="{% static 'js/devolucion.js' %}"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const fecha = document.getElementById("fecha");
+
+    if (fecha) {
+        const hoy = new Date().toISOString().split("T")[0];
+        fecha.min = hoy;
+        fecha.value = hoy;
+    }
+
+});
+</script>
 {% endblock %}

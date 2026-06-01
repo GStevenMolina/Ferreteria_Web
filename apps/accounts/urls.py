@@ -13,4 +13,5 @@ urlpatterns = [
     path("usuarios/<int:id_usuario>/toggle-activo/", views.toggle_user_active_view, name="toggle_user_active"),
     path("usuarios/<int:id_usuario>/editar/", views.edit_user_view, name="edit_user"),
     path("auditoria/", views.auditoria_list_view, name="auditoria_list"),
+    path("auditoria/eventos/", views.auditoria_evento_list, name="auditoria_evento_list"),
 ]

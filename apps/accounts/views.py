@@ -2,21 +2,43 @@ from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
 from django.contrib import messages
 from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from django.core.cache import cache
 from django.urls import reverse
 from django.contrib.auth.hashers import make_password, check_password
 import random
+import re
 from datetime import timedelta
 from django.utils import timezone
 
 from apps.core.models import Usuario
 from apps.core.models import Auditoria
+from apps.core.models import AuditoriaEvento
 
 RESET_PASSWORD_CODE_SECONDS = 15 * 60  # 15 minutos
 
 # --- Configuración de BLOQUEO ---
 MAX_FAILED_ATTEMPTS = 5                # intentos permitidos
 BLOCK_TIME_SECONDS = 10 * 60           # 10 minutos bloqueado
+
+
+PASSWORD_POLICY_MESSAGE = (
+    "La contraseña debe tener al menos 8 caracteres e incluir mayúsculas, minúsculas, números y caracteres especiales."
+)
+
+
+def _password_meets_policy(password):
+    if len(password) < 8:
+        return False
+    if not re.search(r"[A-Z]", password):
+        return False
+    if not re.search(r"[a-z]", password):
+        return False
+    if not re.search(r"\d", password):
+        return False
+    if not re.search(r"[^A-Za-z0-9]", password):
+        return False
+    return True
 
 
 def _is_admin_session(request):
@@ -154,12 +176,18 @@ def forgot_password_code(request):
     cache.set(cache_key, code, timeout=RESET_PASSWORD_CODE_SECONDS)
     request.session["password_reset_email"] = email
 
+    # Render HTML email template and send both plain text and HTML
+    html_message = render_to_string(
+        "accounts/password_reset_email.html",
+        {"code": code, "business_name": "Ferretería Mi casa"},
+    )
     send_mail(
-        subject="Código de recuperación de contraseña",
+        subject="Código de recuperación de contraseña - Ferretería Mi casa",
         message=f"Tu código de recuperación es: {code}",
         from_email=None,
         recipient_list=[email],
         fail_silently=True,
+        html_message=html_message,
     )
 
     messages.success(request, "Si el correo existe, se enviará un código de recuperación.")
@@ -186,6 +214,10 @@ def password_reset_code_verify(request):
 
     if new_password != new_password2:
         messages.error(request, "Las contraseñas no coinciden.")
+        return render(request, "accounts/password_reset_code_verify.html")
+
+    if not _password_meets_policy(new_password):
+        messages.error(request, PASSWORD_POLICY_MESSAGE)
         return render(request, "accounts/password_reset_code_verify.html")
 
     cache_key = f"password_reset_code_{email.lower()}"
@@ -235,6 +267,15 @@ def create_user_view(request):
 
     if not nombre or not email or not password or not rol:
         messages.error(request, "Completa todos los campos obligatorios.")
+        return render(request, "accounts/create_user.html", {
+            "nombre": nombre,
+            "email": email,
+            "rol": rol,
+            "activo": activo,
+        })
+
+    if not _password_meets_policy(password):
+        messages.error(request, PASSWORD_POLICY_MESSAGE)
         return render(request, "accounts/create_user.html", {
             "nombre": nombre,
             "email": email,
@@ -328,25 +369,47 @@ def auditoria_list_view(request):
     # filtros opcionales
     q_user = (request.GET.get("user") or "").strip()
     q_email = (request.GET.get("email") or "").strip()
-    q_result = request.GET.get("result")  # 'ok' | 'fail' | None
+    q_evento = (request.GET.get("evento") or "").strip()
+    q_modulo = (request.GET.get("modulo") or "").strip()
+    q_desde = (request.GET.get("desde") or "").strip()
+    q_hasta = (request.GET.get("hasta") or "").strip()
 
-    logs = Auditoria.objects.all()
+    logs = AuditoriaEvento.objects.select_related("usuario").all()
     if q_user:
         logs = logs.filter(usuario__nombre__icontains=q_user)
     if q_email:
         logs = logs.filter(email__icontains=q_email)
-    if q_result == 'ok':
-        logs = logs.filter(exito=True)
-    elif q_result == 'fail':
-        logs = logs.filter(exito=False)
+    if q_evento:
+        logs = logs.filter(evento__icontains=q_evento)
+    if q_modulo:
+        logs = logs.filter(modulo__icontains=q_modulo)
+    if q_desde:
+        logs = logs.filter(fecha__date__gte=q_desde)
+    if q_hasta:
+        logs = logs.filter(fecha__date__lte=q_hasta)
 
-    logs = logs.order_by('-fecha')[:1000]
+    logs = logs.order_by('-fecha')[:200]
 
     # resumen básico
     resumen = {
-        'total': Auditoria.objects.count(),
-        'exitos': Auditoria.objects.filter(exito=True).count(),
-        'fallos': Auditoria.objects.filter(exito=False).count(),
+        'total': AuditoriaEvento.objects.count(),
+        'con_modulo': AuditoriaEvento.objects.exclude(modulo__isnull=True).exclude(modulo="").count(),
     }
 
-    return render(request, "accounts/auditoria_list.html", {"logs": logs, "resumen": resumen})
+    return render(request, "accounts/auditoria_list.html", {
+        "logs": logs,
+        "resumen": resumen,
+        "filtros": {
+            "user": q_user,
+            "email": q_email,
+            "evento": q_evento,
+            "modulo": q_modulo,
+            "desde": q_desde,
+            "hasta": q_hasta,
+        },
+    })
+
+
+@require_http_methods(["GET"])
+def auditoria_evento_list(request):
+    return auditoria_list_view(request)

@@ -222,7 +222,27 @@ class Auditoria(models.Model):
         if self.usuario:
             return f"{self.fecha} - {self.usuario.nombre} - {'Éxito' if self.exito else 'Fallo'}"
         return f"{self.fecha} - {self.email} - {'Éxito' if self.exito else 'Fallo'}"
+    
+    from django.db import models
 
+class AuditoriaEvento(models.Model):
+    usuario = models.ForeignKey(
+        'Usuario', on_delete=models.SET_NULL, null=True, blank=True,
+        db_column='usuario_id', help_text="Usuario que realizó la acción"
+    )
+    email = models.CharField(max_length=100, help_text="Correo del usuario")
+    evento = models.CharField(max_length=100, help_text="Tipo de evento/acción realizado")
+    descripcion = models.TextField(null=True, blank=True, help_text="Detalle adicional")
+    modulo = models.CharField(max_length=50, null=True, blank=True, help_text="Módulo relacionado")
+    fecha = models.DateTimeField(auto_now_add=True)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        db_table = "auditoria_evento"
+        managed = False  # Porque la creas tú desde SQL… Django NO la modifica.
+
+    def __str__(self):
+        return f"{self.fecha} - {self.evento} - {self.email}"
 
 class Venta(models.Model):
     id_venta = models.AutoField(primary_key=True)

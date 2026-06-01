@@ -18,19 +18,19 @@
         </div>
 
         <div class="users-page__actions">
-          <form method="get" style="margin:0; display:flex; gap:8px; align-items:center;">
-            <input name="user" placeholder="Usuario" value="{{ request.GET.user }}" />
-            <input name="email" placeholder="Email" value="{{ request.GET.email }}" />
-            <select name="result">
-              <option value="">Todos</option>
-              <option value="ok" {% if request.GET.result == 'ok' %}selected{% endif %}>Éxitos</option>
-              <option value="fail" {% if request.GET.result == 'fail' %}selected{% endif %}>Fallos</option>
-            </select>
+          <form method="get" style="margin:0; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input name="user" placeholder="Usuario" value="{{ filtros.user }}" />
+            <input name="email" placeholder="Email" value="{{ filtros.email }}" />
+            <input name="evento" placeholder="Evento" value="{{ filtros.evento }}" />
+            <input name="modulo" placeholder="Módulo" value="{{ filtros.modulo }}" />
+            <input type="date" name="desde" value="{{ filtros.desde }}" />
+            <input type="date" name="hasta" value="{{ filtros.hasta }}" />
             <button class="btn" type="submit">Filtrar</button>
+            <a class="btn" href="{% url 'auditoria_evento_list' %}">Limpiar</a>
           </form>
 
           <div style="margin-left:8px;" class="muted">
-            <strong>Total:</strong> {{ resumen.total }} — <strong>Éxitos:</strong> {{ resumen.exitos }} — <strong>Fallos:</strong> {{ resumen.fallos }}
+            <strong>Total:</strong> {{ resumen.total }} — <strong>Con módulo:</strong> {{ resumen.con_modulo }}
           </div>
         </div>
       </div>
@@ -42,8 +42,10 @@
             <th>Fecha</th>
             <th>Usuario</th>
             <th>Email</th>
+            <th>Evento</th>
+            <th>Módulo</th>
+            <th>Descripción</th>
             <th>IP</th>
-            <th>Resultado</th>
           </tr>
         </thead>
         <tbody>
@@ -52,11 +54,13 @@
               <td>{{ log.fecha }}</td>
               <td>{% if log.usuario %}{{ log.usuario.nombre }}{% else %}-{% endif %}</td>
               <td>{{ log.email }}</td>
-              <td>{{ log.ip }}</td>
-              <td>{% if log.exito %}<span class="status status--ok">Éxito</span>{% else %}<span class="status status--off">Fallo</span>{% endif %}</td>
+              <td>{{ log.evento }}</td>
+              <td>{{ log.modulo|default:"-" }}</td>
+              <td>{{ log.descripcion|default:"-" }}</td>
+              <td>{{ log.ip|default:"-" }}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="5">No hay registros.</td></tr>
+            <tr><td colspan="7">No hay registros.</td></tr>
           {% endfor %}
         </tbody>
       </table>

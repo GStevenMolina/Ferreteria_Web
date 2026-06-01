@@ -40,7 +40,7 @@
         <div>
           <label class="field__label">Contraseña</label>
           <div class="field__passwordWrap">
-            <input class="field__input field__input--password" id="password" type="password" name="password" required />
+            <input class="field__input field__input--password" id="password" type="password" name="password" minlength="8" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}" title="Debe tener al menos 8 caracteres e incluir mayúsculas, minúsculas, números y caracteres especiales." required />
             <button class="field__togglePass" id="togglePassword" type="button" aria-controls="password" aria-label="Mostrar contraseña" title="Mostrar contraseña">
               <svg class="field__eye" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" stroke="currentColor" stroke-width="2"/>
@@ -54,6 +54,9 @@
               </svg>
             </button>
           </div>
+          <small style="display:block; margin-top:6px; color:#666; font-size:12px;">
+            Debe tener al menos 8 caracteres e incluir mayúsculas, minúsculas, números y caracteres especiales.
+          </small>
         </div>
 
         <div>

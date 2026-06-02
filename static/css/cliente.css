@@ -905,3 +905,14 @@
         width: 100%;
     }
 }
+/* Color verde esmeralda para el cliente habilitado */
+.badge.active {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+/* Color rojizo/coral para el cliente deshabilitado */
+.badge.inactive {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}

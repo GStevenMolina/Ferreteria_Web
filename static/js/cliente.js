@@ -36,8 +36,9 @@ const btnEliminarCliente =
 // ABRIR MODAL
 // =========================================
 function abrirModal() {
-
-    modalCliente.style.display = "flex";
+    if (modalCliente) {
+        modalCliente.style.display = "flex";
+    }
 }
 
 
@@ -45,15 +46,16 @@ function abrirModal() {
 // CERRAR MODAL
 // =========================================
 function cerrarModal() {
-
-    modalCliente.style.display = "none";
+    if (modalCliente) {
+        modalCliente.style.display = "none";
+    }
 }
 
 
 // =========================================
 // BOTON CERRAR
 // =========================================
-btnCerrarModalCliente.addEventListener(
+btnCerrarModalCliente?.addEventListener(
     "click",
     cerrarModal
 );
@@ -62,10 +64,12 @@ btnCerrarModalCliente.addEventListener(
 // =========================================
 // CLICK BACKDROP
 // =========================================
-modalBackdrop.addEventListener(
+modalBackdrop?.addEventListener(
     "click",
     cerrarModal
 );
+
+
 // =========================================
 // BUSCADOR DE CLIENTES
 // =========================================
@@ -81,29 +85,31 @@ const filasClientes =
 // =========================================
 // EVENTO BUSCAR
 // =========================================
-buscador.addEventListener("keyup", () => {
+if (buscador) {
+    buscador.addEventListener("keyup", () => {
 
-    const texto =
-        buscador.value.toLowerCase();
+        const texto =
+            buscador.value.toLowerCase();
 
-    filasClientes.forEach(fila => {
+        filasClientes.forEach(fila => {
 
-        const contenido =
-            fila.textContent.toLowerCase();
+            const contenido =
+                fila.textContent.toLowerCase();
 
-        // MOSTRAR / OCULTAR
-        if (contenido.includes(texto)) {
+            // MOSTRAR / OCULTAR
+            if (contenido.includes(texto)) {
 
-            fila.style.display = "";
+                fila.style.display = "";
 
-        } else {
+            } else {
 
-            fila.style.display = "none";
-        }
+                fila.style.display = "none";
+            }
+
+        });
 
     });
-
-});
+}
 
 
 // =========================================
@@ -116,24 +122,14 @@ document.querySelectorAll(".btnVer")
 
         abrirModal();
 
-        modalTitulo.textContent =
-            "Información del Cliente";
+        if (modalTitulo) modalTitulo.textContent = "Información del Cliente";
 
-        clienteNombre.value =
-            btn.dataset.nombre;
+        if (clienteNombre) { clienteNombre.value = btn.dataset.nombre || ""; clienteNombre.readOnly = true; }
+        if (clienteTelefono) { clienteTelefono.value = btn.dataset.telefono || ""; clienteTelefono.readOnly = true; }
+        if (clienteDireccion) { clienteDireccion.value = btn.dataset.direccion || ""; clienteDireccion.readOnly = true; }
 
-        clienteTelefono.value =
-            btn.dataset.telefono;
-
-        clienteDireccion.value =
-            btn.dataset.direccion;
-
-        clienteNombre.readOnly = true;
-        clienteTelefono.readOnly = true;
-        clienteDireccion.readOnly = true;
-
-        btnGuardarCliente.style.display = "none";
-        btnEliminarCliente.style.display = "none";
+        if (btnGuardarCliente) btnGuardarCliente.style.display = "none";
+        if (btnEliminarCliente) btnEliminarCliente.style.display = "none";
 
     });
 
@@ -152,30 +148,16 @@ document.querySelectorAll(".btnEditar")
 
         abrirModal();
 
-        modalTitulo.textContent =
-            "Editar Cliente";
+        if (modalTitulo) modalTitulo.textContent = "Editar Cliente";
 
-        clienteNombre.value =
-            btn.dataset.nombre;
+        if (clienteNombre) { clienteNombre.value = btn.dataset.nombre || ""; clienteNombre.readOnly = false; }
+        if (clienteTelefono) { clienteTelefono.value = btn.dataset.telefono || ""; clienteTelefono.readOnly = false; }
+        if (clienteDireccion) { clienteDireccion.value = btn.dataset.direccion || ""; clienteDireccion.readOnly = false; }
 
-        clienteTelefono.value =
-            btn.dataset.telefono;
+        if (btnGuardarCliente) btnGuardarCliente.style.display = "inline-flex";
+        if (btnEliminarCliente) btnEliminarCliente.style.display = "none";
 
-        clienteDireccion.value =
-            btn.dataset.direccion;
-
-        clienteNombre.readOnly = false;
-        clienteTelefono.readOnly = false;
-        clienteDireccion.readOnly = false;
-
-        btnGuardarCliente.style.display =
-            "inline-flex";
-
-        btnEliminarCliente.style.display =
-            "none";
-
-        formCliente.action =
-            `/cliente/editar/${id}/`;
+        if (formCliente) formCliente.action = `/cliente/editar/${id}/`;
 
     });
 
@@ -194,69 +176,16 @@ document.querySelectorAll(".btnEliminar")
 
         abrirModal();
 
-        modalTitulo.textContent =
-            "Eliminar Cliente";
+        if (modalTitulo) modalTitulo.textContent = "Eliminar Cliente";
 
-        clienteNombre.value =
-            btn.dataset.nombre;
+        if (clienteNombre) { clienteNombre.value = btn.dataset.nombre || ""; clienteNombre.readOnly = true; }
+        if (clienteTelefono) { clienteTelefono.value = btn.dataset.telefono || ""; clienteTelefono.readOnly = true; }
+        if (clienteDireccion) { clienteDireccion.value = btn.dataset.direccion || ""; clienteDireccion.readOnly = true; }
 
-        clienteTelefono.value =
-            btn.dataset.telefono;
+        if (btnGuardarCliente) btnGuardarCliente.style.display = "none";
+        if (btnEliminarCliente) btnEliminarCliente.style.display = "inline-flex";
 
-        clienteDireccion.value =
-            btn.dataset.direccion;
-
-        clienteNombre.readOnly = true;
-        clienteTelefono.readOnly = true;
-        clienteDireccion.readOnly = true;
-
-        btnGuardarCliente.style.display =
-            "none";
-
-        btnEliminarCliente.style.display =
-            "inline-flex";
-
-        formCliente.action =
-            `/cliente/eliminar/${id}/`;
-
-    });
-
-});
-
-// =========================================
-// BUSCADOR DE CLIENTES
-// =========================================
-const buscador =
-    document.querySelector(".search-input");
-
-const filasClientes =
-    document.querySelectorAll(
-        ".clientes-table tbody tr"
-    );
-
-
-// =========================================
-// EVENTO BUSCAR
-// =========================================
-buscador.addEventListener("keyup", () => {
-
-    const texto =
-        buscador.value.toLowerCase();
-
-    filasClientes.forEach(fila => {
-
-        const contenido =
-            fila.textContent.toLowerCase();
-
-        // MOSTRAR / OCULTAR
-        if (contenido.includes(texto)) {
-
-            fila.style.display = "";
-
-        } else {
-
-            fila.style.display = "none";
-        }
+        if (formCliente) formCliente.action = `/cliente/eliminar/${id}/`;
 
     });
 

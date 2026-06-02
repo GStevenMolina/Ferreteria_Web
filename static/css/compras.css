@@ -182,6 +182,23 @@ tbody tr:hover{background:rgba(255,255,255,.03);}
 .sel option{ background:#0b1220; color:#e5e7eb; }
 .sel{ background: rgba(0,0,0,.18); color:#e5e7eb; }
 
+/* Estilos específicos para el select 'Estado' en el modal de proveedores */
+#ep_estado{
+  background: rgba(8,15,32,0.92);
+  color: #e5e7eb;
+  border: 1px solid rgba(255,255,255,.08);
+  -webkit-appearance: none; /* uniform appearance */
+}
+#ep_estado option{
+  background: rgba(8,15,32,0.98);
+  color: #e5e7eb;
+}
+#ep_estado option:checked,
+#ep_estado option[selected]{
+  background: rgba(34,211,238,0.12);
+  color: #e5e7eb;
+}
+
 /* modal nuevo producto */
 .modal{
   position: fixed;
@@ -506,6 +523,12 @@ tbody tr:hover{background:rgba(255,255,255,.03);}
   color:#14532d;
   background: linear-gradient(180deg, #d1fae5, #bbf7d0);
   border:1px solid rgba(34,197,94,.18);
+}
+
+.prov-status--inactive{
+  color:#6b7280;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+  border:1px solid rgba(255,255,255,0.06);
 }
 
 .prov-actions{

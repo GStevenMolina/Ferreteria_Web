@@ -193,7 +193,7 @@ document.addEventListener("DOMContentLoaded", () => {
             type="button"
             class="btn-remove"
             onclick="eliminarItem(${index})">
-            x
+            -
             </button>
             </div>
             `;

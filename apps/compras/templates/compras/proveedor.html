@@ -65,9 +65,10 @@
 
   <div id="provResultsEmpty" class="prov-no-data" style="display:none;">No se encontraron proveedores con ese criterio.</div>
 
-  {% if proveedores_data %}
+  {% if proveedores_activos %}
+    <h2 style="margin-top:8px;">Proveedores activos</h2>
     <div class="prov-table-shell">
-      <table class="prov-excel" id="provTable">
+      <table class="prov-excel" id="provTableActive">
         <thead>
           <tr>
             <th>ID</th>
@@ -78,7 +79,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for item in proveedores_data %}
+          {% for item in proveedores_activos %}
             {% with p=item.proveedor lista=item.categorias %}
             <tr class="prov-row" data-search="{{ p.id_proveedor }} {{ p.nombre|default_if_none:''|escape }} {{ p.telefono|default_if_none:''|escape }} {{ p.email|default_if_none:''|escape }} {{ p.numero_contacto|default_if_none:''|escape }} {{ p.direccion|default_if_none:''|escape }} {{ p.tipo_proveedor|default_if_none:''|escape }} {{ p.estado|default_if_none:''|escape }}">
               <td class="prov-id">#PROV-{{ p.id_proveedor|stringformat:"05d" }}</td>
@@ -112,6 +113,7 @@
                     data-contacto="{{ p.numero_contacto|default_if_none:''|escape }}"
                     data-direccion="{{ p.direccion|default_if_none:''|escape }}"
                     data-tipo="{{ p.tipo_proveedor|default_if_none:''|escape }}"
+                      data-estado="{{ p.estado|default_if_none:''|escape }}"
                   >
                     Editar proveedor
                   </button>
@@ -124,7 +126,71 @@
       </table>
     </div>
   {% else %}
-    <div class="prov-no-data">No hay proveedores registrados.</div>
+    <div class="prov-no-data">No hay proveedores activos.</div>
+  {% endif %}
+
+  {% if proveedores_inactivos %}
+    <h2 style="margin-top:18px;">Proveedores inactivos</h2>
+    <div class="prov-table-shell">
+      <table class="prov-excel" id="provTableInactive">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre del proveedor</th>
+            <th>Teléfono</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in proveedores_inactivos %}
+            {% with p=item.proveedor lista=item.categorias %}
+            <tr class="prov-row" data-search="{{ p.id_proveedor }} {{ p.nombre|default_if_none:''|escape }} {{ p.telefono|default_if_none:''|escape }} {{ p.email|default_if_none:''|escape }} {{ p.numero_contacto|default_if_none:''|escape }} {{ p.direccion|default_if_none:''|escape }} {{ p.tipo_proveedor|default_if_none:''|escape }} {{ p.estado|default_if_none:''|escape }}">
+              <td class="prov-id">#PROV-{{ p.id_proveedor|stringformat:"05d" }}</td>
+              <td>
+                <div class="prov-name">{{ p.nombre }}</div>
+                <div class="prov-subline">
+                  {% if p.email %}<span>{{ p.email }}</span>{% endif %}
+                  {% if p.tipo_proveedor %}<span>{{ p.tipo_proveedor }}</span>{% endif %}
+                  {% if p.numero_contacto %}<span>{{ p.numero_contacto }}</span>{% endif %}
+                </div>
+              </td>
+              <td>{{ p.telefono|default:"-" }}</td>
+              <td>
+                <span class="prov-status prov-status--inactive">{{ p.estado }}</span>
+              </td>
+              <td>
+                <div class="prov-actions">
+                  <a
+                    class="btn prov-edit-btn"
+                    href="{% url 'compras:index' %}?open_np=1&id_proveedor={{ p.id_proveedor }}&proveedor={{ p.nombre|urlencode }}"
+                  >
+                    Nuevo producto
+                  </a>
+                  <button
+                    type="button"
+                    class="btn prov-edit-btn"
+                    data-id="{{ p.id_proveedor }}"
+                    data-nombre="{{ p.nombre|default_if_none:''|escape }}"
+                    data-telefono="{{ p.telefono|default_if_none:''|escape }}"
+                    data-email="{{ p.email|default_if_none:''|escape }}"
+                    data-contacto="{{ p.numero_contacto|default_if_none:''|escape }}"
+                    data-direccion="{{ p.direccion|default_if_none:''|escape }}"
+                    data-tipo="{{ p.tipo_proveedor|default_if_none:''|escape }}"
+                      data-estado="{{ p.estado|default_if_none:''|escape }}"
+                  >
+                    Editar proveedor
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="prov-no-data">No hay proveedores inactivos.</div>
   {% endif %}
 </div>
 
@@ -165,6 +231,12 @@
         <label class="label">Tipo proveedor</label>
         <input id="ep_tipo" class="inp" placeholder="Ej: Mayorista" />
 
+        <label class="label">Estado</label>
+        <select id="ep_estado" class="inp">
+          <option value="Activo">Activo</option>
+          <option value="Inactivo">Inactivo</option>
+        </select>
+
         <button class="btn" type="button" id="btnGuardarProveedor">Guardar cambios</button>
       </div>
     </div>
@@ -189,6 +261,8 @@
     $("ep_contacto").value = contacto;
     $("ep_direccion").value = direccion;
     $("ep_tipo").value = tipo;
+    // estado puede venir vacío; por defecto usar 'Activo'
+    $("ep_estado").value = arguments[0].estado || "Activo";
 
     const esNuevo = mode === "create";
     $("modalProveedorTitle").textContent = esNuevo ? "Nuevo proveedor" : "Editar proveedor";
@@ -211,6 +285,7 @@
       contacto: btn.dataset.contacto || "",
       direccion: btn.dataset.direccion || "",
       tipo: btn.dataset.tipo || "",
+      estado: btn.dataset.estado || "",
     });
   }
 
@@ -241,6 +316,7 @@
     form.append("numero_contacto", $("ep_contacto").value);
     form.append("direccion", $("ep_direccion").value);
     form.append("tipo_proveedor", $("ep_tipo").value);
+    form.append("estado", $("ep_estado").value);
     if (modo !== "create") {
       form.append("id_proveedor", idProveedor);
     }
@@ -288,11 +364,12 @@
     $("btnGuardarProveedor")?.addEventListener("click", guardarProveedor);
 
     const searchInput = $("provSearchInput");
-    const list = $("provTable");
+    const tableActive = $("provTableActive");
+    const tableInactive = $("provTableInactive");
     const emptyState = $("provResultsEmpty");
 
-    if (searchInput && list) {
-      const rows = Array.from(list.querySelectorAll("tbody .prov-row"));
+    if (searchInput && (tableActive || tableInactive)) {
+      const rows = Array.from([tableActive, tableInactive].filter(Boolean).flatMap(t => Array.from(t.querySelectorAll("tbody .prov-row"))));
       const applyFilter = () => {
         const term = searchInput.value.trim().toLowerCase();
         let visibleCount = 0;
@@ -308,7 +385,7 @@
           emptyState.style.display = visibleCount ? "none" : "block";
           emptyState.textContent = term
             ? "No se encontraron proveedores con ese criterio."
-            : "No hay proveedores registrados.";
+            : "No hay proveedores que coincidan con la búsqueda.";
         }
       };
 

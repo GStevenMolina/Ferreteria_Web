@@ -57,7 +57,10 @@ def proveedor(request):
     # Página de proveedores con info y productos por categoría
     proveedores = list(
         Proveedor.objects
-        .values("id_proveedor", "nombre", "telefono", "email", "numero_contacto", "direccion", "tipo_proveedor", "fecha_registro")
+        .values(
+            "id_proveedor", "nombre", "telefono", "email", "numero_contacto",
+            "direccion", "tipo_proveedor", "fecha_registro", "estado",
+        )
         .order_by("nombre")
     )
     categorias = (
@@ -85,13 +88,18 @@ def proveedor(request):
         categorias_del_proveedor = categorias_por_proveedor.get(p["id_proveedor"], [])
         p["total_categorias"] = len(categorias_del_proveedor)
         p["total_productos"] = sum(categoria["productos"] for categoria in categorias_del_proveedor)
-        p["estado"] = "Activo"
+        # Tomar estado desde la base de datos si existe, si no usar 'Activo' por compatibilidad
+        p["estado"] = (p.get("estado") or "Activo")
         proveedores_data.append(
             {
                 "proveedor": p,
                 "categorias": categorias_del_proveedor,
             }
         )
+
+    # Separar proveedores activos e inactivos para mostrarlos por secciones
+    proveedores_activos = [x for x in proveedores_data if (x["proveedor"].get("estado") or "").strip().lower() != "inactivo"]
+    proveedores_inactivos = [x for x in proveedores_data if (x["proveedor"].get("estado") or "").strip().lower() == "inactivo"]
     
     # Calcular estadísticas
     total_proveedores = len(proveedores)
@@ -111,6 +119,8 @@ def proveedor(request):
         "compras/proveedor.html",
         {
             "proveedores_data": proveedores_data,
+            "proveedores_activos": proveedores_activos,
+            "proveedores_inactivos": proveedores_inactivos,
             "stats": stats,
         },
     )
@@ -121,8 +131,8 @@ def proveedor(request):
 @require_GET
 def api_proveedores(request):
     # Devuelve lista de proveedores
-    proveedores = Proveedor.objects.all().order_by("nombre").values(
-        "id_proveedor", "nombre"
+    proveedores = Proveedor.objects.exclude(estado__iexact="Inactivo").order_by("nombre").values(
+        "id_proveedor", "nombre", "estado"
     )
     return JsonResponse({"ok": True, "data": list(proveedores)})
 
@@ -303,6 +313,7 @@ def api_proveedor_upsert(request):
     numero_contacto = _clean(request.POST.get("numero_contacto"))
     direccion = _clean(request.POST.get("direccion"))
     tipo_proveedor = _clean(request.POST.get("tipo_proveedor"))
+    estado = _clean(request.POST.get("estado"))
     if not nombre:
         return JsonResponse({"ok": False, "error": "El nombre del proveedor es requerido."}, status=400)
     proveedor = Proveedor.objects.filter(nombre__iexact=nombre).first()
@@ -318,6 +329,8 @@ def api_proveedor_upsert(request):
             proveedor.direccion = direccion; changed = True
         if tipo_proveedor and proveedor.tipo_proveedor != tipo_proveedor:
             proveedor.tipo_proveedor = tipo_proveedor; changed = True
+        if estado and (proveedor.estado or "") != estado:
+            proveedor.estado = estado; changed = True
         if changed:
             proveedor.save()
         return JsonResponse({"ok": True, "data": {"id_proveedor": proveedor.id_proveedor, "nombre": proveedor.nombre, "created": False}})
@@ -328,6 +341,7 @@ def api_proveedor_upsert(request):
         numero_contacto=numero_contacto or None,
         direccion=direccion or None,
         tipo_proveedor=tipo_proveedor or None,
+        estado=estado or None,
         fecha_registro=timezone.now(),
     )
     return JsonResponse({"ok": True, "data": {"id_proveedor": proveedor.id_proveedor, "nombre": proveedor.nombre, "created": True}})
@@ -344,6 +358,7 @@ def api_proveedor_actualizar(request):
     numero_contacto = _clean(request.POST.get("numero_contacto"))
     direccion = _clean(request.POST.get("direccion"))
     tipo_proveedor = _clean(request.POST.get("tipo_proveedor"))
+    estado = _clean(request.POST.get("estado"))
 
     if not id_proveedor:
         return JsonResponse({"ok": False, "error": "Falta id_proveedor."}, status=400)
@@ -369,6 +384,7 @@ def api_proveedor_actualizar(request):
     proveedor.numero_contacto = numero_contacto or None
     proveedor.direccion = direccion or None
     proveedor.tipo_proveedor = tipo_proveedor or None
+    proveedor.estado = estado or None
     proveedor.save()
 
     return JsonResponse({
@@ -489,12 +505,13 @@ def api_proveedores_buscar(request):
     if not q:
         return JsonResponse({"ok": True, "data": []})
     qs = (Proveedor.objects
+          .exclude(estado__iexact="Inactivo")
           .filter(nombre__icontains=q)
           .order_by("nombre")
           .values(
               "id_proveedor", "nombre",
               "telefono", "email",
               "numero_contacto", "direccion",
-              "tipo_proveedor"
+              "tipo_proveedor", "estado",
           )[:12])
     return JsonResponse({"ok": True, "data": list(qs)})

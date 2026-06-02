@@ -621,6 +621,11 @@ def reportes(request):
     movement_type = (request.GET.get("movement_type") or "").strip()
     start_date = _parse_optional_date(request, "from")
     end_date = _parse_optional_date(request, "to")
+    per_page_raw = (request.GET.get("per_page") or "15").strip()
+    try:
+        per_page = max(5, min(int(per_page_raw), 100))
+    except ValueError:
+        per_page = 15
 
     inv_qs = inventory_queryset(query_text=query_text, category_id=category_id)
     if product_id:
@@ -630,6 +635,15 @@ def reportes(request):
     summary = report_summary(inventory_queryset(query_text=query_text, category_id=category_id))
     # KPIs: total de entradas, salidas y conteo de movimientos en el período filtrado
     kpis = report_kpis(product_id=product_id, movement_type=movement_type, start_date=start_date, end_date=end_date, query_text=query_text, category_id=category_id)
+    movements_queryset = kpis["movements"]
+    paginator = Paginator(movements_queryset, per_page)
+    page = request.GET.get("page", 1)
+    try:
+        movements_page = paginator.page(page)
+    except PageNotAnInteger:
+        movements_page = paginator.page(1)
+    except EmptyPage:
+        movements_page = paginator.page(paginator.num_pages)
 
     selected_product = _selected_product_from_request(request)
     if not selected_product and product_id:
@@ -639,7 +653,10 @@ def reportes(request):
         "categories": categories_and_providers()["categories"],
         "rows": rows,
         "summary": summary,
-        "movements": kpis["movements"],
+        "movements": movements_page.object_list,
+        "page_obj": movements_page,
+        "paginator": paginator,
+        "per_page": per_page,
         "total_entradas": kpis["total_entradas"],
         "total_salidas": kpis["total_salidas"],
         "conteo_movimientos": kpis["conteo_movimientos"],

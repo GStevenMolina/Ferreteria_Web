@@ -116,6 +116,24 @@
           </tbody>
         </table>
       </div>
+
+      {% if page_obj.has_other_pages %}
+      <div class="pagination" style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        {% if page_obj.has_previous %}
+          <a class="action-btn action-btn--soft" href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&product={{ product_id|urlencode }}&movement_type={{ movement_type|urlencode }}&from={{ start_date|urlencode }}&to={{ end_date|urlencode }}&per_page={{ per_page }}&page={{ page_obj.previous_page_number }}">Anterior</a>
+        {% else %}
+          <span class="action-btn action-btn--soft action-btn--disabled">Anterior</span>
+        {% endif %}
+
+        <span>Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+
+        {% if page_obj.has_next %}
+          <a class="action-btn action-btn--soft" href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&product={{ product_id|urlencode }}&movement_type={{ movement_type|urlencode }}&from={{ start_date|urlencode }}&to={{ end_date|urlencode }}&per_page={{ per_page }}&page={{ page_obj.next_page_number }}">Siguiente</a>
+        {% else %}
+          <span class="action-btn action-btn--soft action-btn--disabled">Siguiente</span>
+        {% endif %}
+      </div>
+      {% endif %}
     </article>
 
     <aside class="report-sidebar">

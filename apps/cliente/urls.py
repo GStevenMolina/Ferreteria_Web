@@ -18,4 +18,10 @@ urlpatterns = [
         name="eliminar"
     ),
 
+    # NUEVA RUTA AGREGADA
+    path(
+        "cambiar-estado/<int:id>/",
+        views.cambiar_estado_cliente,
+        name="cambiar_estado"
+    ),
 ]

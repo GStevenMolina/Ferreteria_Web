@@ -11,9 +11,6 @@
 
 <div class="clientes-page">
 
-    <!-- =========================================
-         HEADER
-    ========================================== -->
     <section class="page-header">
 
         <div class="header-info">
@@ -28,9 +25,7 @@
             </h1>
 
             <p>
-                Administra tu cartera de clientes,
-                visualiza estadísticas y controla
-                su actividad comercial.
+                Administra tu cartera de clientes, visualiza estadísticas y controla su actividad comercial.
             </p>
 
         </div>
@@ -53,22 +48,10 @@
                 ⚙️
             </button>
 
-          <!---- <button
-                type="button"
-                class="btn btn-primary btn-lg"
-                id="btnNuevoCliente"
-            >
-                <span>➕</span>
-                Nuevo Cliente
-            </button>-->
-
         </div>
 
     </section>
 
-    <!-- =========================================
-         TARJETAS
-    ========================================== -->
     <section class="stats-grid">
 
         <div class="stat-card">
@@ -108,7 +91,7 @@
                 </h3>
 
                 <small class="positive">
-                    Han realizado compras
+                    Habilitados en la plataforma
                 </small>
 
             </div>
@@ -152,7 +135,7 @@
                 </h3>
 
                 <small class="negative">
-                    Sin compras registradas
+                    Deshabilitados temporalmente
                 </small>
 
             </div>
@@ -161,9 +144,6 @@
 
     </section>
 
-    <!-- =========================================
-         TABLA
-    ========================================== -->
     <section class="content-grid">
 
         <div class="card table-card">
@@ -177,15 +157,13 @@
                     </h2>
 
                     <p>
-                        Consulta, edita y administra
-                        la información de tus clientes.
+                        Consulta, edita y administra la información de tus clientes.
                     </p>
 
                 </div>
 
             </div>
 
-            <!-- Toolbar -->
             <div class="toolbar">
 
                 <div class="search-box">
@@ -204,7 +182,6 @@
 
             </div>
 
-            <!-- Tabla -->
             <div class="table-responsive">
 
                 <table class="clientes-table">
@@ -233,12 +210,10 @@
 
                         <tr>
 
-                            <!-- ID -->
                             <td>
                                 #CLI-{{ cliente.id_cliente|stringformat:"05d" }}
                             </td>
 
-                            <!-- Cliente -->
                             <td>
 
                                 <div class="client-info">
@@ -257,8 +232,7 @@
 
                                             {% if cliente.fecha_registro %}
 
-                                                Registrado el
-                                                {{ cliente.fecha_registro|date:"d/m/Y" }}
+                                                Registrado el {{ cliente.fecha_registro|date:"d/m/Y" }}
 
                                             {% else %}
 
@@ -274,23 +248,18 @@
 
                             </td>
 
-                            <!-- Teléfono -->
                             <td>
                                 {{ cliente.telefono|default:"No registrado" }}
                             </td>
 
-                            <!-- Dirección -->
                             <td>
                                 {{ cliente.direccion|default:"No registrada"|truncatechars:35 }}
                             </td>
 
-                            <!-- Compras -->
                             <td>
-                                C$
-                                {{ cliente.total_compras|default:0|floatformat:2 }}
+                                C$ {{ cliente.total_compras|default:0|floatformat:2 }}
                             </td>
 
-                            <!-- Estado -->
                             <td>
 
                                 <span class="badge {% if cliente.estado == 'Activo' %}active{% else %}inactive{% endif %}">
@@ -299,10 +268,8 @@
 
                             </td>
 
-                            <!-- ACCIONES -->
                             <td class="actions">
 
-                                <!-- VER -->
                                 <button
                                     type="button"
                                     class="action-btn btnVer"
@@ -315,7 +282,6 @@
                                     👁️
                                 </button>
 
-                                <!-- EDITAR -->
                                 <button
                                     type="button"
                                     class="action-btn btnEditar"
@@ -328,19 +294,25 @@
                                     ✏️
                                 </button>
 
-                                <!-- ELIMINAR 
-                                <button
-                                    type="button"
-                                    class="action-btn danger btnEliminar"
-                                    data-id="{{ cliente.id_cliente }}"
-                                    data-nombre="{{ cliente.nombre }}"
-                                    data-telefono="{{ cliente.telefono }}"
-                                    data-direccion="{{ cliente.direccion }}"
-                                    title="Eliminar"
+                                <form 
+                                    action="{% url 'cliente:cambiar_estado' cliente.id_cliente %}" 
+                                    method="POST" 
+                                    style="display:inline;"
                                 >
-                                    🗑️
-                                </button>
-                                -->
+                                    {% csrf_token %}
+                                    <button
+                                        type="submit"
+                                        class="status-toggle-btn"
+                                        title="{% if cliente.estado == 'Activo' %}Desactivar Cliente{% else %}Activar Cliente{% endif %}"
+                                        style="background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 4px 8px;"
+                                    >
+                                        {% if cliente.estado == 'Activo' %}
+                                            🚫
+                                        {% else %}
+                                            ✅
+                                        {% endif %}
+                                    </button>
+                                </form>
 
                             </td>
 
@@ -370,22 +342,17 @@
 
 </div>
 
-<!-- =========================================
-     VENTANA FLOTANTE CLIENTE
-========================================= -->
 <div
     id="modalCliente"
     class="modal"
     style="display:none;"
 >
 
-    <!-- BACKDROP -->
     <div
         class="modal__backdrop"
         id="modalBackdrop"
     ></div>
 
-    <!-- PANEL -->
     <div
         class="modal__panel"
         role="dialog"
@@ -393,7 +360,6 @@
         aria-label="Cliente"
     >
 
-        <!-- HEADER -->
         <div class="modal__header">
 
             <div>
@@ -406,10 +372,7 @@
                 </div>
 
                 <div class="modal__subtitle">
-
-                    Gestión y administración
-                    de clientes
-
+                    Gestión y administración de clientes
                 </div>
 
             </div>
@@ -424,7 +387,6 @@
 
         </div>
 
-        <!-- BODY -->
         <div class="modal__body">
 
             <form
@@ -434,7 +396,6 @@
 
                 {% csrf_token %}
 
-                <!-- NOMBRE -->
                 <div class="form-group">
 
                     <label>
@@ -450,7 +411,6 @@
 
                 </div>
 
-                <!-- TELEFONO -->
                 <div class="form-group">
 
                     <label>
@@ -466,7 +426,6 @@
 
                 </div>
 
-                <!-- DIRECCION -->
                 <div class="form-group">
 
                     <label>
@@ -481,10 +440,8 @@
 
                 </div>
 
-                <!-- BOTONES -->
                 <div class="modal__actions">
 
-                    <!-- GUARDAR -->
                     <button
                         type="submit"
                         class="btn btn-primary"
@@ -493,16 +450,6 @@
                         💾 Guardar
                     </button>
 
-                    <!-- ELIMINAR 
-                    <button
-                        type="submit"
-                        class="btn btn-danger"
-                        id="btnEliminarCliente"
-                        style="display:none;"
-                    >
-                        🗑️ Eliminar
-                    </button>
-                -->
                 </div>
 
             </form>

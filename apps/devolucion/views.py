@@ -216,12 +216,19 @@ def index(request):
                 inventario.stock_actual += 1
                 inventario.save()
 
+                # ==========================================
+                # OBTENER EL USUARIO DE LA SESIÓN
+                # ==========================================
+                id_usuario = request.session.get("id_usuario")
+
                 MovimientoInventario.objects.create(
                     id_producto=producto,
+                    id_usuario_id=id_usuario,
                     tipo_movimiento="ENTRADA",
                     cantidad=1,
                     referencia=f"Devolución #{devolucion.id_devolucion}",
-                    fecha_movimiento=timezone.now()
+                    fecha_movimiento=timezone.now(),
+                    observaciones=condiciones
                 )
 
                 return redirect("devolucion:index")

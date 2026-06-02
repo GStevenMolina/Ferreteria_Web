@@ -108,10 +108,12 @@ def crear_cliente(request):
                 'message': 'Nombre requerido'
             })
 
+        # CORREGIDO: Eliminamos 'activo=True' ya que tu modelo solo maneja 'estado'
         cliente = Cliente.objects.create(
             nombre=nombre,
             telefono=telefono,
             direccion=direccion,
+            estado='Activo',
             fecha_registro=timezone.now()
         )
 
@@ -123,8 +125,6 @@ def crear_cliente(request):
 
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
-
-
 # ===============================
 # 🧾 GENERAR NÚMERO DE FACTURA
 # ===============================

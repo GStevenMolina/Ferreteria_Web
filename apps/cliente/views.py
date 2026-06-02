@@ -44,14 +44,17 @@ def index(request):
             ventas = []
 
         # ==========================================
-        # CLIENTE ACTIVO / INACTIVO
+        # LÓGICA DE ESTADO CONTROLADO POR BD (CORREGIDO)
         # ==========================================
-        if ventas.exists():
+        # Leemos el campo de texto 'estado' y removemos espacios en blanco que genera SQL Server
+        estado_real = cliente.estado.strip() if getattr(cliente, "estado", None) else "Activo"
+
+        if estado_real == "Activo":
             clientes_activos += 1
-            cliente.estado = "Activo"
+            cliente.estado = "Activo"  # Forzamos limpio para el HTML
         else:
             clientes_inactivos += 1
-            cliente.estado = "Inactivo"
+            cliente.estado = "Inactivo"  # Forzamos limpio para el HTML
 
         # ==========================================
         # CLIENTES NUEVOS DEL MES
@@ -126,7 +129,6 @@ def index(request):
     # CONTEXTO
     # ==========================================
     context = {
-
         "clientes": clientes,
 
         "total_clientes": total_clientes,
@@ -195,4 +197,25 @@ def eliminar_cliente(request, id):
 
         cliente.delete()
 
+    return redirect("cliente:index")
+
+
+# ==========================================
+# CAMBIAR ESTADO CLIENTE (ACTIVAR / DESACTIVAR)
+# ==========================================
+def cambiar_estado_cliente(request, id):
+    cliente = get_object_or_404(Cliente, id_cliente=id)
+    
+    # Evaluamos el campo 'estado' aplicando .strip() por los espacios en blanco de SQL Server
+    if hasattr(cliente, 'estado') and cliente.estado:
+        if cliente.estado.strip() == 'Activo':
+            cliente.estado = 'Inactivo'
+        else:
+            cliente.estado = 'Activo'
+            
+    # Por seguridad, si tu modelo posee el campo booleano 'activo', lo invertimos también
+    if hasattr(cliente, 'activo'):
+        cliente.activo = not cliente.activo
+
+    cliente.save()
     return redirect("cliente:index")

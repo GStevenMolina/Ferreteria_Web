@@ -76,7 +76,12 @@ def buscar_cliente(request):
     if len(q) < 2:
         return JsonResponse([], safe=False)
 
-    clientes = Cliente.objects.filter(nombre__icontains=q)[:10]
+    # Filtrar inactivos aunque vengan con espacios desde SQL Server.
+    candidatos = Cliente.objects.filter(nombre__icontains=q)[:50]
+    clientes = [
+        c for c in candidatos
+        if (getattr(c, 'estado', None) or 'Activo').strip().lower() != 'inactivo'
+    ][:10]
 
     return JsonResponse([
         {

@@ -8,14 +8,9 @@
 {% endblock %}
 
 {% block content %}
-
 <div class="container-devolucion">
 
-    <!-- ==========================================
-         FORMULARIO
-    =========================================== -->
     <section class="form-card">
-
         <h3>Devolución</h3>
 
         {% if error %}
@@ -27,161 +22,94 @@
         <form method="POST" id="formDevolucion">
             {% csrf_token %}
 
-            <!-- FECHA -->
-            <label>Fecha</label>
-            <input
-            type="date"
-            name="fecha"
-            id="fecha"
-            min="{{ today }}"
-            required
->
+            <label for="fecha">Fecha</label>
+            <input type="date" name="fecha" id="fecha" min="{{ today }}" required>
 
-            <!-- PLAZO -->
-            <label>Plazo</label>
-            <input
-                type="number"
-                name="plazo"
-                placeholder="Ingrese el plazo"
-                min="1"
-                required
-            >
+            <label for="plazo">Plazo (días)</label>
+            <input type="number" name="plazo" id="plazo" placeholder="Ej: 5" min="1" required>
 
-            <!-- CONDICIONES -->
-            <label>Condiciones</label>
-            <textarea
-                name="condiciones"
-                placeholder="Describa las condiciones del producto"
-                required
-            ></textarea>
+            <label for="condiciones">Condiciones</label>
+            <textarea name="condiciones" id="condiciones" placeholder="Describa el estado del producto" required></textarea>
 
-            <!-- FACTURA -->
-            <label>Número de Factura</label>
-
-            <select
-                name="id_factura"
-                id="id_factura"
-                required
-            >
+            <label for="id_factura">Número de Factura</label>
+            <select name="id_factura" id="id_factura" required>
                 <option value="">Seleccione una factura</option>
-
                 {% for factura in facturas %}
-                <option
-                    value="{{ factura.id_venta }}"
-                    {% if factura_seleccionada and factura.id_venta == factura_seleccionada.id_venta %}
-                        selected
-                    {% endif %}
-                >
-                    Factura #{{ factura.id_venta }}
-                    - {{ factura.id_cliente.nombre }}
+                <option value="{{ factura.id_venta }}" {% if factura_seleccionada and factura.id_venta == factura_seleccionada.id_venta %}selected{% endif %}>
+                    Factura #{{ factura.id_venta }} - {{ factura.id_cliente.nombre }}
                 </option>
                 {% endfor %}
             </select>
 
-            <!-- CLIENTE -->
-            {% if factura_seleccionada %}
-            <label>Cliente</label>
-            <input
-                type="text"
-                value="{{ factura_seleccionada.id_cliente.nombre }}"
-                readonly
-            >
-            {% endif %}
+            <div id="contenedor_cliente" style="display: none;">
+                <label for="cliente_factura">Cliente</label>
+                <input type="text" id="cliente_factura" readonly>
+            </div>
 
-            <!-- PRODUCTO -->
-            <label>Producto a devolver</label>
-
-            <select
-                name="id_producto"
-                id="id_producto"
-                required
-            >
+            <label for="id_producto">Producto a devolver</label>
+            <select name="id_producto" id="id_producto" required>
                 <option value="">Seleccione un producto</option>
-
                 {% for producto in productos %}
-                <option value="{{ producto.id_producto }}">
-                    {{ producto.nombre }}
-                </option>
+                <option value="{{ producto.id_producto }}">{{ producto.nombre }}</option>
                 {% empty %}
-                <option value="">
-                    Primero seleccione una factura
-                </option>
+                <option value="">Primero seleccione una factura</option>
                 {% endfor %}
             </select>
 
-            <!-- BOTÓN REGISTRAR -->
-            <button type="submit" class="btn-orange">
-                Registrar devolución
-            </button>
+            <label for="cantidad">Cantidad a devolver</label>
+            <input type="number" name="cantidad" id="cantidad" min="1" placeholder="Seleccione un producto primero" disabled required>
+            <small id="helper-cantidad" class="helper-text"></small>
 
+            <button type="submit" class="btn-orange">Registrar devolución</button>
         </form>
     </section>
 
-    <!-- ==========================================
-         TABLA DE DEVOLUCIONES
-    =========================================== -->
     <section class="tabla-card">
-
-        <!-- BUSCADOR -->
-        <div class="search-form">
-            <input
-                type="text"
-                id="buscador"
-                placeholder="Buscar por producto..."
-                autocomplete="off"
-            >
+        
+        <div class="table-toolbar">
+            <div class="search-form">
+                <input type="text" id="buscador" placeholder="🔍 Buscar por producto..." autocomplete="off">
+            </div>
+            <div class="acciones-reporte">
+                <a href="{% url 'devolucion:reporte_pdf' %}" class="btn-pdf" target="_blank">
+                    📄 Generar Reporte PDF
+                </a>
+            </div>
         </div>
 
-        <!-- BOTÓN PDF -->
-        <div class="acciones-reporte">
-            <a
-                href="{% url 'devolucion:reporte_pdf' %}"
-                class="btn-pdf"
-                target="_blank"
-            >
-                📄 Generar Reporte PDF
-            </a>
+        <div class="table-wrapper">
+            <table id="tablaDevoluciones">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Plazo</th>
+                        <th>Condiciones</th>
+                        <th>Factura</th>
+                        <th>Producto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in devoluciones %}
+                    <tr>
+                        <td>{{ d.fecha|date:"d/m/Y" }}</td>
+                        <td>{{ d.id_venta.id_cliente.nombre }}</td>
+                        <td>{{ d.plazo }} días</td>
+                        <td class="truncar-texto" title="{{ d.condiciones }}">{{ d.condiciones }}</td>
+                        <td>#{{ d.id_venta.id_venta }}</td>
+                        <td class="producto">{{ d.id_producto.nombre }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6">No hay devoluciones registradas</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-
-        <!-- TABLA -->
-        <table id="tablaDevoluciones">
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Cliente</th>
-                    <th>Plazo</th>
-                    <th>Condiciones</th>
-                    <th>Factura</th>
-                    <th>Producto</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for d in devoluciones %}
-                <tr>
-                    <td>{{ d.fecha|date:"d/m/Y" }}</td>
-                    <td>{{ d.id_venta.id_cliente.nombre }}</td>
-                    <td>{{ d.plazo }}</td>
-                    <td>{{ d.condiciones }}</td>
-                    <td>#{{ d.id_venta.id_venta }}</td>
-                    <td class="producto">
-                        {{ d.id_producto.nombre }}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6">
-                        No hay devoluciones registradas
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
     </section>
 
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
@@ -189,15 +117,12 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-
     const fecha = document.getElementById("fecha");
-
-    if (fecha) {
+    if (fecha && !fecha.value) { // Solo asigna hoy si no hay valor previo
         const hoy = new Date().toISOString().split("T")[0];
         fecha.min = hoy;
         fecha.value = hoy;
     }
-
 });
 </script>
 {% endblock %}

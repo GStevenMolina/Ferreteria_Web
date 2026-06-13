@@ -5,20 +5,26 @@ function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
         const cookies = document.cookie.split(';');
-
         for (let cookie of cookies) {
             cookie = cookie.trim();
-
             if (cookie.startsWith(name + '=')) {
-                cookieValue = decodeURIComponent(
-                    cookie.substring(name.length + 1)
-                );
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                 break;
             }
         }
     }
-
     return cookieValue;
+}
+
+// ==============================
+// 🛠️ UTILIDADES (Evita saturar el servidor)
+// ==============================
+function debounce(func, delay) {
+    let timeoutId;
+    return function (...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => func.apply(this, args), delay);
+    };
 }
 
 // ==============================
@@ -35,7 +41,6 @@ let tasa = 36.5;
 // 🚀 INICIO
 // ==============================
 document.addEventListener("DOMContentLoaded", () => {
-
     console.log("ventas.js cargado correctamente ✅");
 
     // ==============================
@@ -62,26 +67,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnGuardarCliente = document.getElementById("guardar-cliente");
 
     const cancelBtn = document.getElementById("cancel");
+    const searchInput = document.getElementById("search");
 
     // ==============================
     // 💱 MONEDA
     // ==============================
-    function simbolo() {
-        return monedaActual === "USD" ? "$" : "C$";
-    }
-
-    function convertir(valor) {
-        return monedaActual === "USD"
-            ? valor / tasa
-            : valor;
-    }
+    function simbolo() { return monedaActual === "USD" ? "$" : "C$"; }
+    function convertir(valor) { return monedaActual === "USD" ? valor / tasa : valor; }
 
     function actualizarSimbolosTotales() {
         const s = simbolo();
-
-        document.querySelectorAll(".total-currency").forEach(el => {
-            el.textContent = s;
-        });
+        document.querySelectorAll(".total-currency").forEach(el => { el.textContent = s; });
     }
 
     if (currencySelect) {
@@ -104,23 +100,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==============================
     // 🔍 BUSCADOR DE PRODUCTOS
     // ==============================
-    const searchInput = document.getElementById("search");
-
     if (searchInput) {
         searchInput.addEventListener("input", function () {
             const query = this.value.toLowerCase();
-
             document.querySelectorAll(".product-card").forEach(card => {
-                const nombre =
-                    card.querySelector(".nombre")?.innerText.toLowerCase() || "";
-
-                const categoria =
-                    card.querySelector(".categoria")?.innerText.toLowerCase() || "";
-
-                card.style.display =
-                    nombre.includes(query) || categoria.includes(query)
-                        ? "block"
-                        : "none";
+                const nombre = card.querySelector(".nombre")?.innerText.toLowerCase() || "";
+                const categoria = card.querySelector(".categoria")?.innerText.toLowerCase() || "";
+                card.style.display = nombre.includes(query) || categoria.includes(query) ? "block" : "none";
             });
         });
     }
@@ -130,30 +116,38 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==============================
     document.querySelectorAll(".add-to-cart").forEach(btn => {
         btn.addEventListener("click", function () {
-
             const id = this.dataset.id;
             const nombre = this.dataset.nombre;
             const precio = parseFloat(this.dataset.precio);
+            let stockActual = parseInt(this.dataset.stock);
 
             if (!id || !nombre || isNaN(precio)) {
-                alert("Producto inválido");
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Producto inválido' });
                 return;
             }
 
-            const existente = carrito.find(p => p.id == id);
+            if (stockActual > 0) {
+                stockActual--;
+                this.dataset.stock = stockActual;
+                
+                const stockElemento = document.getElementById(`stock-${id}`);
+                if (stockElemento) stockElemento.textContent = stockActual;
 
-            if (existente) {
-                existente.cantidad++;
+                const existente = carrito.find(p => p.id == id);
+                if (existente) {
+                    existente.cantidad++;
+                } else {
+                    carrito.push({ id, nombre, precio, cantidad: 1 });
+                }
+                renderCarrito();
             } else {
-                carrito.push({
-                    id: id,
-                    nombre: nombre,
-                    precio: precio, // precio base en C$
-                    cantidad: 1
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Stock Agotado',
+                    text: `No hay unidades disponibles de: ${nombre}`,
+                    confirmButtonColor: '#3b82f6'
                 });
             }
-
-            renderCarrito();
         });
     });
 
@@ -162,11 +156,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==============================
     function renderCarrito() {
         if (!cartItems) return;
-
         cartItems.innerHTML = "";
 
         if (carrito.length === 0) {
-            cartItems.innerHTML = '<p class="empty">No hay productos</p>';
+            cartItems.innerHTML = '<p class="empty">No hay productos en la lista</p>';
             actualizarTotales();
             return;
         }
@@ -177,30 +170,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const div = document.createElement("div");
             div.className = "cart-item";
-
             div.innerHTML = `
             <div class="cart-item-info">
-            <strong>${item.nombre}</strong>
-            <small>Cantidad: ${item.cantidad}</small>
+                <strong>${item.nombre}</strong>
+                <small>Cantidad: ${item.cantidad}</small>
             </div>
-
             <div class="cart-item-actions">
-            <span class="cart-price">
-            ${simbolo()}${totalConvertido.toFixed(2)}
-            </span>
-
-            <button
-            type="button"
-            class="btn-remove"
-            onclick="eliminarItem(${index})">
-            x
-            </button>
-            </div>
-            `;
-
+                <span class="cart-price">${simbolo()}${totalConvertido.toFixed(2)}</span>
+                <button type="button" class="btn-remove" onclick="eliminarItem(${index})">x</button>
+            </div>`;
             cartItems.appendChild(div);
         });
-
         actualizarTotales();
     }
 
@@ -208,27 +188,30 @@ document.addEventListener("DOMContentLoaded", () => {
     // ❌ ELIMINAR ITEM
     // ==============================
     window.eliminarItem = function (index) {
+        const item = carrito[index];
+        const btnAgregado = document.querySelector(`.add-to-cart[data-id="${item.id}"]`);
+        
+        if (btnAgregado) {
+            let stockActual = parseInt(btnAgregado.dataset.stock);
+            stockActual++;
+            btnAgregado.dataset.stock = stockActual;
+            const stockElemento = document.getElementById(`stock-${item.id}`);
+            if (stockElemento) stockElemento.textContent = stockActual;
+        }
 
-    if (carrito[index].cantidad > 1) {
-        carrito[index].cantidad--;
-    } else {
-        carrito.splice(index, 1);
-    }
+        if (item.cantidad > 1) item.cantidad--;
+        else carrito.splice(index, 1);
 
-    renderCarrito();
-};
+        renderCarrito();
+    };
 
     // ==============================
     // 💰 TOTALES
     // ==============================
     function actualizarTotales() {
-        const subtotalNIO = carrito.reduce(
-            (acc, item) => acc + (item.precio * item.cantidad),
-            0
-        );
-
-        const ivaNIO = subtotalNIO * 0.15;
-        const totalNIO = subtotalNIO + ivaNIO;
+        const subtotalNIO = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
+        const ivaNIO = Number((subtotalNIO * 0.15).toFixed(2));
+        const totalNIO = Number((subtotalNIO + ivaNIO).toFixed(2));
 
         if (subtotalEl) subtotalEl.textContent = convertir(subtotalNIO).toFixed(2);
         if (ivaEl) ivaEl.textContent = convertir(ivaNIO).toFixed(2);
@@ -239,143 +222,111 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function calcularVuelto(total) {
         if (!cashInput || !changeEl || !payBtn) return;
-
         const recibido = parseFloat(cashInput.value) || 0;
         const cambio = recibido - total;
 
-        changeEl.textContent =
-            cambio >= 0
-                ? cambio.toFixed(2)
-                : "0.00";
-
-        payBtn.disabled =
-            carrito.length === 0 ||
-            recibido < total ||
-            !clienteSeleccionado;
+        changeEl.textContent = cambio >= 0 ? cambio.toFixed(2) : "0.00";
+        payBtn.disabled = carrito.length === 0 || recibido < total || !clienteSeleccionado;
     }
 
-    if (cashInput) {
-        cashInput.addEventListener("input", actualizarTotales);
-    }
+    if (cashInput) cashInput.addEventListener("input", actualizarTotales);
 
     // ==============================
-// 👤 MODAL NUEVO CLIENTE
-// ==============================
-if (btnNuevoCliente) {
-    btnNuevoCliente.addEventListener("click", () => {
-        clienteModal.style.display = "flex";
-    });
-}
-
-if (cerrarModal) {
-    cerrarModal.addEventListener("click", () => {
-        clienteModal.style.display = "none";
-    });
-}
-
-window.addEventListener("click", (e) => {
-    if (e.target === clienteModal) {
-        clienteModal.style.display = "none";
-    }
-});
-    
+    // 👤 MODAL NUEVO CLIENTE
+    // ==============================
+    if (btnNuevoCliente) btnNuevoCliente.addEventListener("click", () => clienteModal.style.display = "flex");
+    if (cerrarModal) cerrarModal.addEventListener("click", () => clienteModal.style.display = "none");
+    window.addEventListener("click", (e) => { if (e.target === clienteModal) clienteModal.style.display = "none"; });
 
     // ==============================
-    // 🔍 BUSCAR CLIENTE
+    // 🔍 BUSCAR CLIENTE (CON DEBOUNCE)
     // ==============================
     if (inputCliente) {
-        inputCliente.addEventListener("input", () => {
+        inputCliente.addEventListener("input", debounce(async () => {
             const q = inputCliente.value.trim();
-
             if (q.length < 2) {
                 if (listaClientes) listaClientes.innerHTML = "";
                 return;
             }
 
-            fetch(`/ventas/buscar-cliente/?q=${encodeURIComponent(q)}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (!listaClientes) return;
-
-                    listaClientes.innerHTML = "";
-
-                    data.forEach(cliente => {
-                        const li = document.createElement("li");
-                        li.textContent = cliente.nombre;
-
-                        li.addEventListener("click", () => {
-                            clienteSeleccionado = cliente;
-                            inputCliente.value = cliente.nombre;
-                            listaClientes.innerHTML = "";
-
-                            actualizarTotales();
-                        });
-
-                        listaClientes.appendChild(li);
+            try {
+                const res = await fetch(`/ventas/buscar-cliente/?q=${encodeURIComponent(q)}`);
+                const data = await res.json();
+                if (!listaClientes) return;
+                
+                listaClientes.innerHTML = "";
+                data.forEach(cliente => {
+                    const li = document.createElement("li");
+                    li.textContent = cliente.nombre;
+                    li.addEventListener("click", () => {
+                        clienteSeleccionado = cliente;
+                        inputCliente.value = cliente.nombre;
+                        listaClientes.innerHTML = "";
+                        actualizarTotales();
                     });
+                    listaClientes.appendChild(li);
                 });
-        });
+            } catch (error) {
+                console.error("Error al buscar cliente:", error);
+            }
+        }, 300));
     }
 
     // ==============================
     // 💾 GUARDAR CLIENTE
     // ==============================
     if (btnGuardarCliente) {
-        btnGuardarCliente.addEventListener("click", () => {
-
-            const nombre =
-                document.getElementById("nuevo-nombre")?.value.trim() || "";
-
-            const telefono =
-                document.getElementById("nuevo-telefono")?.value.trim() || "";
-
-            const direccion =
-                document.getElementById("nuevo-direccion")?.value.trim() || "";
+        btnGuardarCliente.addEventListener("click", async () => {
+            const nombre = document.getElementById("nuevo-nombre")?.value.trim() || "";
+            const telefono = document.getElementById("nuevo-telefono")?.value.trim() || "";
+            const direccion = document.getElementById("nuevo-direccion")?.value.trim() || "";
 
             if (!nombre || !direccion) {
-                alert("Nombre y dirección son obligatorios.");
+                Swal.fire({ icon: 'warning', title: 'Datos incompletos', text: 'El nombre y la dirección son obligatorios.', confirmButtonColor: '#3b82f6' });
                 return;
             }
 
-            fetch("/ventas/crear-cliente/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie("csrftoken")
-                },
-                body: JSON.stringify({
-                    nombre,
-                    telefono,
-                    direccion
-                })
-            })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === "success") {
-                        clienteSeleccionado = {
-                            id: data.id,
-                            nombre: data.nombre
-                        };
+            btnGuardarCliente.disabled = true;
+            btnGuardarCliente.textContent = "Guardando...";
 
-                        if (inputCliente) {
-                            inputCliente.value = data.nombre;
-                        }
-
-                        if (clienteModal) {
-                            clienteModal.style.display = "none";
-                        }
-
-                        document.getElementById("nuevo-nombre").value = "";
-                        document.getElementById("nuevo-telefono").value = "";
-                        document.getElementById("nuevo-direccion").value = "";
-
-                        alert("Cliente registrado correctamente ✅");
-
-                        actualizarTotales();
-                    } else {
-                        alert(data.message || "Error al guardar cliente");
-                    }
+            try {
+                const res = await fetch("/ventas/crear-cliente/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken")
+                    },
+                    body: JSON.stringify({ nombre, telefono, direccion })
                 });
+                
+                const data = await res.json();
+
+                if (data.status === "success") {
+                    clienteSeleccionado = { id: data.id, nombre: data.nombre };
+                    if (inputCliente) inputCliente.value = data.nombre;
+                    if (clienteModal) clienteModal.style.display = "none";
+
+                    document.getElementById("nuevo-nombre").value = "";
+                    document.getElementById("nuevo-telefono").value = "";
+                    document.getElementById("nuevo-direccion").value = "";
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Cliente Registrado!',
+                        text: 'El perfil se configuró como activo por defecto.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    actualizarTotales();
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: data.message || "No se pudo guardar el cliente." });
+                }
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error de Red', text: "No se pudo comunicar con el servidor." });
+            } finally {
+                btnGuardarCliente.disabled = false;
+                btnGuardarCliente.textContent = "Guardar";
+            }
         });
     }
 
@@ -383,63 +334,76 @@ window.addEventListener("click", (e) => {
     // 💳 FINALIZAR VENTA
     // ==============================
     if (payBtn) {
-        payBtn.addEventListener("click", () => {
-
+        payBtn.addEventListener("click", async () => {
             if (!clienteSeleccionado) {
-                alert("Debe seleccionar un cliente.");
+                Swal.fire({ icon: 'info', title: 'Falta Cliente', text: 'Debe asignar un cliente a la orden.', confirmButtonColor: '#3b82f6' });
                 return;
             }
 
             if (carrito.length === 0) {
-                alert("El carrito está vacío.");
+                Swal.fire({ icon: 'info', title: 'Carrito Vacío', text: 'Agregue productos para procesar el pago.', confirmButtonColor: '#3b82f6' });
                 return;
             }
 
             const total = parseFloat(totalEl.textContent || "0");
-            const deseaEnvio = confirm("¿Desea envío a domicilio?");
+            
+            // Reemplazo del confirm() tradicional
+            const confirmacionEnvio = await Swal.fire({
+                title: '¿Gestionar envío?',
+                text: "¿Esta orden requiere envío a domicilio?",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#4b5563',
+                confirmButtonText: 'Sí, con envío',
+                cancelButtonText: 'No, retirar en local'
+            });
 
-            fetch(payBtn.dataset.url, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie("csrftoken")
-                },
-                body: JSON.stringify({
-                    carrito: carrito,
-                    total: total,
-                    moneda: monedaActual,
-                    tasa: tasa,
-                    cliente_id: clienteSeleccionado.id,
-                    envio: deseaEnvio
-                })
-            })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === "success") {
+            const deseaEnvio = confirmacionEnvio.isConfirmed;
 
-                        alert(
-                            `Venta guardada correctamente.\n` +
-                            `Factura: ${data.numero_factura}`
-                        );
+            payBtn.disabled = true;
+            payBtn.textContent = "Procesando...";
 
-                        // Abrir PDF automáticamente
-                        if (data.pdf_url) {
-                            window.open(data.pdf_url, "_blank");
-                        }
-
-                        // Recargar página
-                        setTimeout(() => {
-                            location.reload();
-                        }, 1000);
-
-                    } else {
-                        alert(data.message || "Error al guardar la venta.");
-                    }
-                })
-                .catch(error => {
-                    console.error(error);
-                    alert("Error de comunicación con el servidor.");
+            try {
+                const res = await fetch(payBtn.dataset.url, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken")
+                    },
+                    body: JSON.stringify({
+                        carrito: carrito,
+                        total: total,
+                        moneda: monedaActual,
+                        tasa: tasa,
+                        cliente_id: clienteSeleccionado.id,
+                        envio: deseaEnvio
+                    })
                 });
+
+                const data = await res.json();
+
+                if (data.status === "success") {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Operación Exitosa',
+                        text: `Factura generada: ${data.numero_factura}`,
+                        confirmButtonColor: '#10b981',
+                        confirmButtonText: 'Imprimir y Continuar'
+                    }).then(() => {
+                        if (data.pdf_url) window.open(data.pdf_url, "_blank");
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: data.message || "Hubo un problema al registrar la salida." });
+                    payBtn.disabled = false;
+                    payBtn.textContent = "Cobrar";
+                }
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error Crítico', text: "Fallo de comunicación con el servidor." });
+                payBtn.disabled = false;
+                payBtn.textContent = "Cobrar";
+            }
         });
     }
 
@@ -447,8 +411,22 @@ window.addEventListener("click", (e) => {
     // ❌ CANCELAR
     // ==============================
     if (cancelBtn) {
-        cancelBtn.addEventListener("click", () => {
-            if (confirm("¿Cancelar la venta actual?")) {
+        cancelBtn.addEventListener("click", async () => {
+            if (carrito.length === 0) return; // Si está vacío, no hacer nada
+
+            // Reemplazo del confirm() tradicional
+            const cancelar = await Swal.fire({
+                title: '¿Limpiar módulo?',
+                text: "Se perderán los artículos actuales y deberás iniciar de nuevo.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#4b5563',
+                confirmButtonText: 'Sí, cancelar todo',
+                cancelButtonText: 'Volver a la venta'
+            });
+
+            if (cancelar.isConfirmed) {
                 location.reload();
             }
         });

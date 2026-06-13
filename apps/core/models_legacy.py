@@ -92,7 +92,7 @@ class Devolucion(models.Model):
     condiciones = models.TextField(db_collation='Modern_Spanish_CI_AS', blank=True, null=True)  # This field type is a guess.
     restricciones = models.TextField(db_collation='Modern_Spanish_CI_AS', blank=True, null=True)  # This field type is a guess.
     estado = models.CharField(max_length=20, db_collation='Modern_Spanish_CI_AS', blank=True, null=True)
-
+    cantidad = models.IntegerField(default=1)
     class Meta:
         managed = False
         db_table = 'devolucion'

@@ -1,12 +1,21 @@
 import json
+import os
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
 from django.db.models import Count, F, Max
 from django.http import JsonResponse
+from django.http import HttpResponse
 from django.shortcuts import render
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.conf import settings
+
+# Generación de PDF con ReportLab
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
 
 from apps.accounts.auth import login_required_custom
 from apps.core.models import (
@@ -130,11 +139,20 @@ def proveedor(request):
 @login_required_custom
 @require_GET
 def api_proveedores(request):
-    # Devuelve lista de proveedores
-    proveedores = Proveedor.objects.exclude(estado__iexact="Inactivo").order_by("nombre").values(
-        "id_proveedor", "nombre", "estado"
-    )
-    return JsonResponse({"ok": True, "data": list(proveedores)})
+# Traemos las instancias de los proveedores activos
+    proveedores = Proveedor.objects.exclude(estado__iexact="Inactivo").order_by("nombre")
+    
+    # Construimos la lista asegurando que id_proveedor sea enviado como un entero puro
+    data = [
+        {
+            "id_proveedor": int(p.id_proveedor),
+            "nombre": str(p.nombre),
+            "estado": str(p.estado)
+        }
+        for p in proveedores
+    ]
+    
+    return JsonResponse({"ok": True, "data": data})
 
 @login_required_custom
 @require_GET
@@ -164,122 +182,169 @@ def api_productos(request):
 @transaction.atomic
 def nueva_compra(request):
     # Registra una compra completa con sus detalles y movimientos de inventario
-    id_usuario = request.session["id_usuario"]
-    usuario = Usuario.objects.get(id_usuario=id_usuario)
+    id_usuario = request.session.get("id_usuario")
+    if not id_usuario:
+        return JsonResponse({"ok": False, "error": "Sesión inválida o expirada"}, status=401)
+        
+    try:
+        usuario = Usuario.objects.get(id_usuario=id_usuario)
+    except Usuario.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "Usuario no encontrado"}, status=404)
+
     id_proveedor = request.POST.get("id_proveedor")
     items_raw = request.POST.get("items")  # JSON string
     iva_rate_raw = (request.POST.get("iva_rate", "15") or "15").strip()
+    
     if not id_proveedor:
         return JsonResponse({"ok": False, "error": "Falta id_proveedor"}, status=400)
     if not items_raw:
         return JsonResponse({"ok": False, "error": "Falta items (JSON)"}, status=400)
+        
     try:
-        iva_rate = Decimal(iva_rate_raw)
+        iva_rate = Decimal(iva_rate_raw.replace(",", ""))
     except Exception:
         return JsonResponse({"ok": False, "error": "IVA inválido"}, status=400)
+        
     if iva_rate < 0 or iva_rate > 100:
         return JsonResponse({"ok": False, "error": "IVA debe estar entre 0 y 100"}, status=400)
+        
     try:
         items = json.loads(items_raw)
     except json.JSONDecodeError:
         return JsonResponse({"ok": False, "error": "items no es JSON válido"}, status=400)
+        
     if not isinstance(items, list) or len(items) == 0:
         return JsonResponse({"ok": False, "error": "items debe ser una lista con al menos 1 producto"}, status=400)
-    proveedor = Proveedor.objects.get(id_proveedor=id_proveedor)
+        
+    try:
+        proveedor = Proveedor.objects.get(id_proveedor=id_proveedor)
+    except Proveedor.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "Proveedor no encontrado"}, status=404)
+
     subtotal = Decimal("0.00")
     normalizados = []
+    
     for i, it in enumerate(items, start=1):
         try:
             id_producto = int(it["id_producto"])
             cantidad = int(it["cantidad"])
-            precio_unitario = Decimal(str(it["precio_unitario"]))
-            precio_venta = _dec(it.get("precio_venta"), "0")
+            
+            # Limpieza y conversión a Decimal nativo de Python para evitar fallos
+            p_compra_str = str(it.get("precio_unitario", "0")).replace(",", "").strip()
+            p_venta_str = str(it.get("precio_venta", "0")).replace(",", "").strip()
+            
+            precio_unitario = Decimal(p_compra_str) if p_compra_str else Decimal("0.00")
+            precio_venta = Decimal(p_venta_str) if p_venta_str else Decimal("0.00")
         except Exception:
-            return JsonResponse({"ok": False, "error": f"Item #{i} inválido"}, status=400)
+            return JsonResponse({"ok": False, "error": f"Item #{i}: Formato de precios o cantidades inválido"}, status=400)
+            
         if cantidad <= 0:
             return JsonResponse({"ok": False, "error": f"Item #{i}: cantidad debe ser > 0"}, status=400)
         if precio_unitario < 0:
-            return JsonResponse({"ok": False, "error": f"Item #{i}: precio_unitario inválido"}, status=400)
-        if precio_venta is None or precio_venta < 0:
-            return JsonResponse({"ok": False, "error": f"Item #{i}: precio_venta inválido"}, status=400)
-        producto = Producto.objects.get(id_producto=id_producto)
+            return JsonResponse({"ok": False, "error": f"Item #{i}: precio_unitario no puede ser negativo"}, status=400)
+        if precio_venta < 0:
+            return JsonResponse({"ok": False, "error": f"Item #{i}: precio_venta no puede ser negativo"}, status=400)
+            
+        try:
+            producto = Producto.objects.get(id_producto=id_producto)
+        except Producto.DoesNotExist:
+            return JsonResponse({"ok": False, "error": f"Item #{i}: El producto no existe"}, status=404)
+
         if producto.id_proveedor_id and int(producto.id_proveedor_id) != int(id_proveedor):
             return JsonResponse(
                 {"ok": False, "error": f"El producto '{producto.nombre}' no pertenece al proveedor seleccionado."},
                 status=400
             )
+            
         # Validar cantidad contra stock_maximo
         inventario = Inventario.objects.filter(id_producto=producto).first()
         stock_maximo = inventario.stock_maximo if inventario else 60
         if cantidad > stock_maximo:
             return JsonResponse({"ok": False, "error": f"Item #{i}: cantidad no puede ser mayor a {stock_maximo}"}, status=400)
-        # Validar que el stock_actual no sea mayor o igual al stock_maximo
+            
         if inventario and inventario.stock_actual and inventario.stock_actual >= stock_maximo:
             return JsonResponse(
                 {"ok": False, "error": f"No se puede comprar '{producto.nombre}': stock actual ({inventario.stock_actual}) ya alcanzó el máximo de {stock_maximo}."},
                 status=400
             )
+            
         subtotal += (precio_unitario * cantidad)
+        
+        # Guardamos los objetos de tipo DECIMAL PUROS (sin llamar a money() aquí)
         normalizados.append({
             "producto": producto,
             "cantidad": cantidad,
-            "precio_unitario": money(precio_unitario),
-            "precio_venta": money(precio_venta),
+            "precio_unitario": precio_unitario,
+            "precio_venta": precio_venta,
         })
-    subtotal = money(subtotal)
-    impuesto = money(subtotal * (iva_rate / Decimal("100")))
-    total = money(subtotal + impuesto)
+        
+    # Operaciones matemáticas directas con Decimales nativos
+    impuesto = subtotal * (iva_rate / Decimal("100"))
+    total = subtotal + impuesto
     ahora = timezone.now()
+    
+    # 1. Crear la Compra Principal aplicando money() de forma segura en la asignación final
     compra = Compra.objects.create(
         id_proveedor=proveedor,
         id_usuario=usuario,
         fecha=ahora,
-        total=total,
+        total=money(total),
     )
+    
+    # 2. Registrar los detalles de los productos comprados
     DetalleCompra.objects.bulk_create([
         DetalleCompra(
             id_compra=compra,
             id_producto=x["producto"],
             cantidad=x["cantidad"],
-            precio_unitario=x["precio_unitario"],
+            precio_unitario=money(x["precio_unitario"]),
         )
         for x in normalizados
     ])
+    
+    # 3. GENERAR UNA ÚNICA FACTURA ASOCIADA A LA COMPRA
     numero_factura = generar_numero_factura_proveedor()
-    FacturaProveedor.objects.create(
+    factura_obj = FacturaProveedor.objects.create(
         id_compra=compra,
         numero_factura=numero_factura,
         tipo_comprobante="FACTURA",
         fecha_emision=ahora.date(),
-        subtotal=subtotal,
-        impuesto=impuesto,
-        total=total,
+        subtotal=money(subtotal),
+        impuesto=money(impuesto),
+        total=money(total),
         estado="APROBADA",
     )
+    
+    # 4. Actualizar Precios e Inventarios en el Bucle de forma limpia
     movimientos = []
     for x in normalizados:
         producto = x["producto"]
         cantidad = x["cantidad"]
         precio_unitario = x["precio_unitario"]
         precio_venta = x["precio_venta"]
+        
+        # Pasamos los decimales usando la función money() de forma segura
         Producto.objects.filter(id_producto=producto.id_producto).update(
-            precio_compra=precio_unitario,
-            precio_venta=precio_venta,
+            precio_compra=money(precio_unitario),
+            precio_venta=money(precio_venta),
         )
+        
         inv, _ = Inventario.objects.get_or_create(
             id_producto=producto,
             defaults={
                 "stock_actual": 0,
                 "stock_minimo": 0,
-                "stock_maximo": 0,
+                "stock_maximo": 60,
                 "fecha_actualizacion": ahora,
             }
         )
+        
         Inventario.objects.filter(id_inventario=inv.id_inventario, stock_actual__isnull=True).update(stock_actual=0)
         Inventario.objects.filter(id_inventario=inv.id_inventario).update(
             stock_actual=F("stock_actual") + cantidad,
             fecha_actualizacion=ahora,
         )
+        
         movimientos.append(MovimientoInventario(
             id_producto=producto,
             id_usuario=usuario,
@@ -289,17 +354,21 @@ def nueva_compra(request):
             fecha_movimiento=ahora,
             observaciones=f"Entrada por compra. Factura {numero_factura}. Proveedor {proveedor.nombre}. IVA {iva_rate}%.",
         ))
+        
+    # 5. Guardar los movimientos de inventario en masa
     MovimientoInventario.objects.bulk_create(movimientos)
+    
+    # 6. Responder de forma exitosa convirtiendo a String los valores numéricos purificados
     return JsonResponse({
         "ok": True,
         "id_compra": compra.id_compra,
         "numero_factura": numero_factura,
-        "iva_rate": str(iva_rate),
-        "subtotal": str(subtotal),
-        "impuesto": str(impuesto),
-        "total": str(total),
+        "id_factura": factura_obj.pk,  
+        "iva_rate": str(money(iva_rate)),
+        "subtotal": str(money(subtotal)),
+        "impuesto": str(money(impuesto)),
+        "total": str(money(total)),
     })
-
 # === APIs de gestión rápida (modal) ===
 
 @login_required_custom
@@ -515,3 +584,184 @@ def api_proveedores_buscar(request):
               "tipo_proveedor", "estado",
           )[:12])
     return JsonResponse({"ok": True, "data": list(qs)})
+
+# Generando PDF de factura de compra con ReportLab
+@login_required_custom
+def generar_factura_pdf(request, factura_id):
+    # Buscamos la factura del proveedor con la compra y el proveedor relacionados
+    factura = get_object_or_404(
+        FacturaProveedor.objects.select_related('id_compra__id_proveedor'),
+        id_factura_proveedor=factura_id
+    )
+
+    compra = factura.id_compra
+    proveedor = compra.id_proveedor
+
+    # Obtenemos los detalles de los productos incluidos en esta compra
+    detalles = DetalleCompra.objects.filter(
+        id_compra=compra
+    ).select_related('id_producto')
+
+    # Configuración de la respuesta HTTP para PDF
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = (
+        f'inline; filename="Factura_{factura.numero_factura}.pdf"'
+    )
+
+    # Inicialización del objeto canvas en formato A4
+    pdf = canvas.Canvas(response, pagesize=A4)
+    width, height = A4
+    azul = colors.HexColor("#0B4EA2")
+
+    # ==================================
+    # LOGO
+    # ==================================
+    logo = os.path.join(
+        settings.BASE_DIR,
+        "static",
+        "assets",
+        "Ferreteria.png"
+    )
+
+    if os.path.exists(logo):
+        pdf.drawImage(
+            logo,
+            20,
+            height - 180,
+            width=290,
+            height=180,
+            preserveAspectRatio=True
+        )
+
+# ==================================
+    # FACTURA Y FECHA
+    # ==================================
+    pdf.setLineWidth(1)
+    pdf.setStrokeColor(azul)
+
+    # Dibujamos los dos recuadros (se quedan igual)
+    pdf.rect(400, height - 90, 155, 30)
+    pdf.rect(400, height - 120, 155, 30)
+
+    # CAMBIO: Reducimos la fuente a 8 para que el número largo quepa perfectamente
+    pdf.setFont("Helvetica-Bold", 8) 
+    pdf.setFillColor(colors.black)
+
+    # CAMBIO: Ajustamos la posición X a 405 (un poco más a la izquierda) 
+    # para ganar espacio dentro del recuadro
+    pdf.drawString(
+        405,
+        height - 72,
+        f"FACTURA PROV N°: {factura.numero_factura}"
+    )
+
+    # La fecha puede mantenerse en tamaño 8 o 9 para que juegue simétricamente
+    pdf.drawString(
+        405,
+        height - 102,
+        f"FECHA EMISIÓN: {factura.fecha_emision.strftime('%d/%m/%Y')}"
+    )
+
+    # ==================================
+    # DATOS EMPRESA
+    # ==================================
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawString(
+        40,
+        height - 180,
+        "DATOS DE LA EMPRESA"
+    )
+
+    pdf.setFont("Helvetica", 10)
+    pdf.drawString(40, height - 198, "Dirección: Granada Diriomo, de la entrada principal")
+    pdf.drawString(40, height - 212, " de Diriomo una cuadra al Norte a mano izquierda")
+    pdf.drawString(40, height - 226, "Teléfono: +505 8765-4321")
+    pdf.drawString(40, height - 240, "RUC/NIT: J-12345678-9")
+    pdf.drawString(40, height - 254, "Email: admin.ferreteria@gmail.com")
+
+    # ==================================
+    # DATOS DEL PROVEEDOR
+    # ==================================
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawString(
+        40,
+        height - 285,
+        "DATOS DEL PROVEEDOR"
+    )
+
+    pdf.setFont("Helvetica", 10)
+    pdf.drawString(40, height - 305, f"Razon Social: {proveedor.nombre}")
+    pdf.drawString(40, height - 319, f"Teléfono: {proveedor.telefono or 'N/A'}")
+    pdf.drawString(40, height - 333, f"Email: {proveedor.email or 'N/A'}")
+    pdf.drawString(40, height - 347, f"Contacto: {proveedor.numero_contacto or 'N/A'}")
+    pdf.drawString(40, height - 361, f"Dirección: {proveedor.direccion or 'N/A'}")
+
+    # ==================================
+    # TABLA DE PRODUCTOS COMPRADOS
+    # ==================================
+    y = height - 400
+    
+    # Dibujar Cabecera de la tabla
+    pdf.setFillColor(azul)
+    pdf.rect(40, y, width - 80, 20, fill=True, stroke=False)
+    
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(45, y + 5, "Descripción del Producto")
+    pdf.drawRightString(320, y + 5, "Cant.")
+    pdf.drawRightString(430, y + 5, "Precio U.")
+    pdf.drawRightString(550, y + 5, "Subtotal")
+
+    # Cuerpo de la Tabla
+    pdf.setFillColor(colors.black)
+    pdf.setFont("Helvetica", 10)
+    
+    for detalle in detalles:
+        y -= 20
+        # Control de salto de página si la lista de ítems es muy extensa
+        if y < 80:
+            pdf.showPage()
+            y = height - 60
+            pdf.setFont("Helvetica", 10)
+
+        cant = detalle.cantidad
+        p_uni = detalle.precio_unitario
+        subtotal_item = cant * p_uni
+
+        pdf.drawString(45, y + 4, detalle.id_producto.nombre)
+        pdf.drawRightString(320, y + 4, str(cant))
+        pdf.drawRightString(430, y + 4, f"C$ {p_uni:,.2f}")
+        pdf.drawRightString(550, y + 4, f"C$ {subtotal_item:,.2f}")
+        
+        # Línea divisoria entre filas
+        pdf.setStrokeColor(colors.lightgrey)
+        pdf.setLineWidth(0.5)
+        pdf.line(40, y, width - 40, y)
+
+    # ==================================
+    # TOTALES FINALES
+    # ==================================
+    y -= 30
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawRightString(430, y, "Subtotal:")
+    pdf.drawRightString(550, y, f"C$ {factura.subtotal:,.2f}")
+    
+    y -= 15
+    pdf.drawRightString(430, y, "Impuesto (IVA):")
+    pdf.drawRightString(550, y, f"C$ {factura.impuesto:,.2f}")
+    
+    y -= 20
+    pdf.setStrokeColor(azul)
+    pdf.setLineWidth(1)
+    pdf.line(350, y + 15, width - 40, y + 15)
+
+    pdf.setFont("Helvetica-Bold", 11)
+    pdf.setFillColor(azul)
+    pdf.drawRightString(430, y, "TOTAL COMPRA:")
+    pdf.drawRightString(550, y, f"C$ {factura.total:,.2f}")
+
+    # Renderizado y cierre del archivo
+    pdf.showPage()
+    pdf.save()
+    
+    return response

@@ -88,6 +88,7 @@ class Devolucion(models.Model):
     id_producto = models.ForeignKey('Producto', models.DO_NOTHING, db_column='id_producto', blank=True, null=True)
     id_factura = models.ForeignKey('FacturaCliente', models.DO_NOTHING, db_column='id_factura', blank=True, null=True)
     fecha = models.DateTimeField(blank=True, null=True)
+    cantidad = models.IntegerField(default=1)
     plazo = models.IntegerField(blank=True, null=True)
     condiciones = models.TextField(db_collation='Modern_Spanish_CI_AS', blank=True, null=True)  # This field type is a guess.
     restricciones = models.TextField(db_collation='Modern_Spanish_CI_AS', blank=True, null=True)  # This field type is a guess.

@@ -1,248 +1,531 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Proveedores | Ferreteria Mi Casa{% endblock %}
+{% block title %}Proveedores{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/compras.css' %}">
+<!-- Usamos el mismo CSS de clientes para garantizar consistencia visual absoluta -->
+<link rel="stylesheet" href="{% static 'css/cliente.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="prov-wrap">
-  <section class="prov-hero">
-    <div>
-      <span class="page-badge">Consulta de proveedores</span>
-      <h1 class="prov-title">Proveedores registrados</h1>
-      <p class="prov-subtitle">Visualiza proveedores y las categorías que ofrecen, junto con la cantidad de productos registrados en cada una.</p>
-    </div>
-  </section>
 
-  <div class="prov-toolbar">
-    <div class="prov-search">
-      <span class="prov-search__icon" aria-hidden="true">🔎</span>
-      <input id="provSearchInput" class="prov-search__input" type="search" placeholder="Buscar proveedor..." autocomplete="off">
-    </div>
+<div class="clientes-page">
 
-    <button type="button" class="btn prov-primary-btn" id="btnAbrirNuevoProveedor">
-      + Nuevo proveedor
-    </button>
-  </div>
+    <section class="page-header">
 
-  <!-- ESTADÍSTICAS -->
-  <div class="stats-container">
-    <div class="stat-card stat-card--blue">
-      <div class="stat-card__icon">📦</div>
-      <div class="stat-card__content">
-        <div class="stat-card__label">Proveedores totales</div>
-        <div class="stat-card__number">{{ stats.total_proveedores }}</div>
-      </div>
-    </div>
+        <div class="header-info">
 
-    <div class="stat-card stat-card--green">
-      <div class="stat-card__icon">🛍️</div>
-      <div class="stat-card__content">
-        <div class="stat-card__label">Productos registrados</div>
-        <div class="stat-card__number">{{ stats.total_productos }}</div>
-      </div>
-    </div>
+            <span class="page-badge">
+                Gestión de Proveedores
+            </span>
 
-    <div class="stat-card stat-card--orange">
-      <div class="stat-card__icon">🏷️</div>
-      <div class="stat-card__content">
-        <div class="stat-card__label">Categorías activas</div>
-        <div class="stat-card__number">{{ stats.total_categorias }}</div>
-      </div>
-    </div>
+            <h1>
+                ¡Bienvenido,
+                {{ request.session.usuario_nombre|default:"Carlos López" }}!
+            </h1>
 
-    <div class="stat-card stat-card--red">
-      <div class="stat-card__icon">💳</div>
-      <div class="stat-card__content">
-        <div class="stat-card__label">Compras registradas</div>
-        <div class="stat-card__number">{{ stats.total_compras }}</div>
-      </div>
-    </div>
-  </div>
+            <p>
+                Administra tu cartera de proveedores, visualiza estadísticas y controla tu actividad comercial.
+            </p>
 
-  <div id="provResultsEmpty" class="prov-no-data" style="display:none;">No se encontraron proveedores con ese criterio.</div>
+        </div>
 
-  {% if proveedores_activos %}
-    <h2 style="margin-top:8px;">Proveedores activos</h2>
-    <div class="prov-table-shell">
-      <table class="prov-excel" id="provTableActive">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Nombre del proveedor</th>
-            <th>Teléfono</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in proveedores_activos %}
-            {% with p=item.proveedor lista=item.categorias %}
-            <tr class="prov-row" data-search="{{ p.id_proveedor }} {{ p.nombre|default_if_none:''|escape }} {{ p.telefono|default_if_none:''|escape }} {{ p.email|default_if_none:''|escape }} {{ p.numero_contacto|default_if_none:''|escape }} {{ p.direccion|default_if_none:''|escape }} {{ p.tipo_proveedor|default_if_none:''|escape }} {{ p.estado|default_if_none:''|escape }}">
-              <td class="prov-id">#PROV-{{ p.id_proveedor|stringformat:"05d" }}</td>
-              <td>
-                <div class="prov-name">{{ p.nombre }}</div>
-                <div class="prov-subline">
-                  {% if p.email %}<span>{{ p.email }}</span>{% endif %}
-                  {% if p.tipo_proveedor %}<span>{{ p.tipo_proveedor }}</span>{% endif %}
-                  {% if p.numero_contacto %}<span>{{ p.numero_contacto }}</span>{% endif %}
+        <div class="header-actions">
+
+            <button
+                type="button"
+                class="icon-btn"
+                title="Notificaciones"
+            >
+                🔔
+            </button>
+
+            <button
+                type="button"
+                class="icon-btn"
+                title="Configuración"
+            >
+                ⚙️
+            </button>
+
+        </div>
+
+    </section>
+
+    <!-- SECCIÓN DE ESTADÍSTICAS REPLICADA EXACTAMENTE -->
+    <section class="stats-grid">
+
+        <div class="stat-card">
+
+            <div class="stat-icon blue">
+                📦
+            </div>
+
+            <div class="stat-content">
+
+                <span>Proveedores Totales</span>
+
+                <h3>
+                    {{ stats.total_proveedores|default:0 }}
+                </h3>
+
+                <small class="positive">
+                    Registrados en el sistema
+                </small>
+
+            </div>
+
+        </div>
+
+        <div class="stat-card">
+
+            <div class="stat-icon green">
+                🛍️
+            </div>
+
+            <div class="stat-content">
+
+                <span>Productos Activos</span>
+
+                <h3>
+                    {{ stats.total_productos|default:0 }}
+                </h3>
+
+                <small class="positive">
+                    Habilitados en catálogo
+                </small>
+
+            </div>
+
+        </div>
+
+        <div class="stat-card">
+
+            <div class="stat-icon orange">
+                🏷️
+            </div>
+
+            <div class="stat-content">
+
+                <span>Categorías</span>
+
+                <h3>
+                    {{ stats.total_categorias|default:0 }}
+                </h3>
+
+                <small class="positive">
+                    En uso actual
+                </small>
+
+            </div>
+
+        </div>
+
+        <div class="stat-card">
+
+            <div class="stat-icon red">
+                💳
+            </div>
+
+            <div class="stat-content">
+
+                <span>Compras Hechas</span>
+
+                <h3>
+                    {{ stats.total_compras|default:0 }}
+                </h3>
+
+                <small class="negative">
+                    Historial de transacciones
+                </small>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <section class="content-grid">
+
+        <div class="card table-card">
+
+            <div class="card-header">
+
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 14px;">
+                    <div>
+                        <h2>
+                            Lista de Proveedores
+                        </h2>
+                        <p>
+                            Consulta, edita y administra la información de tus proveedores.
+                        </p>
+                    </div>
+                    
+                    <!-- Botón para registrar adaptado visualmente -->
+                    <button type="button" class="action-btn" id="btnAbrirNuevoProveedor" style="background: var(--primary-color, #2563eb); color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600; width: auto; font-size: 13px;">
+                        + Nuevo proveedor
+                    </button>
                 </div>
-              </td>
-              <td>{{ p.telefono|default:"-" }}</td>
-              <td>
-                <span class="prov-status prov-status--active">{{ p.estado }}</span>
-              </td>
-              <td>
-                <div class="prov-actions">
-                  <a
-                    class="btn prov-edit-btn"
-                    href="{% url 'compras:index' %}?open_np=1&id_proveedor={{ p.id_proveedor }}&proveedor={{ p.nombre|urlencode }}"
-                  >
-                    Nuevo producto
-                  </a>
-                  <button
-                    type="button"
-                    class="btn prov-edit-btn"
-                    data-id="{{ p.id_proveedor }}"
-                    data-nombre="{{ p.nombre|default_if_none:''|escape }}"
-                    data-telefono="{{ p.telefono|default_if_none:''|escape }}"
-                    data-email="{{ p.email|default_if_none:''|escape }}"
-                    data-contacto="{{ p.numero_contacto|default_if_none:''|escape }}"
-                    data-direccion="{{ p.direccion|default_if_none:''|escape }}"
-                    data-tipo="{{ p.tipo_proveedor|default_if_none:''|escape }}"
-                      data-estado="{{ p.estado|default_if_none:''|escape }}"
-                  >
-                    Editar proveedor
-                  </button>
-                </div>
-              </td>
-            </tr>
-            {% endwith %}
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <div class="prov-no-data">No hay proveedores activos.</div>
-  {% endif %}
 
-  {% if proveedores_inactivos %}
-    <h2 style="margin-top:18px;">Proveedores inactivos</h2>
-    <div class="prov-table-shell">
-      <table class="prov-excel" id="provTableInactive">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Nombre del proveedor</th>
-            <th>Teléfono</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in proveedores_inactivos %}
-            {% with p=item.proveedor lista=item.categorias %}
-            <tr class="prov-row" data-search="{{ p.id_proveedor }} {{ p.nombre|default_if_none:''|escape }} {{ p.telefono|default_if_none:''|escape }} {{ p.email|default_if_none:''|escape }} {{ p.numero_contacto|default_if_none:''|escape }} {{ p.direccion|default_if_none:''|escape }} {{ p.tipo_proveedor|default_if_none:''|escape }} {{ p.estado|default_if_none:''|escape }}">
-              <td class="prov-id">#PROV-{{ p.id_proveedor|stringformat:"05d" }}</td>
-              <td>
-                <div class="prov-name">{{ p.nombre }}</div>
-                <div class="prov-subline">
-                  {% if p.email %}<span>{{ p.email }}</span>{% endif %}
-                  {% if p.tipo_proveedor %}<span>{{ p.tipo_proveedor }}</span>{% endif %}
-                  {% if p.numero_contacto %}<span>{{ p.numero_contacto }}</span>{% endif %}
+            </div>
+
+            <div class="toolbar">
+
+                <div class="search-box">
+
+                    <span class="search-icon">
+                        🔍
+                    </span>
+
+                    <input
+                        type="text"
+                        id="provSearchInput"
+                        class="search-input"
+                        placeholder="Buscar proveedor..."
+                    >
+
                 </div>
-              </td>
-              <td>{{ p.telefono|default:"-" }}</td>
-              <td>
-                <span class="prov-status prov-status--inactive">{{ p.estado }}</span>
-              </td>
-              <td>
-                <div class="prov-actions">
-                  <a
-                    class="btn prov-edit-btn"
-                    href="{% url 'compras:index' %}?open_np=1&id_proveedor={{ p.id_proveedor }}&proveedor={{ p.nombre|urlencode }}"
-                  >
-                    Nuevo producto
-                  </a>
-                  <button
-                    type="button"
-                    class="btn prov-edit-btn"
-                    data-id="{{ p.id_proveedor }}"
-                    data-nombre="{{ p.nombre|default_if_none:''|escape }}"
-                    data-telefono="{{ p.telefono|default_if_none:''|escape }}"
-                    data-email="{{ p.email|default_if_none:''|escape }}"
-                    data-contacto="{{ p.numero_contacto|default_if_none:''|escape }}"
-                    data-direccion="{{ p.direccion|default_if_none:''|escape }}"
-                    data-tipo="{{ p.tipo_proveedor|default_if_none:''|escape }}"
-                      data-estado="{{ p.estado|default_if_none:''|escape }}"
-                  >
-                    Editar proveedor
-                  </button>
-                </div>
-              </td>
-            </tr>
-            {% endwith %}
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <div class="prov-no-data">No hay proveedores inactivos.</div>
-  {% endif %}
+
+            </div>
+
+            <div id="provResultsEmpty" class="text-center" style="display: none; padding: 20px; color: #9ca3af;">
+                No se encontraron proveedores con ese criterio.
+            </div>
+
+            <!-- PROVEEDORES ACTIVOS -->
+            <h3 style="margin: 0 0 10px 0;">Proveedores Activos</h3>
+            <div class="table-responsive">
+
+                <table class="clientes-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>ID</th>
+                            <th>Proveedor</th>
+                            <th>Teléfono</th>
+                            <th>Dirección</th>
+                            <th>Tipo</th>
+                            <th>Estado</th>
+                            <th class="text-center">
+                                Acciones
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for item in proveedores_activos %}
+                        {% with p=item.proveedor %}
+
+                        <tr class="prov-row" data-search="{{ p.id_proveedor }} {{ p.nombre|default_if_none:'' }} {{ p.telefono|default_if_none:'' }} {{ p.email|default_if_none:'' }}">
+
+                            <td>
+                                #PROV-{{ p.id_proveedor|stringformat:"05d" }}
+                            </td>
+
+                            <td>
+
+                                <div class="client-info">
+
+                                    <div class="client-avatar">
+                                        {{ p.nombre|first|upper }}
+                                    </div>
+
+                                    <div>
+
+                                        <strong>
+                                            {{ p.nombre }}
+                                        </strong>
+
+                                        <small>
+                                            {% if p.email %}{{ p.email }}{% else %}Sin correo electrónico{% endif %}
+                                        </small>
+
+                                    </div>
+
+                                </div>
+
+                            </td>
+
+                            <td>
+                                {{ p.telefono|default:"No registrado" }}
+                            </td>
+
+                            <td>
+                                {{ p.direccion|default:"No registrada"|truncatechars:35 }}
+                            </td>
+
+                            <td>
+                                {{ p.tipo_proveedor|default:"General" }}
+                            </td>
+
+                            <td>
+
+                                <span class="badge active">
+                                    {{ p.estado }}
+                                </span>
+
+                            </td>
+
+                            <td class="actions">
+
+                                <a
+                                    href="{% url 'compras:index' %}?open_np=1&id_proveedor={{ p.id_proveedor }}&proveedor={{ p.nombre|urlencode }}"
+                                    class="action-btn"
+                                    title="Nuevo Producto"
+                                    style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;"
+                                >
+                                    ➕
+                                </a>
+
+                                <button
+                                    type="button"
+                                    class="action-btn prov-edit-btn"
+                                    data-id="{{ p.id_proveedor }}"
+                                    data-nombre="{{ p.nombre|default_if_none:''|escape }}"
+                                    data-telefono="{{ p.telefono|default_if_none:''|escape }}"
+                                    data-email="{{ p.email|default_if_none:''|escape }}"
+                                    data-contacto="{{ p.numero_contacto|default_if_none:''|escape }}"
+                                    data-direccion="{{ p.direccion|default_if_none:''|escape }}"
+                                    data-tipo="{{ p.tipo_proveedor|default_if_none:''|escape }}"
+                                    data-estado="{{ p.estado|default_if_none:''|escape }}"
+                                    title="Editar"
+                                >
+                                    ✏️
+                                </button>
+
+                            </td>
+
+                        </tr>
+
+                        {% endwith %}
+                        {% empty %}
+
+                        <tr>
+
+                            <td colspan="7" class="text-center">
+                                No hay proveedores activos.
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            <!-- PROVEEDORES INACTIVOS -->
+            <h3 style="margin: 18px 0 10px 0;">Proveedores Inactivos</h3>
+            <div class="table-responsive">
+
+                <table class="clientes-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>ID</th>
+                            <th>Proveedor</th>
+                            <th>Teléfono</th>
+                            <th>Dirección</th>
+                            <th>Tipo</th>
+                            <th>Estado</th>
+                            <th class="text-center">
+                                Acciones
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for item in proveedores_inactivos %}
+                        {% with p=item.proveedor %}
+
+                        <tr class="prov-row" data-search="{{ p.id_proveedor }} {{ p.nombre|default_if_none:'' }} {{ p.telefono|default_if_none:'' }} {{ p.email|default_if_none:'' }}">
+
+                            <td>
+                                #PROV-{{ p.id_proveedor|stringformat:"05d" }}
+                            </td>
+
+                            <td>
+
+                                <div class="client-info">
+
+                                    <div class="client-avatar" style="background: #4b5563;">
+                                        {{ p.nombre|first|upper }}
+                                    </div>
+
+                                    <div>
+
+                                        <strong>
+                                            {{ p.nombre }}
+                                        </strong>
+
+                                        <small>
+                                            {% if p.email %}{{ p.email }}{% else %}Sin correo electrónico{% endif %}
+                                        </small>
+
+                                    </div>
+
+                                </div>
+
+                            </td>
+
+                            <td>
+                                {{ p.telefono|default:"No registrado" }}
+                            </td>
+
+                            <td>
+                                {{ p.direccion|default:"No registrada"|truncatechars:35 }}
+                            </td>
+
+                            <td>
+                                {{ p.tipo_proveedor|default:"General" }}
+                            </td>
+
+                            <td>
+
+                                <span class="badge inactive">
+                                    {{ p.estado }}
+                                </span>
+
+                            </td>
+
+                            <td class="actions">
+
+                                <button
+                                    type="button"
+                                    class="action-btn prov-edit-btn"
+                                    data-id="{{ p.id_proveedor }}"
+                                    data-nombre="{{ p.nombre|default_if_none:''|escape }}"
+                                    data-telefono="{{ p.telefono|default_if_none:''|escape }}"
+                                    data-email="{{ p.email|default_if_none:''|escape }}"
+                                    data-contacto="{{ p.numero_contacto|default_if_none:''|escape }}"
+                                    data-direccion="{{ p.direccion|default_if_none:''|escape }}"
+                                    data-tipo="{{ p.tipo_proveedor|default_if_none:''|escape }}"
+                                    data-estado="{{ p.estado|default_if_none:''|escape }}"
+                                    title="Editar"
+                                >
+                                    ✏️
+                                </button>
+
+                            </td>
+
+                        </tr>
+
+                        {% endwith %}
+                        {% empty %}
+
+                        <tr>
+
+                            <td colspan="7" class="text-center">
+                                No hay proveedores inactivos.
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </section>
+
 </div>
 
 <form id="csrfFormProveedor">{% csrf_token %}</form>
 
+<!-- MODAL ESTRUCTURADO ADAPTADO PARA COMPORTAMIENTO DINÁMICO -->
 <div id="modalProveedor" class="modal" style="display:none;">
-  <div class="modal__backdrop" id="modalProveedorBackdrop"></div>
 
-  <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Proveedor">
-    <div class="modal__header">
-      <div>
-        <div class="modal__title" id="modalProveedorTitle">Editar proveedor</div>
-        <div class="modal__subtitle" id="modalProveedorSubtitle">Actualiza los datos del proveedor seleccionado</div>
-      </div>
-      <button class="modal__close" type="button" id="btnCloseModalProveedor">✕</button>
+    <div class="modal__backdrop" id="modalProveedorBackdrop"></div>
+
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Proveedor">
+
+        <div class="modal__header">
+
+            <div>
+                <div class="modal__title" id="modalProveedorTitle">Editar proveedor</div>
+                <div class="modal__subtitle" id="modalProveedorSubtitle">Actualiza los datos del proveedor seleccionado</div>
+            </div>
+
+            <button class="modal__close" type="button" id="btnCloseModalProveedor">✕</button>
+
+        </div>
+
+        <div class="modal__body">
+
+            <div class="form-group">
+                <input type="hidden" id="ep_id_proveedor" />
+                <input type="hidden" id="ep_mode" value="edit" />
+
+                <label>Nombre</label>
+                <input id="ep_nombre" type="text" placeholder="Nombre del proveedor" />
+            </div>
+
+            <div class="form-group">
+                <label>Teléfono</label>
+                <input id="ep_telefono" type="text" placeholder="Ej: 8888-8888" />
+            </div>
+
+            <div class="form-group">
+                <label>Email</label>
+                <input id="ep_email" type="text" placeholder="Ej: proveedor@correo.com" />
+            </div>
+
+            <div class="form-group">
+                <label>Contacto Interno</label>
+                <input id="ep_contacto" type="text" placeholder="Nombre de la persona de contacto" />
+            </div>
+
+            <div class="form-group">
+                <label>Dirección</label>
+                <textarea id="ep_direccion" placeholder="Dirección del proveedor"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Tipo proveedor</label>
+                <input id="ep_tipo" type="text" placeholder="Ej: Mayorista, Distribuidor" />
+            </div>
+
+            <div class="form-group">
+                <label>Estado</label>
+                <select id="ep_estado" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 6px;">
+                    <option value="Activo">Activo</option>
+                    <option value="Inactivo">Inactivo</option>
+                </select>
+            </div>
+
+            <div class="modal__actions" style="margin-top: 20px;">
+                <button class="btn btn-primary" type="button" id="btnGuardarProveedor" style="width: 100%;">
+                    💾 Guardar Cambios
+                </button>
+            </div>
+
+        </div>
+
     </div>
 
-    <div class="modal__grid modal__grid--single">
-      <div class="modal__card card-blue">
-        <input type="hidden" id="ep_id_proveedor" />
-        <input type="hidden" id="ep_mode" value="edit" />
-
-        <label class="label">Nombre</label>
-        <input id="ep_nombre" class="inp" placeholder="Nombre del proveedor" />
-
-        <label class="label">Teléfono</label>
-        <input id="ep_telefono" class="inp" placeholder="Ej: 8888-8888" />
-
-        <label class="label">Email</label>
-        <input id="ep_email" class="inp" placeholder="Ej: proveedor@correo.com" />
-
-        <label class="label">Contacto</label>
-        <input id="ep_contacto" class="inp" placeholder="Nombre de contacto" />
-
-        <label class="label">Dirección</label>
-        <input id="ep_direccion" class="inp" placeholder="Dirección" />
-
-        <label class="label">Tipo proveedor</label>
-        <input id="ep_tipo" class="inp" placeholder="Ej: Mayorista" />
-
-        <label class="label">Estado</label>
-        <select id="ep_estado" class="inp">
-          <option value="Activo">Activo</option>
-          <option value="Inactivo">Inactivo</option>
-        </select>
-
-        <button class="btn" type="button" id="btnGuardarProveedor">Guardar cambios</button>
-      </div>
-    </div>
-  </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
 <script>
 (() => {
   function $(id) { return document.getElementById(id); }
@@ -261,15 +544,12 @@
     $("ep_contacto").value = contacto;
     $("ep_direccion").value = direccion;
     $("ep_tipo").value = tipo;
-    // estado puede venir vacío; por defecto usar 'Activo'
     $("ep_estado").value = arguments[0].estado || "Activo";
 
     const esNuevo = mode === "create";
-    $("modalProveedorTitle").textContent = esNuevo ? "Nuevo proveedor" : "Editar proveedor";
-    $("modalProveedorSubtitle").textContent = esNuevo
-      ? "Completa los datos para registrar un proveedor nuevo"
-      : "Actualiza los datos del proveedor seleccionado";
-    $("btnGuardarProveedor").textContent = esNuevo ? "Crear proveedor" : "Guardar cambios";
+    $("modalProveedorTitle").textContent = esNuevo ? "Nuevo Proveedor" : "Editar Proveedor";
+    $("modalProveedorSubtitle").textContent = esNuevo ? "Completa los datos para registrar un proveedor nuevo" : "Actualiza los datos del proveedor seleccionado";
+    $("btnGuardarProveedor").innerHTML = esNuevo ? "💾 Crear Proveedor" : "💾 Guardar Cambios";
 
     document.body.style.overflow = "hidden";
     $("modalProveedor").style.display = "flex";
@@ -299,15 +579,7 @@
     const idProveedor = $("ep_id_proveedor").value.trim();
     const nombre = $("ep_nombre").value.trim();
 
-    if (!nombre) {
-      alert("El nombre del proveedor es requerido.");
-      return;
-    }
-
-    if (modo !== "create" && !idProveedor) {
-      alert("No se encontró el proveedor a editar.");
-      return;
-    }
+    if (!nombre) { alert("El nombre del proveedor es requerido."); return; }
 
     const form = new FormData();
     form.append("nombre", nombre);
@@ -317,87 +589,47 @@
     form.append("direccion", $("ep_direccion").value);
     form.append("tipo_proveedor", $("ep_tipo").value);
     form.append("estado", $("ep_estado").value);
-    if (modo !== "create") {
-      form.append("id_proveedor", idProveedor);
-    }
+    if (modo !== "create") { form.append("id_proveedor", idProveedor); }
 
     const btn = $("btnGuardarProveedor");
     btn.disabled = true;
 
     try {
-      const endpoint = modo === "create"
-        ? "/compras/api/proveedor/upsert/"
-        : "/compras/api/proveedor/actualizar/";
-
-      const r = await fetch(endpoint, {
-        method: "POST",
-        headers: { "X-CSRFToken": getCsrf() },
-        body: form,
-      });
+      const endpoint = modo === "create" ? "/compras/api/proveedor/upsert/" : "/compras/api/proveedor/actualizar/";
+      const r = await fetch(endpoint, { method: "POST", headers: { "X-CSRFToken": getCsrf() }, body: form });
       const j = await r.json().catch(() => ({}));
-
-      if (!r.ok || !j.ok) {
-        alert(j.error || (modo === "create" ? "No se pudo crear el proveedor." : "No se pudo actualizar el proveedor."));
-        return;
-      }
-
-      closeModal();
-      window.location.reload();
-    } catch (e) {
-      alert("Error de red o servidor.");
-    } finally {
-      btn.disabled = false;
-    }
+      if (!r.ok || !j.ok) { alert(j.error || "Error al procesar la solicitud."); return; }
+      closeModal(); window.location.reload();
+    } catch (e) { alert("Error de red o servidor."); } finally { btn.disabled = false; }
   }
 
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".prov-edit-btn[data-id]").forEach((btn) => {
       btn.addEventListener("click", () => openModalFromButton(btn));
     });
-
-    $("btnAbrirNuevoProveedor")?.addEventListener("click", () => {
-      fillModal({ mode: "create" });
-    });
-
+    $("btnAbrirNuevoProveedor")?.addEventListener("click", () => { fillModal({ mode: "create" }); });
     $("btnCloseModalProveedor")?.addEventListener("click", closeModal);
     $("modalProveedorBackdrop")?.addEventListener("click", closeModal);
     $("btnGuardarProveedor")?.addEventListener("click", guardarProveedor);
 
+    // Lógica del buscador en tiempo real idéntica al comportamiento esperado
     const searchInput = $("provSearchInput");
-    const tableActive = $("provTableActive");
-    const tableInactive = $("provTableInactive");
+    const rows = Array.from(document.querySelectorAll("tbody .prov-row"));
     const emptyState = $("provResultsEmpty");
 
-    if (searchInput && (tableActive || tableInactive)) {
-      const rows = Array.from([tableActive, tableInactive].filter(Boolean).flatMap(t => Array.from(t.querySelectorAll("tbody .prov-row"))));
-      const applyFilter = () => {
+    if (searchInput) {
+      searchInput.addEventListener("input", () => {
         const term = searchInput.value.trim().toLowerCase();
         let visibleCount = 0;
-
         rows.forEach((row) => {
           const text = (row.dataset.search || row.textContent || "").toLowerCase();
           const visible = !term || text.includes(term);
           row.style.display = visible ? "" : "none";
-          if (visible) visibleCount += 1;
+          if (visible) visibleCount++;
         });
-
-        if (emptyState) {
-          emptyState.style.display = visibleCount ? "none" : "block";
-          emptyState.textContent = term
-            ? "No se encontraron proveedores con ese criterio."
-            : "No hay proveedores que coincidan con la búsqueda.";
-        }
-      };
-
-      searchInput.addEventListener("input", applyFilter);
-      applyFilter();
+        if (emptyState) emptyState.style.display = visibleCount ? "none" : "block";
+      });
     }
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && $("modalProveedor")?.style.display === "flex") {
-        closeModal();
-      }
-    });
   });
 })();
 </script>

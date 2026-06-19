@@ -5,6 +5,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/venta.css' %}">
+
 {% endblock %}
 
 {% block content %}
@@ -12,10 +13,11 @@
 <header class="navbar">
     <h1>Punto de Venta</h1>
 </header>
+<link href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-dark@4/dark.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
 
 <main class="pos-layout pos-theme">
 
-    <!-- IZQUIERDA: PRODUCTOS -->
     <section class="pos-left">
 
         <div class="search-box">
@@ -43,7 +45,7 @@
                 </div>
 
                 <div class="product-stock {% if product.stock < 5 %}low-stock{% endif %}">
-                    Stock: {{ product.stock }}
+                    Stock: <span id="stock-{{ product.id_producto }}" class="stock-number">{{ product.stock }}</span>
                 </div>
 
                 <button
@@ -51,7 +53,8 @@
                     class="add-to-cart btn-add"
                     data-id="{{ product.id_producto }}"
                     data-nombre="{{ product.nombre }}"
-                    data-precio="{{ product.precio }}">
+                    data-precio="{{ product.precio }}"
+                    data-stock="{{ product.stock }}">
                     + Agregar
                 </button>
 
@@ -63,35 +66,33 @@
 
     </section>
 
-    <!-- DERECHA -->
     <aside class="pos-right">
 
-        <!-- CLIENTE -->
         <div class="card cliente-card">
-
             <h3>Cliente</h3>
-
             <input
                 type="text"
                 id="buscar-cliente"
                 placeholder="Buscar cliente..."
                 autocomplete="off"
             >
-
-            <ul id="lista-clientes"></ul>
+            <ul id="lista-clientes" style="list-style: none; padding: 0; margin-top: 5px;"></ul>
+            
+            <div id="cliente-seleccionado" style="display: none; margin-top: 10px; color: #0B4EA2; font-weight: bold;">
+                Cliente: <span id="nombre-cliente-seleccionado"></span>
+                <button id="quitar-cliente" class="btn btn-danger" style="padding: 2px 5px; font-size: 12px; margin-left: 10px;">X</button>
+            </div>
 
             <button
                 type="button"
                 id="nuevo-cliente-btn"
-                class="btn btn-secondary">
+                class="btn btn-secondary"
+                style="margin-top: 10px;">
                 + Nuevo Cliente
             </button>
-
         </div>
 
-        <!-- MONEDA -->
         <div class="card currency-card">
-
             <div class="currency-row">
                 <label for="currencySelect">Moneda</label>
                 <select id="currencySelect">
@@ -99,7 +100,6 @@
                     <option value="USD">$ USD</option>
                 </select>
             </div>
-
             <div class="currency-row">
                 <label for="fxRate">Tipo de Cambio</label>
                 <input
@@ -109,22 +109,16 @@
                     step="0.01"
                 >
             </div>
-
         </div>
 
-        <!-- ============================== -->
-        <!-- CARRITO -->
-        <!-- ============================== -->
         <div class="card cart-card">
-
             <h2>Detalle de Venta</h2>
 
             <div id="cart-items" class="cart-items">
-                <p class="empty">No hay productos</p>
-            </div>
+                <p class="empty" id="empty-cart-msg">No hay productos</p>
+                </div>
 
             <div class="totals">
-
                 <div class="total-row">
                     <span>Subtotal</span>
                     <span>
@@ -132,7 +126,6 @@
                         <span id="subtotal">0.00</span>
                     </span>
                 </div>
-
                 <div class="total-row">
                     <span>IVA (15%)</span>
                     <span>
@@ -140,7 +133,6 @@
                         <span id="iva">0.00</span>
                     </span>
                 </div>
-
                 <div class="total-row total-final">
                     <span>Total</span>
                     <span>
@@ -148,15 +140,12 @@
                         <span id="total">0.00</span>
                     </span>
                 </div>
-
             </div>
 
             <div class="payment-box">
-
                 <label for="payment">Método de Pago</label>
                 <select id="payment">
                     <option value="efectivo">Efectivo</option>
-                    
                 </select>
 
                 <label for="cash-received">Efectivo recibido</label>
@@ -175,37 +164,20 @@
                         <span id="change">0.00</span>
                     </strong>
                 </p>
-
             </div>
 
             <div class="shipping-box">
-
                 <label>
                     <input type="checkbox" id="envio">
                     ¿Desea envío?
                 </label>
-
-                <div
-                    id="shipping-fields"
-                    style="display: none; margin-top: 12px;">
-
-                    <input
-                        type="text"
-                        id="direccion-envio"
-                        placeholder="Dirección de envío"
-                    >
-
-                    <input
-                        type="date"
-                        id="fecha-entrega"
-                    >
-
+                <div id="shipping-fields" style="display: none; margin-top: 12px;">
+                    <input type="text" id="direccion-envio" placeholder="Dirección de envío">
+                    <input type="date" id="fecha-entrega">
                 </div>
-
             </div>
 
             <div class="actions">
-
                 <button
                     id="pay"
                     type="button"
@@ -214,56 +186,35 @@
                     disabled>
                     Finalizar Venta
                 </button>
-
                 <button
                     id="cancel"
                     type="button"
                     class="btn btn-danger">
                     Cancelar
                 </button>
-
             </div>
-
         </div>
 
     </aside>
 
 </main>
 
-<!-- MODAL NUEVO CLIENTE -->
-
-<div id="clienteModal" class="modal-cliente">
-
+<div id="clienteModal" class="modal-cliente" style="display: none;">
     <div class="modal-cliente-content">
-
-        <span class="cerrar-modal">&times;</span>
-
+        <span class="cerrar-modal" id="cerrar-modal-btn">&times;</span>
         <h2>Registrar Cliente</h2>
-
-        <div class="modal-subtitle">
-            Gestión y administración de clientes
-        </div>
-
+        <div class="modal-subtitle">Gestión y administración de clientes</div>
         <hr class="modal-divider">
-
         <label>Nombre</label>
         <input type="text" id="nuevo-nombre">
-
         <label>Teléfono</label>
         <input type="text" id="nuevo-telefono">
-
         <label>Dirección</label>
         <textarea id="nuevo-direccion"></textarea>
-
-        <button
-            type="button"
-            id="guardar-cliente"
-            class="btn btn-primary">
+        <button type="button" id="guardar-cliente" class="btn btn-primary" data-url="{% url 'ventas:crear_cliente' %}">
             💾 Guardar
         </button>
-
     </div>
-
 </div>
 
 {% csrf_token %}

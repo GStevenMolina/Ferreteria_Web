@@ -24,145 +24,249 @@
           <datalist id="search-suggestions"></datalist>
         </div>
       </div>
-
+      
       <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
         <div class="toolbar-field">
           <label for="categoryFilter">Categoría</label>
-          <select id="categoryFilter" name="category">
+          <select id="categoryFilter" name="category" onchange="this.form.submit()">
             <option value="">Todas</option>
-            {% for category in categories %}
-              <option value="{{ category.id_categoria }}" {% if category_id|stringformat:"s" == category.id_categoria|stringformat:"s" %}selected{% endif %}>{{ category.nombre }}</option>
+            {% for cat in categories %}
+              <option value="{{ cat.id_categoria }}" {% if category_id|stringformat:"s" == cat.id_categoria|stringformat:"s" %}selected{% endif %}>{{ cat.nombre }}</option>
             {% endfor %}
+          </select>
+        </div>
+
+        <div class="toolbar-field">
+          <label for="stockRangeFilter">Rango de Stock</label>
+          <select id="stockRangeFilter" name="stock_range" onchange="this.form.submit()">
+            <option value="">Todos</option>
+            <option value="10-20" {% if stock_range == "10-20" %}selected{% endif %}>10 - 20 artículos</option>
+            <option value="20-40" {% if stock_range == "20-40" %}selected{% endif %}>20 - 40 artículos</option>
+            <option value="40-60" {% if stock_range == "40-60" %}selected{% endif %}>20 - 60 artículos</option>
+            <option value="60+" {% if stock_range == "60+" %}selected{% endif %}>Más de 60 artículos</option>
+          </select>
+        </div>
+
+        <div class="toolbar-field">
+          <label for="providerFilter">Proveedor</label>
+          <select id="providerFilter" name="provider" onchange="this.form.submit()">
+            <option value="">Todos</option>
+            {% for provider in providers %}
+              <option value="{{ provider.id_proveedor }}" {% if provider_id|stringformat:"s" == provider.id_proveedor|stringformat:"s" %}selected{% endif %}>{{ provider.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="toolbar-field">
+          <label for="statusFilter">Estado de Disponibilidad</label>
+          <select id="statusFilter" name="status" onchange="this.form.submit()">
+            <option value="">Todos los Activos</option>
+            <option value="Normal" {% if status_filter == "Normal" %}selected{% endif %}>Normal</option>
+            <option value="Bajo" {% if status_filter == "Bajo" %}selected{% endif %}>Bajo</option>
+            <option value="Agotado" {% if status_filter == "Agotado" %}selected{% endif %}>Agotado</option>
+            <option value="Inactivo" {% if status_filter == "Inactivo" %}selected{% endif %}>Inactivos (Deshabilitados)</option>
           </select>
         </div>
 
         <div class="toolbar-field">
           <label for="sortFilter">Ordenar por</label>
-          <select id="sortFilter" name="sort">
-            <option value="codigo" {% if sort_key == "codigo" %}selected{% endif %}>Código</option>
-            <option value="nombre" {% if sort_key == "nombre" %}selected{% endif %}>Nombre</option>
-            <option value="categoria" {% if sort_key == "categoria" %}selected{% endif %}>Categoría</option>
-            <option value="stock_actual" {% if sort_key == "stock_actual" %}selected{% endif %}>Stock</option>
-            <option value="stock_minimo" {% if sort_key == "stock_minimo" %}selected{% endif %}>Stock mínimo</option>
-            <option value="estado" {% if sort_key == "estado" %}selected{% endif %}>Estado</option>
+          <select id="sortFilter" name="sort" onchange="this.form.submit()">
+            <option value="codigo" {% if sort_key == "codigo" %}selected{% endif %}>Código (Asc)</option>
+            <option value="-codigo" {% if sort_key == "-codigo" %}selected{% endif %}>Código (Desc)</option>
+            <option value="nombre" {% if sort_key == "nombre" %}selected{% endif %}>Nombre (A-Z)</option>
+            <option value="-nombre" {% if sort_key == "-nombre" %}selected{% endif %}>Nombre (Z-A)</option>
+            <option value="precio_venta" {% if sort_key == "precio_venta" %}selected{% endif %}>Precio Venta (Menor)</option>
+            <option value="-precio_venta" {% if sort_key == "-precio_venta" %}selected{% endif %}>Precio Venta (Mayor)</option>
+            <option value="stock_actual" {% if sort_key == "stock_actual" %}selected{% endif %}>Existencias (Menor)</option>
+            <option value="-stock_actual" {% if sort_key == "-stock_actual" %}selected{% endif %}>Existencias (Mayor)</option>
           </select>
         </div>
 
         <div class="toolbar-field">
-          <label for="perPageSelect">Cantidad</label>
-          <select id="perPageSelect" name="per_page">
-            <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
-            <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
-            <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
-            <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+          <label for="perPageSelect">Artículos por página</label>
+          <select id="perPageSelect" name="per_page" onchange="this.form.submit()">
+            <option value="10" {% if per_page == 10 %}selected{% endif %}>10 registros</option>
+            <option value="25" {% if per_page == 25 %}selected{% endif %}>25 registros</option>
+            <option value="50" {% if per_page == 50 %}selected{% endif %}>50 registros</option>
           </select>
         </div>
 
-        <div class="toolbar-field">
-          <label>Resumen</label>
-          <div class="summary-pill">{{ total_registros }} productos</div>
-        </div>
-
-        <div class="toolbar-field toolbar-field--actions" style="margin-left:auto;">
-          <label>&nbsp;</label>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <a class="action-btn action-btn--outline" href="{% url 'registro:export_excel' %}?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort={{ sort_key|urlencode }}&per_page={{ per_page }}">Exportar Excel</a>
-            <button type="submit" class="action-btn action-btn--primary">Aplicar</button>
-          </div>
+        <div style="display:flex;gap:8px;margin-left:auto;">
+          <button type="submit" class="action-btn action-btn--primary">Aplicar Filtros</button>
+          <a href="{% url 'registro:exportar_inventario_pdf' %}?q={{ query_text }}&category={{ category_id }}&sort={{ sort_key }}&stock_range={{ stock_range }}&provider={{ provider_id }}&status={{ status_filter }}" target="_blank" class="action-btn action-btn--soft" style="text-decoration:none;display:inline-flex;align-items:center;">Imprimir PDF 🖨️</a>
+          <a href="{% url 'registro:index' %}" class="action-btn action-btn--danger" style="text-decoration:none;display:inline-flex;align-items:center;" title="Limpiar todos los filtros activos">✖</a>
         </div>
       </div>
     </form>
   </section>
 
-  <section class="report-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
-    <article class="report-card card">
-      <p class="report-card__label">Productos</p>
-      <strong class="report-card__value">{{ total_registros }}</strong>
-      <span class="report-card__hint">Total de registros filtrados</span>
-    </article>
-    <article class="report-card card">
-      <p class="report-card__label">Stock bajo</p>
-      <strong class="report-card__value">{{ stock_bajo }}</strong>
-      <span class="report-card__hint">Productos en alerta</span>
-    </article>
-    <article class="report-card card">
-      <p class="report-card__label">Sin stock</p>
-      <strong class="report-card__value">{{ stock_cero }}</strong>
-      <span class="report-card__hint">Productos agotados</span>
-    </article>
-    <article class="report-card card">
-      <p class="report-card__label">Movimientos hoy</p>
-      <strong class="report-card__value">{{ movimientos_hoy }}</strong>
-      <span class="report-card__hint">Movimientos registrados hoy</span>
-    </article>
+  <section class="inventory-display card">
+    <div class="inventory-table-container">
+      <table class="inventory-table">
+  <thead>
+    <tr>
+      <th>Código</th>
+      <th>Descripción / Producto</th>
+      <th>Categoría</th>
+      <th>U. Medida</th>
+      <th>P. Compra</th>
+      <th>P. Venta</th>
+      <th>Stock Actual</th>
+      <th>Proveedor</th>
+      <th>Estado</th>
+      <th class="text-center">Acciones</th> </tr>
+  </thead>
+  <tbody>
+    {% for row in page_obj %}
+      <tr class="inventory-row" data-product="{{ row.product_json }}">
+  <td>{{ row.codigo }}</td>
+  <td><strong>{{ row.nombre }}</strong></td>
+  <td><span class="category-badge">{{ row.categoria }}</span></td>
+  <td>{{ row.unidad_medida }}</td>
+  <td>C$ {{ row.precio_compra|floatformat:2 }}</td>
+  <td>C$ {{ row.precio_venta|floatformat:2 }}</td>
+  <td><strong>{{ row.stock_actual }}</strong></td>
+  <td>{{ row.proveedor }}</td>
+  <td>
+    {% if row.estado == "Inactivo" %}
+      <span class="status-badge status-badge--inactive">Inactivo</span>
+    {% elif row.estado == "Agotado" %}
+      <span class="status-badge status-badge--danger">Agotado</span>
+    {% elif row.estado == "Bajo" %}
+      <span class="status-badge status-badge--warning">Stock Bajo</span>
+    {% else %}
+      <span class="status-badge status-badge--success">Normal</span>
+    {% endif %}
+  </td>
+<td class="text-center">
+  <div class="table-actions">
+    <button type="button" 
+            class="action-btn action-btn--soft edit-product-btn" 
+            title="Editar producto rápido"
+            onclick="window.openQuickModal(this.closest('.inventory-row'))">
+      ⚡ Editar
+    </button>
+  </div>
+</td>
+</tr>
+    {% empty %}
+      <tr>
+        <td colspan="10" class="empty-state">No hay productos para mostrar.</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="pagination" style="margin-top:12px;display:flex;gap:8px;align-items:center;">
+      {% if page_obj.has_previous %}
+        <a class="action-btn action-btn--soft" href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort={{ sort_key|urlencode }}&per_page={{ per_page }}&stock_range={{ stock_range|urlencode }}&provider={{ provider_id|urlencode }}&status={{ status_filter|urlencode }}&page={{ page_obj.previous_page_number }}">Anterior</a>
+      {% else %}
+        <span class="action-btn action-btn--soft action-btn--disabled">Anterior</span>
+      {% endif %}
+
+      <span>Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+
+      {% if page_obj.has_next %}
+        <a class="action-btn action-btn--soft" href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort={{ sort_key|urlencode }}&per_page={{ per_page }}&stock_range={{ stock_range|urlencode }}&provider={{ provider_id|urlencode }}&status={{ status_filter|urlencode }}&page={{ page_obj.next_page_number }}">Siguiente</a>
+      {% else %}
+        <span class="action-btn action-btn--soft action-btn--disabled">Siguiente</span>
+      {% endif %}
+    </div>
+    {% endif %}
   </section>
+</div>
 
-  <div class="inventory-layout">
-    <section class="inventory-panel inventory-panel--table card">
-      <div class="panel-heading">
-        <h2>Inventario actual</h2>
-        <p>Consulta los productos y usa filtros para encontrar rápidamente lo que buscas.</p>
+<div id="quickEditModal" class="modal">
+  <div class="modal__content card" style="width: min(650px, calc(100% - 32px)); max-height: 90vh; overflow-y: auto;">
+    <button type="button" class="modal__close" id="closeModalBtn">✖</button>
+    
+    <div class="modal__header">
+      <h2>Editar Información Completa del Artículo</h2>
+      <p style="color: var(--muted); font-size: 0.85rem; margin-top: 4px;">
+        Modifica cualquier atributo del producto de forma centralizada e inmediata.
+      </p>
+    </div>
+
+    <form id="quickEditForm" style="margin-top: 20px;">
+      <input type="hidden" id="modalProductId">
+
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label for="modalProductName" style="color: var(--muted); display: block; margin-bottom: 6px;">Nombre del Producto / Descripción</label>
+        <input type="text" id="modalProductName" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; border-radius: 8px;" required>
       </div>
 
-      <div class="inventory-table-wrap">
-        <table class="inventory-table" id="inventoryTable">
-          <thead>
-            <tr>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=codigo&per_page={{ per_page }}">Código</a></th>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=nombre&per_page={{ per_page }}">Nombre</a></th>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=precio_venta&per_page={{ per_page }}">Precio venta</a></th>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=precio_compra&per_page={{ per_page }}">Precio compra</a></th>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=categoria&per_page={{ per_page }}">Categoría</a></th>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=stock_actual&per_page={{ per_page }}">Stock actual</a></th>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=stock_minimo&per_page={{ per_page }}">Stock mínimo</a></th>
-              <th><a href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort=estado&per_page={{ per_page }}">Estado</a></th>
-            </tr>
-          </thead>
-          <tbody>
-              {% for row in rows %}
-              <tr class="inventory-row inventory-row--{{ row.estado|lower }} {% if selected_product_id|stringformat:'s' == row.codigo|stringformat:'s' %}is-selected{% endif %}"
-                  data-product='{"codigo":"{{ row.codigo }}","nombre":"{{ row.nombre|escapejs }}","descripcion":"{{ row.descripcion|escapejs }}","categoria":"{{ row.categoria_id|default:'' }}","proveedor":"{{ row.proveedor_id|default:'' }}","unidad_medida":"{{ row.unidad_medida|escapejs }}","precio_compra":"{{ row.precio_compra }}","precio_venta":"{{ row.precio_venta }}","stock_actual":"{{ row.stock_actual }}","stock_minimo":"{{ row.stock_minimo }}"}'>
-                <td>{{ row.codigo }}</td>
-                <td>{{ row.nombre }}</td>
-                <td>${{ row.precio_venta }}</td>
-                <td>${{ row.precio_compra }}</td>
-                <td>{{ row.categoria }}</td>
-                <td>{{ row.stock_actual }}</td>
-                <td>{{ row.stock_minimo }}</td>
-                <td><span class="status-badge status-badge--{{ row.estado|lower }}">{{ row.estado }}</span></td>
-              </tr>
-            {% empty %}
-              <tr>
-                <td colspan="8" class="empty-state">No hay productos para mostrar.</td>
-              </tr>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
+        <div class="form-group">
+          <label for="modalProductCategory" style="color: var(--muted); display: block; margin-bottom: 6px;">Categoría</label>
+          <select id="modalProductCategory" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; border-radius: 8px;" required>
+            <option value="">Seleccione una categoría</option>
+            {% for cat in categories %}
+              <option value="{{ cat.id_categoria }}">{{ cat.nombre }}</option>
             {% endfor %}
-          </tbody>
-        </table>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="modalProductProvider" style="color: var(--muted); display: block; margin-bottom: 6px;">Proveedor</label>
+          <select id="modalProductProvider" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; border-radius: 8px;" required>
+            <option value="">Seleccione un proveedor</option>
+            {% for prov in providers %}  <option value="{{ prov.id_proveedor }}">{{ prov.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
+        <div class="form-group">
+          <label for="modalProductUnit" style="color: var(--muted); display: block; margin-bottom: 6px;">Unidad de Medida</label>
+          <select id="modalProductUnit" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; border-radius: 8px;" required>
+            <option value="Unidad">Unidad</option>
+            <option value="Libra">Libra</option>
+            <option value="Kilo">Kilo</option>
+            <option value="Metro">Metro</option>
+            <option value="Yarda">Yarda</option>
+            <option value="Bolsa">Bolsa</option>
+            <option value="Caja">Caja</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="modalProductStatus" style="color: var(--muted); display: block; margin-bottom: 6px;">Estado del Registro</label>
+          <select id="modalProductStatus" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; border-radius: 8px;" required>
+            <option value="Activo">Activo</option>
+            <option value="Inactivo">Inactivo</option>
+          </select>
+        </div>
       </div>
 
-        <!-- Paginación -->
-        {% if page_obj.has_other_pages %}
-        <div class="pagination" style="margin-top:12px;display:flex;gap:8px;align-items:center;">
-          {% if page_obj.has_previous %}
-            <a class="action-btn action-btn--soft" href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort={{ sort_key|urlencode }}&per_page={{ per_page }}&page={{ page_obj.previous_page_number }}">Anterior</a>
-          {% else %}
-            <span class="action-btn action-btn--soft action-btn--disabled">Anterior</span>
-          {% endif %}
-
-          <span>Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
-
-          {% if page_obj.has_next %}
-            <a class="action-btn action-btn--soft" href="?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&sort={{ sort_key|urlencode }}&per_page={{ per_page }}&page={{ page_obj.next_page_number }}">Siguiente</a>
-          {% else %}
-            <span class="action-btn action-btn--soft action-btn--disabled">Siguiente</span>
-          {% endif %}
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
+        <div class="form-group">
+          <label for="modalProductCostPrice" style="color: var(--muted); display: block; margin-bottom: 6px;">Precio de Compra (C$)</label>
+          <input type="number" step="0.01" id="modalProductCostPrice" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; border-radius: 8px;" required>
         </div>
-        {% endif %}
-    </section>
+        <div class="form-group">
+          <label for="modalProductPrice" style="color: var(--muted); display: block; margin-bottom: 6px;">Precio de Venta (C$)</label>
+          <input type="number" step="0.01" id="modalProductPrice" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; border-radius: 8px;" required>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
+        <div class="form-group">
+          <label for="modalProductStock" style="color: var(--muted); display: block; margin-bottom: 6px;">Stock Físico Actual</label>
+          <input type="number" step="1" id="modalProductStock" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; border-radius: 8px;" required>
+        </div>
+        <div class="form-group">
+          <label for="modalProductMinStock" style="color: var(--muted); display: block; margin-bottom: 6px;">Stock Mínimo Alerta</label>
+          <input type="number" step="1" id="modalProductMinStock" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; border-radius: 8px;" required>
+        </div>
+      </div>
+
+      <div class="modal__actions" style="margin-top: 24px;">
+        <button type="submit" class="action-btn action-btn--primary" id="btnGuardarProducto" style="width: 100%; justify-content: center; padding: 12px; font-weight: bold;">
+          💾 Guardar Todos los Cambios
+        </button>
+      </div>
+    </form>
   </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
 <script src="{% static 'js/inventario.js' %}"></script>
 {% endblock %}

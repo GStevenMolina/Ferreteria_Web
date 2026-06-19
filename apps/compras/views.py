@@ -333,7 +333,7 @@ def nueva_compra(request):
             id_producto=producto,
             defaults={
                 "stock_actual": 0,
-                "stock_minimo": 0,
+                "stock_minimo": 10,
                 "stock_maximo": 60,
                 "fecha_actualizacion": ahora,
             }
@@ -547,7 +547,7 @@ def api_producto_crear(request):
         id_producto=producto,
         defaults={
             "stock_actual": 0,
-            "stock_minimo": 0,
+            "stock_minimo": 10,
             "stock_maximo": stock_maximo,
             "fecha_actualizacion": timezone.now(),
         }
@@ -588,7 +588,7 @@ def api_proveedores_buscar(request):
 # Generando PDF de factura de compra con ReportLab
 @login_required_custom
 def generar_factura_pdf(request, factura_id):
-    # Buscamos la factura del proveedor con la compra y el proveedor relacionados
+    # Buscamos la factura del proveedor usando el campo correcto de tu base de datos: id_factura_proveedor
     factura = get_object_or_404(
         FacturaProveedor.objects.select_related('id_compra__id_proveedor'),
         id_factura_proveedor=factura_id
@@ -602,76 +602,71 @@ def generar_factura_pdf(request, factura_id):
         id_compra=compra
     ).select_related('id_producto')
 
-    # Configuración de la respuesta HTTP para PDF
+    # Configuración de la respuesta HTTP para mostrar en el navegador web
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = (
         f'inline; filename="Factura_{factura.numero_factura}.pdf"'
     )
 
-    # Inicialización del objeto canvas en formato A4
+    # Inicialización del objeto canvas en formato A4 destinado a la web
     pdf = canvas.Canvas(response, pagesize=A4)
     width, height = A4
     azul = colors.HexColor("#0B4EA2")
 
-    # ==================================
-    # LOGO
-    # ==================================
-    logo = os.path.join(
-        settings.BASE_DIR,
-        "static",
-        "assets",
-        "Ferreteria.png"
-    )
+    # Definimos la ruta del logo
+    logo = os.path.join(settings.BASE_DIR, "static", "assets", "Ferreteria.png")
 
+    # =========================================================================
+    # 1. RENDERIZAR EL PDF EN VIVO PARA EL NAVEGADOR DEL USUARIO
+    # =========================================================================
+    _dibujar_contenido_pdf(pdf, factura, proveedor, detalles, width, height, azul, logo)
+    pdf.showPage()
+    pdf.save()
+
+    # 2. RESPALDO AUTOMÁTICO TRAS BAMBALINAS EN EL DISCO DURO LOCAL
+    try:
+        # Obtenemos la ruta física de la carpeta "Compras" mapeada en settings
+        ruta_compras = settings.SUBCARPETAS_FERRETERIA.get("Compras")
+        if ruta_compras:
+            nombre_archivo_local = f"Factura_{factura.numero_factura}.pdf"
+            ruta_completa_archivo = os.path.join(ruta_compras, nombre_archivo_local)
+            
+            # Inicializamos un segundo canvas que apunta directamente al archivo en el disco duro
+            pdf_local = canvas.Canvas(ruta_completa_archivo, pagesize=A4)
+            
+            # Reutilizamos la función de dibujo para estampar exactamente los mismos datos
+            _dibujar_contenido_pdf(pdf_local, factura, proveedor, detalles, width, height, azul, logo)
+            pdf_local.showPage()
+            pdf_local.save()
+            print(f"[RESPALDO AUTOMÁTICO] Copia guardada físicamente en: {ruta_completa_archivo}")
+    except Exception as e:
+        # Si falla por un tema de permisos del sistema operativo, el servidor avisa en la terminal,
+        print(f"[ALERTA RESPALDO] No se pudo guardar la copia local en disco duro. Motivo: {e}")
+    
+    return response
+
+
+def _dibujar_contenido_pdf(pdf, factura, proveedor, detalles, width, height, azul, logo):
+    """ Función auxiliar encargada exclusivamente de trazar la interfaz gráfica del comprobante """
+    # --- LOGO ---
     if os.path.exists(logo):
-        pdf.drawImage(
-            logo,
-            20,
-            height - 180,
-            width=290,
-            height=180,
-            preserveAspectRatio=True
-        )
+        pdf.drawImage(logo, 20, height - 180, width=290, height=180, preserveAspectRatio=True)
 
-# ==================================
-    # FACTURA Y FECHA
-    # ==================================
+    # --- RECUADRO DE FACTURA Y FECHA ---
     pdf.setLineWidth(1)
     pdf.setStrokeColor(azul)
-
-    # Dibujamos los dos recuadros (se quedan igual)
     pdf.rect(400, height - 90, 155, 30)
     pdf.rect(400, height - 120, 155, 30)
 
-    # CAMBIO: Reducimos la fuente a 8 para que el número largo quepa perfectamente
-    pdf.setFont("Helvetica-Bold", 8) 
+    # Fuente ajustada a 8 para evitar el desborde visual del código de la factura
+    pdf.setFont("Helvetica-Bold", 8)
     pdf.setFillColor(colors.black)
+    pdf.drawString(405, height - 72, f"FACTURA PROV N°: {factura.numero_factura}")
+    pdf.drawString(405, height - 102, f"FECHA: {factura.fecha_emision.strftime('%d/%m/%Y')}")
 
-    # CAMBIO: Ajustamos la posición X a 405 (un poco más a la izquierda) 
-    # para ganar espacio dentro del recuadro
-    pdf.drawString(
-        405,
-        height - 72,
-        f"FACTURA PROV N°: {factura.numero_factura}"
-    )
-
-    # La fecha puede mantenerse en tamaño 8 o 9 para que juegue simétricamente
-    pdf.drawString(
-        405,
-        height - 102,
-        f"FECHA EMISIÓN: {factura.fecha_emision.strftime('%d/%m/%Y')}"
-    )
-
-    # ==================================
-    # DATOS EMPRESA
-    # ==================================
+    # --- DATOS DE LA EMPRESA ---
     pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(
-        40,
-        height - 180,
-        "DATOS DE LA EMPRESA"
-    )
-
+    pdf.drawString(40, height - 180, "DATOS DE LA EMPRESA")
     pdf.setFont("Helvetica", 10)
     pdf.drawString(40, height - 198, "Dirección: Granada Diriomo, de la entrada principal")
     pdf.drawString(40, height - 212, " de Diriomo una cuadra al Norte a mano izquierda")
@@ -679,16 +674,9 @@ def generar_factura_pdf(request, factura_id):
     pdf.drawString(40, height - 240, "RUC/NIT: J-12345678-9")
     pdf.drawString(40, height - 254, "Email: admin.ferreteria@gmail.com")
 
-    # ==================================
-    # DATOS DEL PROVEEDOR
-    # ==================================
+    # --- DATOS DEL PROVEEDOR ---
     pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(
-        40,
-        height - 285,
-        "DATOS DEL PROVEEDOR"
-    )
-
+    pdf.drawString(40, height - 285, "DATOS DEL PROVEEDOR")
     pdf.setFont("Helvetica", 10)
     pdf.drawString(40, height - 305, f"Razon Social: {proveedor.nombre}")
     pdf.drawString(40, height - 319, f"Teléfono: {proveedor.telefono or 'N/A'}")
@@ -696,12 +684,8 @@ def generar_factura_pdf(request, factura_id):
     pdf.drawString(40, height - 347, f"Contacto: {proveedor.numero_contacto or 'N/A'}")
     pdf.drawString(40, height - 361, f"Dirección: {proveedor.direccion or 'N/A'}")
 
-    # ==================================
-    # TABLA DE PRODUCTOS COMPRADOS
-    # ==================================
+    # --- CABECERA DE LA TABLA ---
     y = height - 400
-    
-    # Dibujar Cabecera de la tabla
     pdf.setFillColor(azul)
     pdf.rect(40, y, width - 80, 20, fill=True, stroke=False)
     
@@ -712,13 +696,12 @@ def generar_factura_pdf(request, factura_id):
     pdf.drawRightString(430, y + 5, "Precio U.")
     pdf.drawRightString(550, y + 5, "Subtotal")
 
-    # Cuerpo de la Tabla
+    # --- CUERPO DE LA TABLA ---
     pdf.setFillColor(colors.black)
     pdf.setFont("Helvetica", 10)
     
     for detalle in detalles:
         y -= 20
-        # Control de salto de página si la lista de ítems es muy extensa
         if y < 80:
             pdf.showPage()
             y = height - 60
@@ -733,14 +716,11 @@ def generar_factura_pdf(request, factura_id):
         pdf.drawRightString(430, y + 4, f"C$ {p_uni:,.2f}")
         pdf.drawRightString(550, y + 4, f"C$ {subtotal_item:,.2f}")
         
-        # Línea divisoria entre filas
         pdf.setStrokeColor(colors.lightgrey)
         pdf.setLineWidth(0.5)
         pdf.line(40, y, width - 40, y)
 
-    # ==================================
-    # TOTALES FINALES
-    # ==================================
+    # --- TOTALES FINALES ---
     y -= 30
     pdf.setFont("Helvetica-Bold", 10)
     pdf.drawRightString(430, y, "Subtotal:")
@@ -759,9 +739,3 @@ def generar_factura_pdf(request, factura_id):
     pdf.setFillColor(azul)
     pdf.drawRightString(430, y, "TOTAL COMPRA:")
     pdf.drawRightString(550, y, f"C$ {factura.total:,.2f}")
-
-    # Renderizado y cierre del archivo
-    pdf.showPage()
-    pdf.save()
-    
-    return response

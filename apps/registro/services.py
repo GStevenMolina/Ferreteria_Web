@@ -1,45 +1,68 @@
 from __future__ import annotations
-
 from collections import Counter
-
-from django.db.models import Count, Sum
-
+# SE AGREGÓ "F" AL IMPORT PARA QUE FUNCIONEN LOS FILTROS DE ESTADO COMPARATIVOS
+from django.db.models import Count, Sum, F
 from apps.core.models import Categoria, Inventario, MovimientoInventario, Producto, Proveedor
+import json
 
 
-# Lógica de estado del stock
+# =========================================================================
+# 🔍 CONSULTAS GENERALES Y FILTROS AVANZADOS DEL INVENTARIO
+# =========================================================================
 
-def stock_status(stock_actual, stock_minimo):
+def inventory_queryset(query_text: str = "", category_id: str = "", stock_range: str = "", provider_id: str = "", status_filter: str = ""):
     """
-    Determina el estado de stock de un producto:
-      - 'Agotado': stock en cero o negativo.
-      - 'Bajo': stock igual o inferior al mínimo definido.
-      - 'Normal': stock por encima del mínimo.
+    Devuelve un queryset de productos filtrado por texto de búsqueda, categoría,
+    rango de stock, proveedor y estado físico/lógico de disponibilidad.
     """
-    stock_actual = stock_actual or 0
-    stock_minimo = stock_minimo or 0
-    if stock_actual <= 0:
-        return "Agotado"
-    if stock_actual <= stock_minimo:
-        return "Bajo"
-    return "Normal"
-
-
-# Consultas de inventario
-
-def inventory_queryset(query_text: str = "", category_id: str = ""):
-    """
-    Devuelve un queryset de productos filtrado por texto de búsqueda (nombre)
-    y/o por categoría. Incluye relaciones con categoría y proveedor para
-    evitar consultas adicionales al construir las filas.
-    """
+    # Iniciamos la consulta base
     queryset = Producto.objects.select_related("id_categoria", "id_proveedor").all()
+    
+    # Filtro de Estado Lógico (Nuevo atributo 'estado') y Estado Físico del Stock
+    if status_filter:
+        if status_filter == "Agotado":
+            queryset = queryset.filter(estado=True, inventario__stock_actual__lte=0)
+        elif status_filter == "Bajo":
+            queryset = queryset.filter(
+                estado=True,
+                inventario__stock_actual__gt=0,
+                inventario__stock_actual__lte=F('inventario__stock_minimo')
+            )
+        elif status_filter == "Normal":
+            queryset = queryset.filter(
+                estado=True,
+                inventario__stock_actual__gt=F('inventario__stock_minimo')
+            )
+        elif status_filter == "Inactivo":
+            queryset = queryset.filter(estado=False)
+    else:
+        # SI NO HAY FILTRO SELECCIONADO: Por defecto ocultamos los productos deshabilitados/inactivos
+        queryset = queryset.filter(estado=True)
+    
+    # Filtro 1: Texto
     if query_text:
         queryset = queryset.filter(nombre__icontains=query_text)
+        
+    # Filtro 2: Categoría
     if category_id:
         queryset = queryset.filter(id_categoria_id=category_id)
-    return queryset
+        
+    # Filtro 3: Proveedor
+    if provider_id:
+        queryset = queryset.filter(id_proveedor_id=provider_id)
 
+    # Filtro 4: Rango de Stock
+    if stock_range:
+        if stock_range == "10-20":
+            queryset = queryset.filter(inventario__stock_actual__gte=10, inventario__stock_actual__lte=20)
+        elif stock_range == "20-40":
+            queryset = queryset.filter(inventario__stock_actual__gte=20, inventario__stock_actual__lte=40)
+        elif stock_range == "40-60":
+            queryset = queryset.filter(inventario__stock_actual__gte=20, inventario__stock_actual__lte=60)
+        elif stock_range == "60+":
+            queryset = queryset.filter(inventario__stock_actual__gt=60)
+
+    return queryset
 
 def build_rows(queryset):
     """
@@ -59,6 +82,24 @@ def build_rows(queryset):
         # Usar 0 como valor predeterminado si el registro de inventario no existe
         stock_actual = inventory.stock_actual if inventory and inventory.stock_actual is not None else 0
         stock_minimo = inventory.stock_minimo if inventory and inventory.stock_minimo is not None else 0
+        
+        estado_texto = "Inactivo" if not product.estado else stock_status(stock_actual, stock_minimo)
+
+        # 🔥 CONSTRUIMOS EL JSON COMPLETO QUE LEERÁ TU MODAL EN JS
+        product_json = json.dumps({
+            'id_producto': product.id_producto,
+            'codigo': product.id_producto,
+            'nombre': product.nombre,
+            'precio_compra': float(product.precio_compra) if product.precio_compra else 0.0,
+            'precio_venta': float(product.precio_venta) if product.precio_venta else 0.0,
+            'stock_actual': int(stock_actual),
+            'stock_minimo': int(stock_minimo),
+            'unidad_medida': product.unidad_medida or "Unidad",
+            'estado': "Activo" if product.estado else "Inactivo",
+            'id_categoria': product.id_categoria_id if product.id_categoria_id else "",
+            'id_proveedor': product.id_proveedor_id if product.id_proveedor_id else ""
+        }, ensure_ascii=False)
+
         rows.append(
             {
                 "product": product,
@@ -67,7 +108,7 @@ def build_rows(queryset):
                 "nombre": product.nombre,
                 "categoria": product.id_categoria.nombre if product.id_categoria else "Sin categoría",
                 "categoria_id": product.id_categoria_id,
-                "proveedor": product.id_proveedor.nombre if product.id_proveedor else "",
+                "proveedor": product.id_proveedor.nombre if product.id_proveedor else "Sin Proveedor",
                 "proveedor_id": product.id_proveedor_id,
                 "precio_compra": product.precio_compra or 0,
                 "precio_venta": product.precio_venta or 0,
@@ -75,10 +116,30 @@ def build_rows(queryset):
                 "descripcion": product.descripcion or "",
                 "stock_actual": stock_actual,
                 "stock_minimo": stock_minimo,
-                "estado": stock_status(stock_actual, stock_minimo),
+                "estado": estado_texto,
+                "product_json": product_json,  # 🔥 SE PASA LIMPIO AL ATRIBUTO data-product DEL TR
             }
         )
     return rows
+
+# =========================================================================
+# ⚙️ LÓGICA DE CONTROL Y AUXILIARES
+# =========================================================================
+
+def stock_status(stock_actual, stock_minimo):
+    """
+    Determina el estado de stock de un producto:
+      - 'Agotado': stock en cero o negativo.
+      - 'Bajo': stock igual o inferior al mínimo definido.
+      - 'Normal': stock por encima del mínimo.
+    """
+    stock_actual = stock_actual or 0
+    stock_minimo = stock_minimo or 0
+    if stock_actual <= 0:
+        return "Agotado"
+    if stock_actual <= stock_minimo:
+        return "Bajo"
+    return "Normal"
 
 
 def sort_rows(rows, sort_key):
@@ -101,17 +162,13 @@ def sort_rows(rows, sort_key):
     return sorted(rows, key=mapping.get(key, mapping["codigo"]), reverse=reverse)
 
 
-# Datos iniciales para el formulario de producto
-
 def build_product_form_initial(product=None):
     """
     Construye el diccionario de valores iniciales para pre-poblar el
-    formulario de producto con los datos del objeto Producto e Inventario
-    asociado. Si no se pasa producto, devuelve valores vacíos/cero.
+    formulario de producto con los datos del objeto Producto e Inventario asociado.
     """
     inventory = None
     if product:
-        # Obtener el registro de inventario del producto, si existe
         inventory = Inventario.objects.filter(id_producto=product).first()
 
     return {
@@ -129,32 +186,23 @@ def build_product_form_initial(product=None):
     }
 
 
-# Historial de movimientos
+# =========================================================================
+# 📊 HISTORIAL, KPIS Y RESÚMENES DE REPORTES
+# =========================================================================
 
 def movement_history(selected_product=None, limit=20):
-    """
-    Devuelve los últimos movimientos de inventario, opcionalmente filtrados
-    por producto. El resultado se limita a 'limit' registros.
-    """
+    """Devuelve los últimos movimientos de inventario."""
     queryset = MovimientoInventario.objects.select_related("id_producto", "id_usuario").order_by("-fecha_movimiento")
     if selected_product:
         queryset = queryset.filter(id_producto=selected_product)
     return queryset[:limit]
 
 
-# Resumen y KPIs para reportes
-
 def report_summary(queryset=None):
-    """
-    Calcula un resumen estadístico del inventario:
-      - total_productos: total de productos.
-      - productos_bajo_stock: suma de productos bajos y agotados.
-      - productos_normales / productos_bajos / productos_agotados: conteo por estado.
-    """
+    """Calcula un resumen estadístico numérico del inventario actual."""
     queryset = queryset or Producto.objects.all()
     rows = build_rows(queryset)
     totals = Counter(row["estado"] for row in rows)
-    # Combinar 'Bajo' y 'Agotado' como productos con problema de stock
     low_stock = sum(1 for row in rows if row["estado"] == "Bajo") + sum(1 for row in rows if row["estado"] == "Agotado")
     return {
         "total_productos": len(rows),
@@ -166,15 +214,8 @@ def report_summary(queryset=None):
 
 
 def report_kpis(product_id: str = "", movement_type: str = "", start_date=None, end_date=None, query_text: str = "", category_id: str = ""):
-    """
-    Calcula los KPIs de movimientos de inventario con filtros opcionales:
-      - product_id: filtrar por producto específico.
-      - movement_type: filtrar por tipo de movimiento (entrada, salida, etc.).
-      - start_date / end_date: filtrar por rango de fechas.
-    Retorna los movimientos filtrados y los totales de entradas, salidas y conteo.
-    """
+    """Calcula los KPIs cuantitativos de flujos y movimientos históricos."""
     movements = MovimientoInventario.objects.select_related("id_producto", "id_usuario").order_by("-fecha_movimiento")
-    # Filtrar por texto (nombre de producto) y/o categoría si se proporciona
     if query_text:
         movements = movements.filter(id_producto__nombre__icontains=query_text)
     if category_id:
@@ -188,9 +229,7 @@ def report_kpis(product_id: str = "", movement_type: str = "", start_date=None, 
     if end_date:
         movements = movements.filter(fecha_movimiento__date__lte=end_date)
 
-    # Sumar cantidades de entradas y ajustes positivos
     entrada_total = movements.filter(tipo_movimiento__in=["entrada", "ajuste_entrada"]).aggregate(total=Sum("cantidad"))["total"] or 0
-    # Sumar cantidades de salidas y ajustes negativos
     salida_total = movements.filter(tipo_movimiento__in=["salida", "ajuste_salida"]).aggregate(total=Sum("cantidad"))["total"] or 0
     return {
         "movements": movements,
@@ -199,8 +238,6 @@ def report_kpis(product_id: str = "", movement_type: str = "", start_date=None, 
         "conteo_movimientos": movements.count(),
     }
 
-
-# Catálogos auxiliares
 
 def categories_and_providers():
     """Devuelve las categorías y proveedores disponibles, ordenados por nombre."""

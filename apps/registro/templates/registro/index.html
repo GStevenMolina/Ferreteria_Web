@@ -139,6 +139,7 @@
     {% endif %}
   </td>
 <td class="text-center">
+  {% if request.session.usuario_rol == "Administrador" %}
   <div class="table-actions">
     <button type="button" 
             class="action-btn action-btn--soft edit-product-btn" 
@@ -147,6 +148,7 @@
       ⚡ Editar
     </button>
   </div>
+  {% endif %}
 </td>
 </tr>
     {% empty %}
@@ -209,13 +211,14 @@
         </div>
         <div class="form-group">
           <label for="modalProductProvider" style="color: var(--muted); display: block; margin-bottom: 6px;">Proveedor</label>
-          <select id="modalProductProvider" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; border-radius: 8px;" required>
+          <select id="modalProductProvider" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; border-radius: 8px;">
             <option value="">Seleccione un proveedor</option>
-            {% for prov in providers %}  <option value="{{ prov.id_proveedor }}">{{ prov.nombre }}</option>
+            {% for prov in providers %}
+              <option value="{{ prov.id_proveedor }}">{{ prov.nombre }}</option>
             {% endfor %}
           </select>
         </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
+      </div> <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
         <div class="form-group">
           <label for="modalProductUnit" style="color: var(--muted); display: block; margin-bottom: 6px;">Unidad de Medida</label>
           <select id="modalProductUnit" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; border-radius: 8px;" required>
@@ -231,8 +234,8 @@
         <div class="form-group">
           <label for="modalProductStatus" style="color: var(--muted); display: block; margin-bottom: 6px;">Estado del Registro</label>
           <select id="modalProductStatus" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; border-radius: 8px;" required>
-            <option value="Activo">Activo</option>
-            <option value="Inactivo">Inactivo</option>
+            <option value="activo">Activo</option>
+            <option value="inactivo">Inactivo</option>
           </select>
         </div>
       </div>

@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // ==========================================================
-    // SELECTS E INPUTS DE CONTROL DÍNÁMICO
+    // SELECTS E INPUTS DE CONTROL DINÁMICO
     // ==========================================================
     const selectFactura = document.getElementById("id_factura");
     const selectProducto = document.getElementById("id_producto");
@@ -125,13 +125,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // ==========================================================
-    // VALIDACIÓN DEL FORMULARIO EN EL CLIENTE
+    // VALIDACIÓN DEL FORMULARIO Y LIMPIEZA POST-ENVÍO
     // ==========================================================
     const form = document.getElementById("formDevolucion");
 
     if (form) {
         form.addEventListener("submit", function (e) {
 
+            // Validaciones previas al envío
             if (selectFactura && !selectFactura.value) {
                 e.preventDefault();
                 alert("Seleccione una factura.");
@@ -164,6 +165,35 @@ document.addEventListener("DOMContentLoaded", function () {
                     return;
                 }
             }
+
+            // --------------------------------------------------
+            // NUEVO: Limpieza diferida de los campos
+            // --------------------------------------------------
+            // Usamos setTimeout para que el navegador ejecute el submit hacia la pestaña 
+            // nueva primero, y 100ms después limpie el formulario de la vista actual.
+            setTimeout(function () {
+                form.reset();
+                resetearInputCantidad();
+                productosCache = [];
+
+                // Reestablecer la fecha actual tras el reset para comodidad del usuario
+                const fechaInput = document.getElementById("fecha");
+                if (fechaInput) {
+                    const hoy = new Date().toISOString().split("T")[0];
+                    fechaInput.value = hoy;
+                }
+
+                // Ocultar el contenedor del cliente
+                const contenedorCliente = document.getElementById("contenedor_cliente");
+                if (contenedorCliente) {
+                    contenedorCliente.style.display = "none";
+                }
+                
+                // Limpiar el select de productos volviendo al estado inicial
+                if (selectProducto) {
+                    selectProducto.innerHTML = '<option value="">Seleccione una factura primero</option>';
+                }
+            }, 100);
         });
     }
 });

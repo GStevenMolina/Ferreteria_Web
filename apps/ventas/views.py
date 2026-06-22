@@ -22,17 +22,14 @@ from apps.core.models import (
     FacturaCliente,
 )
 
-# ===============================
-# ⚙️ CONFIG MONEDA
-# ===============================
+#  CONFIG MONEDA
 TIPO_CAMBIO = 36.5  # 1 USD = 36.5 C$
 
 
-# ===============================
-# 🏠 VISTA PRINCIPAL
-# ===============================
+# VISTA PRINCIPAL
 def index(request):
-    productos = Producto.objects.all()
+    # 🔥 CORRECCIÓN FINAL: Filtrar usando el tipo booleano correcto (True = Activo)
+    productos = Producto.objects.filter(estado=True)
 
     data = []
     for p in productos:
@@ -51,7 +48,6 @@ def index(request):
         'productos': data,
         'tipo_cambio': TIPO_CAMBIO
     })
-
 
 # ===============================
 # 👤 OBTENER USUARIO ACTUAL
@@ -201,15 +197,21 @@ def guardar_venta(request):
                     'status': 'error',
                     'message': f"Producto {item['id']} no existe"
                 })
+            
+            if producto.estado is False:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f"El producto '{producto.nombre}' está inactivo y no puede ser vendido."
+                })
 
             inventario = Inventario.objects.filter(
                 id_producto=producto
             ).first()
 
-            if not inventario:
+            if producto.estado and str(producto.estado).strip().lower() == "inactivo":
                 return JsonResponse({
                     'status': 'error',
-                    'message': f'{producto.nombre} sin inventario'
+                    'message': f"El producto '{producto.nombre}' está inactivo y no puede ser vendido."
                 })
 
             if inventario.stock_actual < item['cantidad']:

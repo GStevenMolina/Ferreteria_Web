@@ -157,17 +157,20 @@ def api_proveedores(request):
 @login_required_custom
 @require_GET
 def api_productos(request):
-    # Devuelve productos filtrados por proveedor (param id_proveedor)
-    # Incluye stock_actual del inventario
     id_proveedor = request.GET.get("id_proveedor")
     if not id_proveedor:
         return JsonResponse({"ok": False, "error": "Falta id_proveedor"}, status=400)
-    qs = (Producto.objects
-          .filter(id_proveedor_id=id_proveedor)
-          .order_by("nombre")
-          .values("id_producto", "nombre", "precio_compra", "precio_venta"))
     
-    # Agregar stock_actual de cada producto
+    # 🔥 FILTRO CORREGIDO: Traemos los productos del proveedor, 
+    # pero filtramos directamente en el QuerySet antes del .values()
+    qs = Producto.objects.filter(id_proveedor_id=id_proveedor)
+    
+    # Excluimos si es "inactivo", si es False o si es una cadena vacía corrupta
+    qs = qs.exclude(estado__icontains="inactivo").exclude(estado="0")
+    
+    # Ahora sí extraemos los valores requeridos para el JSON
+    qs = qs.order_by("nombre").values("id_producto", "nombre", "precio_compra", "precio_venta")
+    
     productos = []
     for p in qs:
         inventario = Inventario.objects.filter(id_producto_id=p["id_producto"]).first()
@@ -229,7 +232,6 @@ def nueva_compra(request):
             id_producto = int(it["id_producto"])
             cantidad = int(it["cantidad"])
             
-            # Limpieza y conversión a Decimal nativo de Python para evitar fallos
             p_compra_str = str(it.get("precio_unitario", "0")).replace(",", "").strip()
             p_venta_str = str(it.get("precio_venta", "0")).replace(",", "").strip()
             
@@ -249,6 +251,13 @@ def nueva_compra(request):
             producto = Producto.objects.get(id_producto=id_producto)
         except Producto.DoesNotExist:
             return JsonResponse({"ok": False, "error": f"Item #{i}: El producto no existe"}, status=404)
+
+        # 🔥 CORRECCIÓN CRÍTICA: Bloquear transacciones si el producto está deshabilitado/inactivo
+        if producto.estado and str(producto.estado).strip().lower() == "inactivo":
+            return JsonResponse(
+                {"ok": False, "error": f"El producto '{producto.nombre}' se encuentra Inactivo y no puede recibir transacciones."},
+                status=400
+            )
 
         if producto.id_proveedor_id and int(producto.id_proveedor_id) != int(id_proveedor):
             return JsonResponse(
@@ -270,7 +279,6 @@ def nueva_compra(request):
             
         subtotal += (precio_unitario * cantidad)
         
-        # Guardamos los objetos de tipo DECIMAL PUROS (sin llamar a money() aquí)
         normalizados.append({
             "producto": producto,
             "cantidad": cantidad,
@@ -278,12 +286,11 @@ def nueva_compra(request):
             "precio_venta": precio_venta,
         })
         
-    # Operaciones matemáticas directas con Decimales nativos
     impuesto = subtotal * (iva_rate / Decimal("100"))
     total = subtotal + impuesto
     ahora = timezone.now()
     
-    # 1. Crear la Compra Principal aplicando money() de forma segura en la asignación final
+    # 1. Crear la Compra Principal
     compra = Compra.objects.create(
         id_proveedor=proveedor,
         id_usuario=usuario,
@@ -296,6 +303,7 @@ def nueva_compra(request):
         DetalleCompra(
             id_compra=compra,
             id_producto=x["producto"],
+            content_type=None,
             cantidad=x["cantidad"],
             precio_unitario=money(x["precio_unitario"]),
         )
@@ -323,7 +331,6 @@ def nueva_compra(request):
         precio_unitario = x["precio_unitario"]
         precio_venta = x["precio_venta"]
         
-        # Pasamos los decimales usando la función money() de forma segura
         Producto.objects.filter(id_producto=producto.id_producto).update(
             precio_compra=money(precio_unitario),
             precio_venta=money(precio_venta),
@@ -358,7 +365,7 @@ def nueva_compra(request):
     # 5. Guardar los movimientos de inventario en masa
     MovimientoInventario.objects.bulk_create(movimientos)
     
-    # 6. Responder de forma exitosa convirtiendo a String los valores numéricos purificados
+    # 6. Responder de forma exitosa
     return JsonResponse({
         "ok": True,
         "id_compra": compra.id_compra,
@@ -369,6 +376,7 @@ def nueva_compra(request):
         "impuesto": str(money(impuesto)),
         "total": str(money(total)),
     })
+    
 # === APIs de gestión rápida (modal) ===
 
 @login_required_custom

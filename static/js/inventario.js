@@ -54,8 +54,7 @@
     if (quickCategory) quickCategory.value = productData.id_categoria || "";
     if (quickProvider) quickProvider.value = productData.id_provider || productData.id_proveedor || "";
     if (quickUnit) quickUnit.value = productData.unidad_medida || "Unidad";
-    if (quickStatus) quickStatus.value = productData.estado || "Activo";
-    if (quickCostPrice) quickCostPrice.value = productData.precio_compra || 0;
+    if (quickStatus) {let estadoBackend = productData.estado ? productData.estado.toLowerCase() : "activo";  quickStatus.value = estadoBackend;}    if (quickCostPrice) quickCostPrice.value = productData.precio_compra || 0;
     if (quickPrecio) quickPrecio.value = productData.precio_venta || 0;
     
     // 🔥 Sincronización directa del Stock Físico y Mínimo
@@ -156,8 +155,8 @@
       fetch(`${url}?q=${encodeURIComponent(q)}`)
         .then((res) => res.json())
         .then((data) => {
-          if (datalist && Array.isArray(data.results)) {
-            datalist.innerHTML = data.results
+          if (datalist && Array.isArray(data)) {
+            datalist.innerHTML = data
               .map((item) => `<option value="${item.nombre}"></option>`)
               .join('');
           }

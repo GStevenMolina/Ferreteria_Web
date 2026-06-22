@@ -233,10 +233,8 @@ def autocomplete_products(request):
     suggestions = list(qs.values('id_producto', 'nombre')[:12])
     return JsonResponse(suggestions, safe=False)
 
-
 @require_POST
 @login_required_custom
-@require_POST
 def quick_update_product(request):
     """
     API asíncrona optimizada para modificar la información completa 
@@ -270,7 +268,8 @@ def quick_update_product(request):
             if unidad_medida:
                 producto.unidad_medida = unidad_medida
             if estado:
-                producto.estado = estado
+                # Almacena el booleano correspondiente a 'activo' en minúsculas
+                producto.estado = (estado == 'activo')
                 
             # Asignación numérica con validación de tipo básica
             if precio_compra is not None:
@@ -279,8 +278,6 @@ def quick_update_product(request):
                 producto.precio_venta = float(precio_venta)
             if stock_actual is not None:
                 producto.stock_actual = int(stock_actual)
-            if stock_minimo is not None:
-                producto.stock_minimo = int(stock_minimo)
 
             # Asignación segura de llaves extranjeras (Categoría y Proveedor)
             if id_categoria:
@@ -290,13 +287,20 @@ def quick_update_product(request):
 
             producto.save()
 
+            # 🔥 CORRECCIÓN AQUÍ: Guardar el Stock Mínimo en la tabla relacionada Inventario
+            if stock_minimo is not None:
+                inventario, _ = Inventario.objects.get_or_create(id_producto=producto)
+                inventario.stock_minimo = int(stock_minimo)
+                inventario.fecha_actualizacion = timezone.now()
+                inventario.save()
+
         return JsonResponse({'ok': True})
 
     except json.JSONDecodeError:
         return JsonResponse({'ok': False, 'error': 'Formato JSON corrupto o inválido.'})
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)})
-    
+        
 # =========================================================================
 # 🚫 ACCIONES TRADICIONALES POST
 # =========================================================================

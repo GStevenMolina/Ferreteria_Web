@@ -19,6 +19,10 @@ from apps.core.models import (
     MovimientoInventario,
 )
 
+# =========================================================================
+# ⚙️ HELPERS / SINCRO DE PRODUCTOS
+# =========================================================================
+
 def obtener_productos(request, id_factura):
     """
     Devuelve en formato JSON los productos pertenecientes
@@ -52,7 +56,7 @@ def obtener_productos(request, id_factura):
                 productos.append({
                     "id": producto.id_producto,
                     "nombre": producto.nombre,
-                    "max_cantidad": disponible,  # Envía el tope real al JS (ej. 25 si ya devolvió 5 de 30)
+                    "max_cantidad": disponible,  # Envía el tope real al JS
                 })
     except Exception as e:
         print(f"Error en obtener_productos: {str(e)}")
@@ -60,6 +64,10 @@ def obtener_productos(request, id_factura):
 
     return JsonResponse({"productos": productos})
 
+
+# =========================================================================
+# 🏠 VISTA PRINCIPAL: REGISTRO Y VISTA EN NAVEGADOR DEL COMPROBANTE
+# =========================================================================
 
 def index(request):
     buscar = request.GET.get("buscar", "")
@@ -192,239 +200,8 @@ def index(request):
                     observaciones=condiciones
                 )
 
-                return redirect("devolucion:index")
-
-        except Exception as e:
-            return render(request, "devolucion/index.html", {
-                "error": str(e),
-                "devoluciones": devoluciones,
-                "facturas": facturas,
-                "today": timezone.now().date().isoformat(),
-            })
-
-    context = {
-        "devoluciones": devoluciones,
-        "facturas": facturas,
-        "today": timezone.now().date().isoformat(),
-    }
-    return render(request, "devolucion/index.html", context)
-
-# =========================================================================
-# ⚙️ HELPERS / SINCRO DE PRODUCTOS
-# =========================================================================
-
-def obtener_productos(request, id_factura):
-    """
-    Devuelve en formato JSON los productos pertenecientes
-    a la factura seleccionada, permitiendo devoluciones parciales sucesivas
-    calculando correctamente el saldo disponible sobre la columna 'cantidad'.
-    """
-    productos = []
-    try:
-        detalles = (
-            DetalleVenta.objects
-            .filter(id_venta_id=id_factura)
-            .select_related("id_producto")
-        )
-
-        for detalle in detalles:
-            producto = detalle.id_producto
-            
-            # Buscamos cuántas unidades ya se han devuelto sumando el campo real de la BD 'cantidad'
-            devoluciones_previas = Devolucion.objects.filter(
-                id_venta_id=id_factura, 
-                id_producto=producto
-            )
-            
-            total_devueltos = sum(d.cantidad for d in devoluciones_previas)
-            
-            # Cantidad que resta por devolver
-            disponible = detalle.cantidad - total_devueltos
-
-            # El producto SOLO se listará si aún le quedan unidades disponibles para devolver
-            if disponible > 0:
-                productos.append({
-                    "id": producto.id_producto,
-                    "nombre": producto.nombre,
-                    "max_cantidad": disponible,  # Envía el tope real al JS
-                })
-    except Exception as e:
-        print(f"Error en obtener_productos: {str(e)}")
-        pass
-
-    return JsonResponse({"productos": productos})
-
-# =========================================================================
-# ⚙️ HELPERS / SINCRO DE PRODUCTOS
-# =========================================================================
-
-def obtener_productos(request, id_factura):
-    """
-    Devuelve en formato JSON los productos pertenecientes
-    a la factura seleccionada, permitiendo devoluciones parciales sucesivas
-    calculando correctamente el saldo disponible sobre la columna 'cantidad'.
-    """
-    productos = []
-    try:
-        detalles = (
-            DetalleVenta.objects
-            .filter(id_venta_id=id_factura)
-            .select_related("id_producto")
-        )
-
-        for detalle in detalles:
-            producto = detalle.id_producto
-            
-            devoluciones_previas = Devolucion.objects.filter(
-                id_venta_id=id_factura, 
-                id_producto=producto
-            )
-            
-            total_devueltos = sum(d.cantidad for d in devoluciones_previas)
-            disponible = detalle.cantidad - total_devueltos
-
-            if disponible > 0:
-                productos.append({
-                    "id": producto.id_producto,
-                    "nombre": producto.nombre,
-                    "max_cantidad": disponible,
-                })
-    except Exception as e:
-        print(f"Error en obtener_productos: {str(e)}")
-        pass
-
-    return JsonResponse({"productos": productos})
-
-
-# =========================================================================
-# 🏠 VISTA PRINCIPAL: REGISTRO Y VISTA EN NAVEGADOR DEL COMPROBANTE
-# =========================================================================
-
-def index(request):
-    buscar = request.GET.get("buscar", "")
-
-    devoluciones = (
-        Devolucion.objects
-        .select_related(
-            "id_producto",
-            "id_venta",
-            "id_venta__id_cliente",
-        )
-        .order_by("-id_devolucion")
-    )
-
-    if buscar:
-        devoluciones = devoluciones.filter(id_producto__nombre__icontains=buscar)
-
-    facturas = (
-        Venta.objects
-        .select_related("id_cliente")
-        .order_by("-id_venta")
-    )
-
-    if request.method == "POST":
-        fecha = request.POST.get("fecha")
-        plazo = request.POST.get("plazo")
-        condiciones = request.POST.get("condiciones")
-        id_producto = request.POST.get("id_producto")
-        id_factura = request.POST.get("id_factura")
-        cantidad_devolver = request.POST.get("cantidad")
-
-        if not all([fecha, plazo, condiciones, id_producto, id_factura, cantidad_devolver]):
-            return render(request, "devolucion/index.html", {
-                "error": "Todos los campos son obligatorios, incluida la cantidad.",
-                "devoluciones": devoluciones,
-                "facturas": facturas,
-                "today": timezone.now().date().isoformat(),
-            })
-
-        try:
-            plazo = int(plazo)
-            cantidad_devolver = int(cantidad_devolver)
-        except ValueError:
-            return render(request, "devolucion/index.html", {
-                "error": "El plazo y la cantidad deben ser valores numéricos.",
-                "devoluciones": devoluciones,
-                "facturas": facturas,
-                "today": timezone.now().date().isoformat(),
-            })
-
-        if plazo <= 0 or cantidad_devolver <= 0:
-            return render(request, "devolucion/index.html", {
-                "error": "El plazo y la cantidad deben ser mayores a 0.",
-                "devoluciones": devoluciones,
-                "facturas": facturas,
-                "today": timezone.now().date().isoformat(),
-            })
-
-        try:
-            fecha_ingresada = datetime.strptime(fecha, "%Y-%m-%d").date()
-            if fecha_ingresada < timezone.now().date():
-                raise ValueError()
-        except ValueError:
-            return render(request, "devolucion/index.html", {
-                "error": "Fecha inválida o anterior al día actual.",
-                "devoluciones": devoluciones,
-                "facturas": facturas,
-                "today": timezone.now().date().isoformat(),
-            })
-
-        try:
-            with transaction.atomic():
-                venta = Venta.objects.get(id_venta=id_factura)
-                producto = Producto.objects.get(id_producto=id_producto)
-
-                detalle_venta = DetalleVenta.objects.filter(
-                    id_venta=venta, 
-                    id_producto=producto
-                ).first()
-
-                if not detalle_venta:
-                    raise Exception("El producto no pertenece a la factura seleccionada.")
-
-                devoluciones_previas = Devolucion.objects.filter(
-                    id_venta=venta, 
-                    id_producto=producto
-                )
-                
-                total_devuelto_antes = sum(d.cantidad for d in devoluciones_previas)
-                cantidad_comprada = detalle_venta.cantidad
-                disponible_para_devolver = cantidad_comprada - total_devuelto_antes
-
-                if cantidad_devolver > disponible_para_devolver:
-                    raise Exception(
-                        f"No puedes devolver {cantidad_devolver} unidades. "
-                        f"Compró {cantidad_comprada} y ya devolvió {total_devuelto_antes}. "
-                        f"Máximo disponible: {disponible_para_devolver}."
-                    )
-
-                devolucion = Devolucion.objects.create(
-                    id_venta=venta,
-                    id_producto=producto,
-                    fecha=fecha_ingresada,
-                    plazo=plazo,
-                    condiciones=condiciones,
-                    estado="Aceptada",
-                    cantidad=cantidad_devolver
-                )
-
-                inventario = Inventario.objects.get(id_producto=producto)
-                inventario.stock_actual += cantidad_devolver
-                inventario.save()
-
-                id_usuario = request.session.get("id_usuario")
-                MovimientoInventario.objects.create(
-                    id_producto=producto,
-                    id_usuario_id=id_usuario,
-                    tipo_movimiento="ENTRADA",
-                    cantidad=cantidad_devolver,
-                    referencia=f"Devolución #{devolucion.id_devolucion}",
-                    fecha_movimiento=timezone.now(),
-                    observaciones=condiciones
-                )
-
                 # =========================================================================
-                # Cambiado a 'inline' para que el navegador lo visualice en pantalla
+                # 'inline' para que el navegador lo visualice en pantalla
                 # =========================================================================
                 response = HttpResponse(content_type='application/pdf')
                 response['Content-Disposition'] = f'inline; filename="Comprobante_Devolucion_{devolucion.id_devolucion}.pdf"'
@@ -438,7 +215,7 @@ def index(request):
                 pdf.showPage()
                 pdf.save()
 
-                # El respaldo en disco se mantiene exactamente igual (silencioso e independiente)
+                # El respaldo en disco se mantiene silencioso e independiente
                 try:
                     ruta_devoluciones = settings.SUBCARPETAS_FERRETERIA.get("Devoluciones")
                     if ruta_devoluciones:
@@ -486,7 +263,6 @@ def reporte_devoluciones_pdf(request):
         .order_by("-id_devolucion")
     )
 
-    # Cambiado a 'inline' también para el reporte completo
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = 'inline; filename="Reporte_Devoluciones.pdf"'
 

@@ -88,6 +88,7 @@ class Devolucion(models.Model):
     id_producto = models.ForeignKey('Producto', models.DO_NOTHING, db_column='id_producto', blank=True, null=True)
     id_factura = models.ForeignKey('FacturaCliente', models.DO_NOTHING, db_column='id_factura', blank=True, null=True)
     fecha = models.DateTimeField(blank=True, null=True)
+    cantidad = models.IntegerField(default=1)
     plazo = models.IntegerField(blank=True, null=True)
     condiciones = models.TextField(db_collation='Modern_Spanish_CI_AS', blank=True, null=True)  # This field type is a guess.
     restricciones = models.TextField(db_collation='Modern_Spanish_CI_AS', blank=True, null=True)  # This field type is a guess.
@@ -96,6 +97,31 @@ class Devolucion(models.Model):
     class Meta:
         managed = False
         db_table = 'devolucion'
+
+        # --- PROPIEDADES VIRTUALES (No tocan la Base de Datos) ---
+
+    @property
+    def precio_unitario_venta(self):
+        """
+        Busca el precio exacto al que se le vendió el producto al cliente
+        revisando la tabla DetalleVenta.
+        """
+        if self.id_venta and self.id_producto:
+            # Buscamos el detalle de la venta que coincida con esta venta y producto
+            detalle = DetalleVenta.objects.filter(
+                id_venta=self.id_venta, 
+                id_producto=self.id_producto
+            ).first()
+            if detalle:
+                return detalle.precio_unitario
+        
+        # Si por alguna razón no encuentra el detalle, usamos el precio actual del producto
+        return self.id_producto.precio_venta if self.id_producto else 0
+
+    @property
+    def total_reembolso_linea(self):
+        """Calcula automáticamente el dinero a devolver por este producto"""
+        return self.cantidad * self.precio_unitario_venta
 
 
 class FacturaCliente(models.Model):
@@ -168,6 +194,7 @@ class Producto(models.Model):
     precio_venta = models.DecimalField(max_digits=18, decimal_places=2, blank=True, null=True)
     unidad_medida = models.CharField(max_length=20, db_collation='Modern_Spanish_CI_AS', blank=True, null=True)
     fecha_creacion = models.DateTimeField(blank=True, null=True)
+    estado = models.BooleanField(default=True) # <--- NUEVO
 
     class Meta:
         managed = False
@@ -254,3 +281,21 @@ class Venta(models.Model):
     class Meta:
         managed = False
         db_table = 'venta'
+        
+class ProductoDanado(models.Model):
+    id_producto_danado = models.AutoField(primary_key=True)
+    id_devolucion = models.ForeignKey('Devolucion', models.DO_NOTHING, db_column='id_devolucion')
+    id_producto = models.ForeignKey('Producto', models.DO_NOTHING, db_column='id_producto')
+    id_usuario = models.ForeignKey('Usuario', models.DO_NOTHING, db_column='id_usuario', blank=True, null=True)
+    cantidad = models.IntegerField(default=1)
+    motivo_dano = models.TextField(db_collation='Modern_Spanish_CI_AS', blank=True, null=True)
+    estado_proceso = models.CharField(max_length=30, default='PENDIENTE', db_collation='Modern_Spanish_CI_AS')
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    observaciones = models.TextField(db_collation='Modern_Spanish_CI_AS', blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'producto_danado'
+
+    def __str__(self):
+        return f"Dañado: {self.id_producto.nombre} ({self.cantidad}) - Estado: {self.estado_proceso}"

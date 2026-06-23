@@ -12,6 +12,20 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# --- CONFIGURACIÓN DE CARPETAS FÍSICAS PARA DOCUMENTOS DE LA FERRETERÍA ---
+CARPETA_DOCUMENTOS_SISTEMA = BASE_DIR.parent / "Documentos_FerreteriaMicasa" 
+# CARPETA_DOCUMENTOS_SISTEMA = Path.home() / "Documents" / "Facturas_FerreteriaMicasa"
+
+SUBCARPETAS_FERRETERIA = {
+    "Compras": CARPETA_DOCUMENTOS_SISTEMA / "Compras",
+    "Ventas": CARPETA_DOCUMENTOS_SISTEMA / "Ventas",
+    "Devoluciones": CARPETA_DOCUMENTOS_SISTEMA / "Devoluciones",
+    "Inventarios": CARPETA_DOCUMENTOS_SISTEMA / "Inventarios",
+    "Reportes": CARPETA_DOCUMENTOS_SISTEMA / "Reportes",
+}
+
+
+
 SECRET_KEY = 'django-insecure-pk4&u7!fgugg!h58=52x+w4qg!w4+!j$j@+d5+mvo7)f)0b*e0'
 DEBUG = True
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
@@ -88,7 +102,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Managua'
 USE_I18N = True
 USE_TZ = True
 

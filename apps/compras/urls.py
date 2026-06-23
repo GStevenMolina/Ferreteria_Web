@@ -37,4 +37,7 @@ urlpatterns = [
     path("api/proveedor/actualizar/", views.api_proveedor_actualizar, name="api_proveedor_actualizar"),
     path("api/categoria/upsert/", views.api_categoria_upsert, name="api_categoria_upsert"),
     path("api/producto/crear/", views.api_producto_crear, name="api_producto_crear"),
+
+    # Generar Factura .pdf
+    path('factura/<int:factura_id>/pdf/', views.generar_factura_pdf, name='generar_factura_pdf'),
 ]

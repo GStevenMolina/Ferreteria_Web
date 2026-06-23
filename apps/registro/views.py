@@ -8,10 +8,11 @@ from reportlab.lib.styles import getSampleStyleSheet
 from django.contrib import messages
 from django.db import IntegrityError, transaction
 from django.db.models import Count
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.auth import login_required_custom
 from apps.core.models import Inventario, MovimientoInventario, Producto, Usuario
@@ -28,14 +29,12 @@ from .services import (
     sort_rows,
 )
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.http import JsonResponse
-from django.views.decorators.http import require_GET
-from django.views.decorators.http import require_POST
-from django.middleware.csrf import get_token
 import json
 
 
-# Funciones auxiliares privadas
+# =========================================================================
+# ⚙️ FUNCIONES AUXILIARES PRIVADAS
+# =========================================================================
 
 def _build_product_form(product=None):
     """Construye el formulario de producto con las categorías y proveedores disponibles."""
@@ -52,11 +51,7 @@ def _current_user(request):
 
 
 def _selected_product_from_request(request):
-    """
-    Extrae el producto seleccionado de los parámetros GET de la solicitud
-    (parámetros 'product' o 'producto_id').
-    Retorna el objeto Producto o None si no se encuentra.
-    """
+    """Extrae el producto seleccionado de los parámetros GET de la solicitud."""
     selected_id = (request.GET.get("product") or request.GET.get("producto_id") or "").strip()
     if not selected_id:
         return None
@@ -64,10 +59,7 @@ def _selected_product_from_request(request):
 
 
 def _parse_optional_date(request, key):
-    """
-    Lee y convierte a objeto date un parámetro GET opcional.
-    Devuelve None si el parámetro no existe o no es una fecha válida.
-    """
+    """Lee y convierte a objeto date un parámetro GET opcional."""
     raw = (request.GET.get(key) or "").strip()
     if not raw:
         return None
@@ -75,10 +67,7 @@ def _parse_optional_date(request, key):
 
 
 def _excel_safe_datetime(value):
-    """
-    Convierte un datetime con zona horaria a uno sin zona (naive) para que
-    openpyxl pueda escribirlo correctamente en una celda de Excel.
-    """
+    """Convierte un datetime con zona horaria a uno sin zona (naive) para reportes."""
     if not value:
         return ""
     if timezone.is_aware(value):
@@ -87,27 +76,31 @@ def _excel_safe_datetime(value):
     return value
 
 
-# Vista principal: listado y gestión de inventario
+# =========================================================================
+# 🏠 VISTA PRINCIPAL: LISTADO Y NAVEGACIÓN DEL INVENTARIO
+# =========================================================================
 
 @login_required_custom
 def index(request):
     """
-    Vista principal del registro de inventario.
-    - GET: muestra la tabla de productos con el formulario de edición y movimientos.
-    - POST: delega en _save_product, _delete_product o _save_movement según la acción enviada.
+    Vista principal del registro de inventario (GET).
+    Muestra la tabla general, KPIs superiores y prepara los formularios con soporte para filtros combinados.
     """
     if request.method == "POST":
         action = request.POST.get("action")
-        if action == "save_product":
-            return _save_product(request)
         if action == "delete_product":
             return _delete_product(request)
         if action == "save_movement":
             return _save_movement(request)
 
-    # Leer parámetros de búsqueda, filtro y ordenamiento desde la URL
+    # Leer parámetros de búsqueda, filtros avanzados y ordenamiento desde la URL
     query_text = (request.GET.get("q") or "").strip()
     category_id = (request.GET.get("category") or "").strip()
+    stock_range = (request.GET.get("stock_range") or "").strip()
+    provider_id = (request.GET.get("provider") or "").strip()
+    status_filter = (request.GET.get("status") or "").strip()
+    sort_key = (request.GET.get("sort") or "codigo").strip()
+    
     sort_key = (request.GET.get("sort") or "codigo").strip()
     per_page_raw = (request.GET.get("per_page") or "25").strip()
     try:
@@ -115,8 +108,14 @@ def index(request):
     except ValueError:
         per_page = 25
 
-    # Obtener y ordenar las filas del inventario según los filtros activos
-    queryset = inventory_queryset(query_text=query_text, category_id=category_id)
+    # Obtener y ordenar las filas del inventario usando la función con los 5 filtros aplicados
+    queryset = inventory_queryset(
+        query_text=query_text, 
+        category_id=category_id,
+        stock_range=stock_range,
+        provider_id=provider_id,
+        status_filter=status_filter
+    )
     rows = sort_rows(build_rows(queryset), sort_key)
     total_registros = len(rows)
     stock_bajo = sum(1 for row in rows if row["estado"] == "Bajo")
@@ -150,12 +149,14 @@ def index(request):
     product_form = _build_product_form(selected_product)
     movement_form = MovementForm()
 
-    categories = categories_and_providers()["categories"]
-    # Opciones para el datalist del campo de producto en el formulario de movimientos
+    catalogos = categories_and_providers()
+    categories = catalogos["categories"]
+    providers = catalogos["providers"]
     product_options = list(inventory_queryset().values("id_producto", "nombre"))
 
     context = {
         "categories": categories,
+        "providers": providers,
         "rows": rows_page.object_list,
         "page_obj": rows_page,
         "paginator": paginator,
@@ -165,6 +166,9 @@ def index(request):
         "movement_form": movement_form,
         "query_text": query_text,
         "category_id": category_id,
+        "stock_range": stock_range,
+        "provider_id": provider_id,
+        "status_filter": status_filter,
         "sort_key": sort_key,
         "total_registros": total_registros,
         "stock_bajo": stock_bajo,
@@ -177,11 +181,50 @@ def index(request):
     return render(request, "registro/index.html", context)
 
 
+# =========================================================================
+# 💾 ENDPOINTS API (AJAX / FETCH)
+# =========================================================================
+
+@login_required_custom
+def guardar_edicion_producto_api(request):
+    """Endpoint AJAX para procesar de forma segura la EDICIÓN de productos."""
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+
+    data_catalogos = categories_and_providers()
+    form = ProductForm(request.POST, categories=data_catalogos["categories"], providers=data_catalogos["providers"])
+    
+    if not form.is_valid():
+        return JsonResponse({"success": False, "errors": form.errors}, status=400)
+
+    clean_data = form.cleaned_data
+    try:
+        with transaction.atomic():
+            product = Producto.objects.select_for_update().get(pk=clean_data["product_id"])
+            product.nombre = clean_data["nombre"]
+            product.descripcion = clean_data["descripcion"]
+            product.id_categoria_id = clean_data["categoria"]
+            product.id_proveedor_id = clean_data["proveedor"] or None
+            product.precio_compra = clean_data["precio_compra"]
+            product.precio_venta = clean_data["precio_venta"]
+            product.unidad_medida = clean_data["unidad_medida"]
+            product.save()
+
+            inventario, _ = Inventario.objects.get_or_create(id_producto=product)
+            inventario.stock_minimo = clean_data["stock_minimo"]
+            inventario.fecha_actualizacion = timezone.now()
+            inventario.save()
+
+        return JsonResponse({"success": True, "message": "Producto modificado con éxito."})
+    except Producto.DoesNotExist:
+        return JsonResponse({"success": False, "error": "El producto seleccionado no existe en el sistema."}, status=404)
+    except Exception as e:
+        return JsonResponse({"success": False, "error": f"Error crítico de base de datos: {str(e)}"}, status=500)
+
+
 @require_GET
 def autocomplete_products(request):
-    """API simple que devuelve sugerencias de productos para autocompletar.
-    Parámetro: `q` texto de búsqueda (min 1 caracter). Devuelve JSON list de objetos {id_producto, nombre}.
-    """
+    """API simple que devuelve sugerencias de productos para el datalist."""
     q = (request.GET.get('q') or '').strip()
     if not q:
         return JsonResponse([], safe=False)
@@ -190,135 +233,80 @@ def autocomplete_products(request):
     suggestions = list(qs.values('id_producto', 'nombre')[:12])
     return JsonResponse(suggestions, safe=False)
 
-
 @require_POST
 @login_required_custom
 def quick_update_product(request):
-    """API para actualizar rápidamente campos editables de un producto.
-    PROTEGIDA CON AUTENTICACIÓN. Espera JSON:
-    { "id_producto": "123", "precio_venta": "12.5", "stock_minimo": 5 }
-    Retorna JSON con los campos actualizados o error.
     """
-    # Validar token CSRF desde header (requerido para AJAX POST)
-    from django.middleware.csrf import CsrfViewMiddleware
-    csrf_middleware = CsrfViewMiddleware(lambda r: None)
+    API asíncrona optimizada para modificar la información completa 
+    de un artículo directamente desde la interfaz de inventario.
+    """
     try:
-        csrf_middleware.process_request(request)
-    except Exception:
-        return JsonResponse({'error': 'CSRF validation failed'}, status=403)
+        data = json.loads(request.body)
+        id_producto = data.get('id_producto')
+        
+        if not id_producto:
+            return JsonResponse({'ok': False, 'error': 'El código identificador del producto es requerido.'})
+            
+        producto = Producto.objects.filter(id_producto=id_producto).first()
+        if not producto:
+            return JsonResponse({'ok': False, 'error': 'El artículo seleccionado no existe en el sistema.'})
 
-    try:
-        data = json.loads(request.body.decode('utf-8'))
-    except (ValueError, UnicodeDecodeError):
-        return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+        # Capturar el set extendido de datos
+        nombre = data.get('nombre')
+        id_categoria = data.get('id_categoria')
+        id_proveedor = data.get('id_proveedor')
+        unidad_medida = data.get('unidad_medida')
+        estado = data.get('estado')
+        precio_compra = data.get('precio_compra')
+        precio_venta = data.get('precio_venta')
+        stock_actual = data.get('stock_actual')
+        stock_minimo = data.get('stock_minimo')
 
-    prod_id = str(data.get('id_producto', '')).strip()
-    if not prod_id or len(prod_id) > 20:
-        return JsonResponse({'error': 'id_producto invalid'}, status=400)
-
-    product = Producto.objects.filter(id_producto=prod_id).first()
-    if not product:
-        return JsonResponse({'error': 'Product not found'}, status=404)
-
-    updated = {}
-    try:
         with transaction.atomic():
-            # Validar y actualizar nombre (máx 100 caracteres)
-            if 'nombre' in data:
-                nombre = str(data['nombre']).strip()[:100]
-                if not nombre:
-                    return JsonResponse({'error': 'nombre cannot be empty'}, status=400)
-                product.nombre = nombre
-                updated['nombre'] = product.nombre
+            if nombre:
+                producto.nombre = nombre.strip()
+            if unidad_medida:
+                producto.unidad_medida = unidad_medida
+            if estado:
+                # Almacena el booleano correspondiente a 'activo' en minúsculas
+                producto.estado = (estado == 'activo')
+                
+            # Asignación numérica con validación de tipo básica
+            if precio_compra is not None:
+                producto.precio_compra = float(precio_compra)
+            if precio_venta is not None:
+                producto.precio_venta = float(precio_venta)
+            if stock_actual is not None:
+                producto.stock_actual = int(stock_actual)
 
-            # Validar y actualizar precio_venta (0.01 a 999999.99)
-            if 'precio_venta' in data:
-                try:
-                    precio = float(data['precio_venta'])
-                    if not (0.01 <= precio <= 999999.99):
-                        return JsonResponse({'error': 'precio_venta must be between 0.01 and 999999.99'}, status=400)
-                    product.precio_venta = precio
-                    updated['precio_venta'] = product.precio_venta
-                except (ValueError, TypeError):
-                    return JsonResponse({'error': 'precio_venta must be numeric'}, status=400)
+            # Asignación segura de llaves extranjeras (Categoría y Proveedor)
+            if id_categoria:
+                producto.id_categoria_id = int(id_categoria)
+            if id_proveedor:
+                producto.id_proveedor_id = int(id_proveedor)
 
-            product.save()
+            producto.save()
 
-            # Validar y actualizar stock_minimo (0 a 1000000)
-            inv, _ = Inventario.objects.get_or_create(id_producto=product)
-            if 'stock_minimo' in data:
-                try:
-                    stock_min = int(data['stock_minimo'])
-                    if not (0 <= stock_min <= 1000000):
-                        return JsonResponse({'error': 'stock_minimo must be between 0 and 1000000'}, status=400)
-                    inv.stock_minimo = stock_min
-                    updated['stock_minimo'] = inv.stock_minimo
-                except (ValueError, TypeError):
-                    return JsonResponse({'error': 'stock_minimo must be integer'}, status=400)
+            # 🔥 CORRECCIÓN AQUÍ: Guardar el Stock Mínimo en la tabla relacionada Inventario
+            if stock_minimo is not None:
+                inventario, _ = Inventario.objects.get_or_create(id_producto=producto)
+                inventario.stock_minimo = int(stock_minimo)
+                inventario.fecha_actualizacion = timezone.now()
+                inventario.save()
 
-            inv.save()
+        return JsonResponse({'ok': True})
 
-        return JsonResponse({'ok': True, 'updated': updated})
-    except Exception as exc:
-        return JsonResponse({'error': 'Server error'}, status=500)
-
-
-# Acciones POST del inventario
-
-def _save_product(request):
-    """
-    Crea o actualiza un producto junto con su registro de inventario.
-    Si el formulario es inválido, muestra los errores al usuario.
-    Usa transacción atómica para garantizar consistencia entre Producto e Inventario.
-    """
-    data = categories_and_providers()
-    categories = data["categories"]
-    providers = data["providers"]
-    form = ProductForm(request.POST, categories=categories, providers=providers)
-    if not form.is_valid():
-        messages.error(request, "Revisa los campos del producto antes de guardar.")
-        return _render_with_form(request, product_form=form)
-
-    data = form.cleaned_data
-    try:
-        with transaction.atomic():
-            # Actualizar producto existente o crear uno nuevo según product_id
-            if data["product_id"]:
-                product = Producto.objects.select_for_update().get(pk=data["product_id"])
-            else:
-                product = Producto()
-            product.nombre = data["nombre"]
-            product.descripcion = data["descripcion"]
-            product.id_categoria_id = data["categoria"]
-            product.id_proveedor_id = data["proveedor"] or None
-            product.precio_compra = data["precio_compra"]
-            product.precio_venta = data["precio_venta"]
-            product.unidad_medida = data["unidad_medida"]
-            # Asignar fecha de creación solo si es un producto nuevo
-            if not product.fecha_creacion:
-                product.fecha_creacion = timezone.now()
-            product.save()
-
-            # Crear o recuperar el registro de inventario asociado al producto
-            inventario, _ = Inventario.objects.get_or_create(id_producto=product)
-            inventario.stock_minimo = data["stock_minimo"]
-            if inventario.stock_actual is None:
-                inventario.stock_actual = 0
-            inventario.fecha_actualizacion = timezone.now()
-            inventario.save()
-
-        messages.success(request, "Producto guardado correctamente.")
-        return redirect(f"{request.path}?product={product.id_producto}")
-    except IntegrityError as exc:
-        messages.error(request, f"No se pudo guardar el producto: {exc}")
-        return _render_with_form(request, product_form=form)
-
+    except json.JSONDecodeError:
+        return JsonResponse({'ok': False, 'error': 'Formato JSON corrupto o inválido.'})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)})
+        
+# =========================================================================
+# 🚫 ACCIONES TRADICIONALES POST
+# =========================================================================
 
 def _delete_product(request):
-    """
-    Elimina un producto y todos sus datos relacionados (inventario y movimientos).
-    Usa transacción atómica para evitar inconsistencias si algún paso falla.
-    """
+    """Elimina un producto y todos sus datos relacionados."""
     product_id = (request.POST.get("product_id") or "").strip()
     if not product_id:
         messages.error(request, "Selecciona un producto para eliminar.")
@@ -327,24 +315,19 @@ def _delete_product(request):
     try:
         with transaction.atomic():
             product = Producto.objects.select_for_update().get(pk=product_id)
-            # Eliminar inventario y movimientos antes de borrar el producto
             Inventario.objects.filter(id_producto=product).delete()
             MovimientoInventario.objects.filter(id_producto=product).delete()
             product.delete()
-        messages.success(request, "Producto eliminado correctamente.")
+        messages.success(request, "Producto eliminado correctamente del almacén.")
     except Producto.DoesNotExist:
         messages.error(request, "El producto ya no existe.")
     except IntegrityError:
-        messages.error(request, "No se pudo eliminar porque el producto ya tiene referencias en otras tablas.")
+        messages.error(request, "No se puede eliminar: existen facturas o registros amarrados a este artículo.")
     return redirect(request.path)
 
 
 def _save_movement(request):
-    """
-    Registra un movimiento de inventario (entrada, salida o ajuste) y actualiza el stock.
-    El stock no puede quedar negativo; si lo haría, se lanza un ValueError y se informa al usuario.
-    Usa transacción atómica con bloqueo select_for_update para evitar condiciones de carrera.
-    """
+    """Registra ajustes manuales de stock, auditando entradas o salidas."""
     form = MovementForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Revisa los campos del movimiento antes de guardar.")
@@ -356,7 +339,6 @@ def _save_movement(request):
         messages.error(request, "No se pudo identificar el producto del movimiento.")
         return _render_with_form(request, movement_form=form)
 
-    # Determinar el delta de stock: positivo para entradas, negativo para salidas
     delta = data["cantidad"]
     if data["tipo_movimiento"] in {"salida", "ajuste_salida"}:
         delta = -delta
@@ -366,16 +348,14 @@ def _save_movement(request):
             inventario, _ = Inventario.objects.select_for_update().get_or_create(id_producto=product)
             actual = inventario.stock_actual or 0
             nuevo = actual + delta
-            # Validar que el stock resultante no sea negativo
             if nuevo < 0:
-                raise ValueError("El stock no puede quedar en negativo.")
+                raise ValueError("Operación denegada: El stock resultante no puede quedar en negativo.")
             inventario.stock_actual = nuevo
             if inventario.stock_minimo is None:
                 inventario.stock_minimo = 0
             inventario.fecha_actualizacion = timezone.now()
             inventario.save()
 
-            # Crear el registro del movimiento para auditoría
             MovimientoInventario.objects.create(
                 id_producto=product,
                 id_usuario=_current_user(request),
@@ -385,7 +365,7 @@ def _save_movement(request):
                 fecha_movimiento=timezone.now(),
                 observaciones=data["observacion"],
             )
-        messages.success(request, "Movimiento registrado correctamente.")
+        messages.success(request, "Movimiento de stock registrado de manera exitosa.")
         return redirect(f"{request.path}?product={product.id_producto}")
     except ValueError as exc:
         messages.error(request, str(exc))
@@ -395,29 +375,20 @@ def _save_movement(request):
 
 
 def _resolve_product_from_label(label):
-    """
-    Resuelve un producto a partir del valor del campo de texto del datalist.
-    El valor puede tener el formato "id | nombre" o solo el nombre.
-    Retorna el objeto Producto o None si no se encuentra.
-    """
+    """Resuelve un producto a partir de la etiqueta proveniente de la interfaz."""
     raw = (label or "").strip()
     if not raw:
         return None
-    # Intentar extraer el ID numérico del formato "id | nombre"
     token = raw.split("|")[0].strip()
     try:
         product_id = int(token)
     except ValueError:
-        # Si no es numérico, buscar por nombre exacto (sin distinguir mayúsculas)
         return Producto.objects.filter(nombre__iexact=raw).first()
     return Producto.objects.filter(id_producto=product_id).first()
 
 
 def _render_with_form(request, product_form=None, movement_form=None):
-    """
-    Reconstruye el contexto completo y renderiza la vista de registro con los formularios
-    actuales (útil tras un POST fallido para conservar los datos introducidos por el usuario).
-    """
+    """Re-renderizador auxiliar utilizado en fallos de envíos tradicionales POST."""
     query_text = (request.GET.get("q") or "").strip()
     category_id = (request.GET.get("category") or "").strip()
     sort_key = (request.GET.get("sort") or "codigo").strip()
@@ -453,27 +424,181 @@ def _render_with_form(request, product_form=None, movement_form=None):
     }
     return render(request, "registro/index.html", context)
 
+@login_required_custom
+def exportar_inventario_pdf(request):
+    """
+    Genera un reporte PDF específico con la lista de productos y sus existencias actuales.
+    - Aplica filtros avanzados: búsqueda por texto, categoría, rango de stock, proveedor y estado.
+    - Se abre 'inline' en una pestaña nueva del navegador.
+    - Guarda automáticamente una copia física de respaldo en el servidor.
+    """
+    # 1. Capturar los filtros activos de la tabla de inventario enviados por la barra de herramientas
+    query_text = (request.GET.get("q") or "").strip()[:100]
+    category_id = (request.GET.get("category") or "").strip()
+    
+    # Nuevos parámetros avanzados capturados
+    stock_range = (request.GET.get("stock_range") or "").strip()
+    provider_id = (request.GET.get("provider") or "").strip()
+    status_filter = (request.GET.get("status") or "").strip()
+    
+    sort_key = (request.GET.get("sort") or "codigo").strip()
 
-# Vista de exportación a Excel
+    # 2. Obtener y ordenar los datos usando los servicios avanzados existentes (Con soporte para los 5 filtros)
+    queryset = inventory_queryset(
+        query_text=query_text, 
+        category_id=category_id,
+        stock_range=stock_range,
+        provider_id=provider_id,
+        status_filter=status_filter
+    )
+    rows = sort_rows(build_rows(queryset), sort_key)
+
+    # 3. Preparar el documento PDF en memoria
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=18, leftMargin=18, topMargin=18, bottomMargin=18)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    logo_path = os.path.join(settings.BASE_DIR, "static", "assets", "Ferreteria.png")
+    now_local = timezone.localtime(timezone.now())
+    report_number = f"INV-{now_local.strftime('%Y%m%d-%H%M%S')}"
+
+    if os.path.exists(logo_path):
+        logo_cell = Image(logo_path, width=150, height=78)
+    else:
+        logo_cell = Paragraph("<b>FERRETERIA<br/>MI CASA</b>", styles["Heading1"])
+
+    report_box = Table([
+        [Paragraph(f"<b>REPORTE N°: {report_number}</b>", styles["BodyText"])],
+        [Paragraph(f"<b>FECHA: {now_local.strftime('%d/%m/%Y')}</b>", styles["BodyText"])],
+    ], colWidths=[170])
+    report_box.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 1, colors.black),
+        ("INNERGRID", (0, 0), (-1, -1), 1, colors.black),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+
+    elements.append(Table([
+        [logo_cell, report_box],
+    ], colWidths=[doc.width - 190, 190], style=TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ])))
+    elements.append(Spacer(1, 10))
+
+    # Bloque de información general y metadatos de los filtros aplicados
+    info_table = Table([
+        [
+            Paragraph("<b>DATOS DE LA EMPRESA</b>", styles["Heading3"]),
+            Paragraph("<b>FILTROS DEL INVENTARIO</b>", styles["Heading3"])
+        ],
+        [
+            Paragraph("Dirección: Granada Diriomo, de la entrada principal de Diriomo una cuadra al Norte a mano izquierda", styles["BodyText"]),
+            Paragraph(f"Búsqueda activa: {query_text or 'Ninguna (Todos)'}<br/>Categoría ID: {category_id or 'Todas'}<br/>Rango Stock: {stock_range or 'Todos'}", styles["BodyText"]),
+        ],
+        [
+            Paragraph("Teléfono: +505 8765-4321", styles["BodyText"]),
+            Paragraph(f"Proveedor ID: {provider_id or 'Todos'}<br/>Estado: {status_filter or 'Todos'}<br/>Ordenado por: {sort_key}", styles["BodyText"]),
+        ],
+        [
+            Paragraph("Email: admin.ferreteria@gmail.com", styles["BodyText"]),
+            Paragraph(f"<b>Total registros exportados: {len(rows)} artículos</b>", styles["BodyText"]),
+        ],
+    ], colWidths=[doc.width / 2, doc.width / 2])
+    info_table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(info_table)
+    elements.append(Spacer(1, 10))
+
+    elements.append(Paragraph("<b>Existencias y Precios Actuales en Almacén</b>", styles["Heading2"]))
+    elements.append(Spacer(1, 6))
+
+    # 4. Estructurar la Tabla con las columnas del Inventario (Mapeando Proveedor en lugar del Stock Mínimo)
+    headers = ["Código", "Descripción / Producto", "Categoría", "U. Medida", "P. Compra", "P. Venta", "Stock Act.", "Proveedor", "Estado"]
+    table_data = [headers]
+
+    for r in rows:
+        table_data.append([
+            Paragraph(str(r["codigo"]), styles["BodyText"]),
+            Paragraph(str(r["nombre"]), styles["BodyText"]),
+            Paragraph(str(r["categoria"]), styles["BodyText"]),
+            Paragraph(str(r["unidad_medida"]), styles["BodyText"]),
+            Paragraph(f"C$ {r['precio_compra']:.2f}", styles["BodyText"]),
+            Paragraph(f"C$ {r['precio_venta']:.2f}", styles["BodyText"]),
+            Paragraph(str(r["stock_actual"]), styles["BodyText"]),
+            Paragraph(str(r["proveedor"] or "Sin Proveedor"), styles["BodyText"]),
+            Paragraph(str(r["estado"]), styles["BodyText"]),
+        ])
+
+    # Anchos de columna balanceados (Total: 806px de margen a margen en hoja A4 horizontal)
+    inv_table = Table(
+        table_data,
+        repeatRows=1,
+        colWidths=[55, 185, 105, 55, 65, 65, 55, 165, 56]
+    )
+    inv_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0B4EA2")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("FONTSIZE", (0, 0), (-1, 0), 8),
+        ("LEADING", (0, 0), (-1, -1), 9),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(inv_table)
+    
+    # Construir PDF en memoria
+    doc.build(elements)
+    pdf_content = buffer.getvalue()
+    buffer.close()
+
+    # 5. Guardado físico automático de la copia de respaldo en la carpeta local
+    try:
+        ruta_destino = settings.SUBCARPETAS_FERRETERIA.get("Inventarios") or settings.SUBCARPETAS_FERRETERIA.get("Inventario")
+        if ruta_destino:
+            timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+            nombre_archivo = f"Reporte_Inventario_Stock_{timestamp}.pdf"
+            ruta_completa = os.path.join(ruta_destino, nombre_archivo)
+            
+            with open(ruta_completa, "wb") as f_local:
+                f_local.write(pdf_content)
+            print(f"[RESPALDO] Inventario guardado en: {ruta_completa}")
+    except Exception as e:
+        print(f"[ALERTA RESPALDO] No se guardó copia local del inventario: {e}")
+
+    # 6. Responder al navegador para abrir inline en pestaña nueva
+    response = HttpResponse(pdf_content, content_type="application/pdf")
+    response["Content-Disposition"] = 'inline; filename="inventario_general.pdf"'
+    return response
+
+# =========================================================================
+# 📊 GENERACIÓN DE REPORTES
+# =========================================================================
 
 @login_required_custom
 def export_excel(request):
-    """
-    Genera y descarga un archivo PDF con dos secciones:
-      - 'Inventario': listado completo de productos con su estado de stock.
-      - 'Movimientos': hasta 200 movimientos filtrados por producto, tipo y fechas.
-    PROTEGIDA: solo usuarios autenticados pueden exportar.
-    Nota: la URL y el nombre de la vista se mantienen para compatibilidad; el contenido
-    devuelto ahora es PDF y el archivo se nombra con extensión .pdf.
-    """
-    # Validar y sanitizar parámetros GET
-    query_text = (request.GET.get("q") or "").strip()[:100]  # Máx 100 caracteres
+    """Genera un reporte PDF de los movimientos de almacén."""
+    query_text = (request.GET.get("q") or "").strip()[:100]
     category_id = (request.GET.get("category") or "").strip()
     product_id = (request.GET.get("product") or "").strip()
     movement_type = (request.GET.get("movement_type") or "").strip()
     start_date = _parse_optional_date(request, "from")
     end_date = _parse_optional_date(request, "to")
-    # Obtener movimientos filtrados y construir sólo la sección de Movimientos
+    
     movements = report_kpis(
         product_id=product_id,
         movement_type=movement_type,
@@ -484,12 +609,10 @@ def export_excel(request):
     )["movements"]
 
     buffer = BytesIO()
-    # Usar A4 apaisado para dar más espacio horizontal a la tabla
     doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=18, leftMargin=18, topMargin=18, bottomMargin=18)
     styles = getSampleStyleSheet()
     elements = []
 
-    # Cabecera con estilo similar al PDF de ventas
     logo_path = os.path.join(settings.BASE_DIR, "static", "assets", "Ferreteria.png")
     now_local = timezone.localtime(timezone.now())
     report_number = f"REP-{now_local.strftime('%Y%m%d-%H%M%S')}"
@@ -596,26 +719,30 @@ def export_excel(request):
     ]))
     elements.append(mov_table)
 
-    # Construir PDF en memoria
     doc.build(elements)
-    buffer.seek(0)
-    response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
-    response["Content-Disposition"] = 'attachment; filename="movimientos_ferreteria.pdf"'
+    pdf_content = buffer.getvalue()
+    buffer.close()
+
+    try:
+        ruta_destino = settings.SUBCARPETAS_FERRETERIA.get("Inventario") or settings.SUBCARPETAS_FERRETERIA.get("Reportes")
+        if ruta_destino:
+            timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+            nombre_archivo_fisico = f"Reporte_Movimientos_{timestamp}.pdf"
+            ruta_completa = os.path.join(ruta_destino, nombre_archivo_fisico)
+            with open(ruta_completa, "wb") as f_local:
+                f_local.write(pdf_content)
+    except Exception as e:
+        print(f"[ALERTA RESPALDO] Copia local no escrita: {e}")
+
+    response = HttpResponse(pdf_content, content_type="application/pdf")
+    response["Content-Disposition"] = 'inline; filename="movimientos_ferreteria.pdf"'
     return response
 
 
-# Vista de reportes de inventario
-
 @login_required_custom
 def reportes(request):
-    """
-    Vista de reportes del inventario.
-    Muestra KPIs de stock, un resumen estadístico y el historial de movimientos
-    filtrable por producto, tipo de movimiento y rango de fechas.
-    PROTEGIDA: solo usuarios autenticados pueden ver reportes.
-    """
-    # Validar y sanitizar parámetros GET
-    query_text = (request.GET.get("q") or "").strip()[:100]  # Máx 100 caracteres
+    """Vista de estadísticas, KPIs macro de existencias y flujos de almacén."""
+    query_text = (request.GET.get("q") or "").strip()[:100]
     category_id = (request.GET.get("category") or "").strip()
     product_id = (request.GET.get("product") or "").strip()
     movement_type = (request.GET.get("movement_type") or "").strip()
@@ -631,11 +758,10 @@ def reportes(request):
     if product_id:
         inv_qs = inv_qs.filter(id_producto=product_id)
     rows = sort_rows(build_rows(inv_qs), "codigo")
-    # Resumen con totales de productos por estado de stock
     summary = report_summary(inventory_queryset(query_text=query_text, category_id=category_id))
-    # KPIs: total de entradas, salidas y conteo de movimientos en el período filtrado
     kpis = report_kpis(product_id=product_id, movement_type=movement_type, start_date=start_date, end_date=end_date, query_text=query_text, category_id=category_id)
     movements_queryset = kpis["movements"]
+    
     paginator = Paginator(movements_queryset, per_page)
     page = request.GET.get("page", 1)
     try:

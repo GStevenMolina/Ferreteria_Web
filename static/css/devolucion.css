@@ -293,3 +293,57 @@ tbody td {
         justify-content: center; /* Centra el texto del botón en móviles */
     }
 }
+/* Corrección para el contenedor que se veía blanco */
+.seccion-selector-producto {
+    background-color: #202b3e !important; /* Azul oscuro que combina con tus tarjetas */
+    border: 1px dashed #3d4d6c !important; /* Borde sutil desvanecido */
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+/* Forzar a que los textos de esta sección sean visibles en tu modo oscuro */
+.seccion-selector-producto h4 {
+    color: #ffffff !important;
+    margin-top: 0;
+}
+
+.seccion-selector-producto label {
+    color: #cbd5e1 !important; /* Gris claro para los labels */
+}
+
+.seccion-selector-producto .helper-text {
+    color: #94a3b8 !important; /* Gris suave para el texto de ayuda */
+}
+/* Corrección para la tabla "Artículos a Devolver" y sus celdas */
+.sub-tabla-preparacion {
+    background-color: #1d2839 !important; /* Fondo oscuro para la estructura */
+    border: 1px solid #3d4d6c !important;
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+/* Encabezados de la tabla (Producto, Cant, etc.) */
+.sub-tabla-preparacion th {
+    background-color: #2a364f !important; /* Mismo color gris-azul de tus inputs */
+    color: #ffffff !important; /* Texto blanco */
+    padding: 10px !important;
+    text-align: left;
+    border-bottom: 2px solid #3d4d6c !important;
+}
+
+/* Celdas donde aparecen los productos agregados */
+.sub-tabla-preparacion td {
+    background-color: #1d2839 !important; /* Fondo oscuro para las filas */
+    color: #e2e8f0 !important; /* Texto claro */
+    padding: 10px !important;
+    border-bottom: 1px solid #2a364f !important;
+}
+
+/* El texto de aviso "Ningún producto añadido todavía" */
+#fila-vacia-lista td {
+    color: #94a3b8 !important; /* Gris suave */
+    background-color: #1d2839 !important;
+}

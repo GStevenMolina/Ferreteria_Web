@@ -125,11 +125,22 @@ def index(request):
         "Inactivos": clientes_inactivos,
     }
 
+    clientes_activos_lista = [
+        c for c in clientes
+        if (getattr(c, "estado", "") or "").strip() == "Activo"
+    ]
+    clientes_inactivos_lista = [
+        c for c in clientes
+        if (getattr(c, "estado", "") or "").strip() == "Inactivo"
+    ]
+
     # ==========================================
     # CONTEXTO
     # ==========================================
     context = {
         "clientes": clientes,
+        "clientes_activos_lista": clientes_activos_lista,
+        "clientes_inactivos_lista": clientes_inactivos_lista,
 
         "total_clientes": total_clientes,
         "clientes_activos": clientes_activos,

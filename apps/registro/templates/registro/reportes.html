@@ -15,8 +15,10 @@
       <p class="page-subtitle">Filtra movimientos, revisa indicadores y exporta la información para análisis externo.</p>
     </div>
     <div class="inventory-topbar__actions">
-      <a class="action-btn action-btn--soft" href="{% url 'registro:index' %}">Volver a registro</a>
-      <a class="action-btn action-btn--primary" href="{% url 'registro:export_excel' %}?q={{ query_text|urlencode }}&category={{ category_id|urlencode }}&product={{ product_id|urlencode }}&movement_type={{ movement_type|urlencode }}&from={{ start_date|urlencode }}&to={{ end_date|urlencode }}">Exportar PDF</a>
+      <a class="action-btn action-btn--soft" href="{% url 'registro:index' %}">Volver a Inventario</a>
+      <a class="action-btn action-btn--primary" target="_blank" href="{% url 'registro:export_excel' %}?q=
+      {{ query_text|urlencode }}&category={{ category_id|urlencode }}&product={{ product_id|urlencode }}&movement_type=
+      {{ movement_type|urlencode }}&from={{ start_date|urlencode }}&to={{ end_date|urlencode }}">Exportar PDF</a>
     </div>
   </section>
 
@@ -101,9 +103,23 @@
           <tbody>
             {% for movement in movements %}
               <tr>
-                <td>{{ movement.fecha_movimiento }}</td>
+                <td>{{ movement.fecha_movimiento|date:"d/m/Y h:i a" }}</td>
                 <td>{{ movement.id_producto.nombre }}</td>
-                <td><span class="status-badge status-badge--{{ movement.tipo_movimiento|lower }}">{{ movement.tipo_movimiento }}</span></td>
+                <td>
+                  {% if movement.tipo_movimiento == 'ENTRADA' %}
+                    <span class="status-badge status-badge--entrada">
+                      {{ movement.tipo_movimiento }}
+                    </span>
+                  {% elif movement.tipo_movimiento == 'SALIDA_POR_DAÑO' %}
+                    <span class="status-badge status-badge--salida_por_daño">
+                      {{ movement.tipo_movimiento }}
+                    </span>
+                  {% else %}
+                    <span class="status-badge status-badge--{{ movement.tipo_movimiento|lower }}">
+                      {{ movement.tipo_movimiento }}
+                    </span>
+                  {% endif %}
+                </td>
                 <td>{{ movement.cantidad }}</td>
                 <td>{{ movement.id_usuario.nombre|default:"Sistema" }}</td>
                 <td>{{ movement.observaciones|default:"Sin observaciones" }}</td>

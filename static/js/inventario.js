@@ -1,240 +1,167 @@
-// Módulo principal del inventario: gestiona la interacción de la página de registro de inventario.
-// Se ejecuta en un IIFE para no contaminar el ámbito global.
+// Módulo de Inventario - Ventana Flotante y Filtros Unificado
 (function () {
-  // Verificar que la página de inventario existe antes de ejecutar cualquier lógica
-  const page = document.querySelector('.inventory-page');
-  if (!page) return;
-
-  // Referencias a los elementos de búsqueda y filtro de la barra de herramientas
-  const searchBox = document.getElementById('searchBox');
-  const categoryFilter = document.getElementById('categoryFilter');
-  const sortFilter = document.getElementById('sortFilter');
-  const perPageSelect = document.getElementById('perPageSelect');
-
-  // Lista de filas de la tabla de inventario
-  const rows = Array.from(document.querySelectorAll('.inventory-row'));
-
-  // Intenta analizar el JSON del atributo data-product de cada fila;
-  // devuelve un objeto vacío si el valor es inválido o nulo
-  function safeParse(raw) {
-    try {
-      return JSON.parse(raw || '{}');
-    } catch (error) {
-      return {};
-    }
-  }
-
-  // Filtra las filas de la tabla según el texto de búsqueda y la categoría seleccionada
-  function filterRows() {
-    const term = (searchBox?.value || '').toLowerCase().trim();
-    const category = categoryFilter?.value || '';
-
-    rows.forEach((row) => {
-      const data = safeParse(row.dataset.product);
-      // Comparar la categoría del producto con el filtro activo
-      const matchesCategory = !category || String(data.categoria || '') === String(category);
-      // Buscar el término en el código y el nombre del producto
-      const haystack = [data.codigo, data.nombre].join(' ').toLowerCase();
-      const matchesTerm = !term || haystack.includes(term);
-      // Mostrar u ocultar la fila según ambas condiciones
-      row.style.display = matchesCategory && matchesTerm ? '' : 'none';
-    });
-  }
-
-  // Debounced autocomplete for search box (updates datalist)
-  let acTimeout = null;
-  const acUrl = searchBox?.dataset.autocompleteUrl;
-  const datalist = document.getElementById('search-suggestions');
-  const suggestionsBox = document.getElementById('searchSuggestions');
-  let suggestionIndex = -1;
-
-  function updateDatalist(items) {
-    if (!datalist) return;
-    datalist.innerHTML = '';
-    items.forEach((it) => {
-      const option = document.createElement('option');
-      option.value = `${it.id_producto} | ${it.nombre}`;
-      datalist.appendChild(option);
-    });
-  }
-
-  function renderSuggestions(items) {
-    if (!suggestionsBox) return;
-    suggestionsBox.innerHTML = '';
-    if (!items || items.length === 0) {
-      suggestionsBox.style.display = 'none';
-      suggestionIndex = -1;
-      return;
-    }
-    items.forEach((it, i) => {
-      const el = document.createElement('div');
-      el.className = 'search-suggestions__item';
-      el.setAttribute('role', 'option');
-      el.dataset.value = `${it.id_producto} | ${it.nombre}`;
-      el.dataset.id = it.id_producto;
-      el.innerText = `${it.id_producto} | ${it.nombre}`;
-      el.addEventListener('click', () => {
-        searchBox.value = el.dataset.value;
-        suggestionsBox.style.display = 'none';
-        const frm = searchBox.closest('form');
-        if (frm) frm.requestSubmit();
-      });
-      suggestionsBox.appendChild(el);
-    });
-    suggestionsBox.style.display = 'block';
-    suggestionIndex = -1;
-  }
-
-  searchBox?.addEventListener('input', (e) => {
-    // keep client-side filtering too
-    filterRows();
-    const q = (e.target.value || '').trim();
-    if (!acUrl) return;
-    if (acTimeout) clearTimeout(acTimeout);
-    if (q.length < 2) {
-      updateDatalist([]);
-      return;
-    }
-    acTimeout = setTimeout(() => {
-      fetch(`${acUrl}?q=${encodeURIComponent(q)}`)
-        .then((r) => r.json())
-        .then((data) => { updateDatalist(data); renderSuggestions(data); })
-        .catch(() => {});
-    }, 220);
-  });
-
-  // Keyboard navigation for suggestions
-  searchBox?.addEventListener('keydown', (e) => {
-    if (!suggestionsBox || suggestionsBox.style.display === 'none') return;
-    const items = Array.from(suggestionsBox.children);
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      suggestionIndex = Math.min(suggestionIndex + 1, items.length - 1);
-      items.forEach((it, idx) => it.classList.toggle('is-active', idx === suggestionIndex));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      suggestionIndex = Math.max(suggestionIndex - 1, 0);
-      items.forEach((it, idx) => it.classList.toggle('is-active', idx === suggestionIndex));
-    } else if (e.key === 'Enter') {
-      if (suggestionIndex >= 0 && items[suggestionIndex]) {
-        e.preventDefault();
-        const el = items[suggestionIndex];
-        searchBox.value = el.dataset.value;
-        suggestionsBox.style.display = 'none';
-        const frm = searchBox.closest('form');
-        if (frm) frm.requestSubmit();
-      }
-    } else if (e.key === 'Escape') {
-      suggestionsBox.style.display = 'none';
-      suggestionIndex = -1;
-    }
-  });
-
-  categoryFilter?.addEventListener('change', () => {
-    // submit the surrounding form to apply server-side filters
-    const frm = categoryFilter.closest('form');
-    if (frm) frm.requestSubmit();
-    else filterRows();
-  });
-
-  sortFilter?.addEventListener('change', () => {
-    const frm = sortFilter.closest('form');
-    if (frm) frm.requestSubmit();
-  });
-
-  perPageSelect?.addEventListener('change', () => {
-    const frm = perPageSelect.closest('form');
-    if (frm) frm.requestSubmit();
-  });
-
-  // Quick edit modal logic
-  const quickModal = document.getElementById('quickEditModal');
-  const quickForm = document.getElementById('quickEditForm');
-  const quickId = document.getElementById('quick_id_producto');
-  const quickNombre = document.getElementById('quick_nombre');
-  const quickPrecio = document.getElementById('quick_precio');
-  const quickStockMin = document.getElementById('quick_stock_minimo');
-
+  // Auxiliar para obtener el token CSRF obligatorio de Django
   function getCookie(name) {
-    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-    return v ? v.pop() : '';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === name + '=') {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
   }
 
-  function openQuickModal(data, rowEl) {
+  function safeParseGlobal(raw) {
+    try { return JSON.parse(raw || '{}'); } catch (e) { return {}; }
+  }
+
+  // Elementos del DOM del Modal definidos correctamente al inicio del ciclo de vida
+  const quickModal = document.getElementById('quickEditModal');
+  const quickEditForm = document.getElementById('quickEditForm');
+  const closeModalBtn = document.getElementById('closeModalBtn');
+  const searchBox = document.getElementById('searchBox');
+
+  // =========================================================================
+  // 🪐 CONTROL GLOBAL DE LA VENTANA FLOTANTE (ABRIR Y CERRAR)
+  // =========================================================================
+  
+  window.openQuickModal = function(row) {
     if (!quickModal) return;
-    quickId.value = data.codigo || '';
-    quickNombre.value = data.nombre || '';
-    quickPrecio.value = data.precio_venta || '';
-    quickStockMin.value = data.stock_minimo || '';
-    quickModal.style.display = 'flex';
-    quickModal.setAttribute('aria-hidden', 'false');
-    // store current row for update
-    quickModal._currentRow = rowEl;
-  }
+    
+    quickModal._currentRow = row;
+    const productData = safeParseGlobal(row.dataset.product);
 
-  function closeQuickModal() {
-    if (!quickModal) return;
-    quickModal.style.display = 'none';
-    quickModal.setAttribute('aria-hidden', 'true');
-    quickModal._currentRow = null;
-  }
+    // Captura de todos los inputs ampliados
+    const quickId = document.getElementById('modalProductId');
+    const quickNombre = document.getElementById('modalProductName');
+    const quickCategory = document.getElementById('modalProductCategory');
+    const quickProvider = document.getElementById('modalProductProvider');
+    const quickUnit = document.getElementById('modalProductUnit');
+    const quickStatus = document.getElementById('modalProductStatus');
+    const quickCostPrice = document.getElementById('modalProductCostPrice');
+    const quickPrecio = document.getElementById('modalProductPrice');
+    const quickStock = document.getElementById('modalProductStock');
+    const quickStockMin = document.getElementById('modalProductMinStock');
 
-  document.querySelectorAll('[data-action="close-quick-modal"]').forEach((b) => b.addEventListener('click', closeQuickModal));
+    // Inyección fluida de datos de forma segura utilizando el JSON del Backend
+    if (quickId) quickId.value = productData.id_producto || "";
+    if (quickNombre) quickNombre.value = productData.nombre || "";
+    if (quickCategory) quickCategory.value = productData.id_categoria || "";
+    if (quickProvider) quickProvider.value = productData.id_provider || productData.id_proveedor || "";
+    if (quickUnit) quickUnit.value = productData.unidad_medida || "Unidad";
+    if (quickStatus) {let estadoBackend = productData.estado ? productData.estado.toLowerCase() : "activo";  quickStatus.value = estadoBackend;}    if (quickCostPrice) quickCostPrice.value = productData.precio_compra || 0;
+    if (quickPrecio) quickPrecio.value = productData.precio_venta || 0;
+    
+    // 🔥 Sincronización directa del Stock Físico y Mínimo
+    if (quickStock) quickStock.value = productData.stock_actual !== undefined ? productData.stock_actual : 0;
+    if (quickStockMin) quickStockMin.value = productData.stock_minimo !== undefined ? productData.stock_minimo : 0;
 
-  // Open quick edit on button click
-  document.querySelectorAll('[data-action="quick-edit"]').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      const row = btn.closest('tr');
-      const data = safeParse(row.dataset.product);
-      openQuickModal(data, row);
+    quickModal.classList.add('is-open');
+  };
+
+  window.closeQuickModal = function() {
+    if (quickModal) {
+      quickModal.classList.remove('is-open');
+      quickModal._currentRow = null;
+    }
+    if (quickEditForm) {
+      quickEditForm.reset();
+    }
+  };
+
+  // =========================================================================
+  // 🔍 ASIGNACIÓN DE EVENTOS ASÍNCRONOS
+  // =========================================================================
+
+  // Evento para el botón de cerrar (X)
+  if (closeModalBtn) {
+    closeModalBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      window.closeQuickModal();
     });
-  });
+  }
 
-  quickForm?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const payload = {
-      id_producto: quickId.value,
-      nombre: quickNombre.value,
-      precio_venta: quickPrecio.value,
-      stock_minimo: quickStockMin.value,
-    };
-    fetch('/registro/api/quick_update/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken'),
-      },
-      body: JSON.stringify(payload),
-    })
-      .then((r) => r.json())
+  // Cerrar al hacer clic en el fondo oscuro
+  if (quickModal) {
+    quickModal.addEventListener('click', function (e) {
+      if (e.target === quickModal) {
+        window.closeQuickModal();
+      }
+    });
+  }
+
+  // Envío asíncrono del formulario extendido mediante Fetch API
+  if (quickEditForm) {
+    quickEditForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const payload = {
+        id_producto: document.getElementById('modalProductId').value,
+        nombre: document.getElementById('modalProductName').value.trim(),
+        id_categoria: document.getElementById('modalProductCategory').value,
+        id_proveedor: document.getElementById('modalProductProvider').value,
+        unidad_medida: document.getElementById('modalProductUnit').value,
+        estado: document.getElementById('modalProductStatus').value,
+        precio_compra: parseFloat(document.getElementById('modalProductCostPrice').value) || 0,
+        precio_venta: parseFloat(document.getElementById('modalProductPrice').value) || 0,
+        stock_actual: parseInt(document.getElementById('modalProductStock').value, 10) || 0,
+        stock_minimo: parseInt(document.getElementById('modalProductMinStock').value, 10) || 0
+      };
+
+      fetch('/registro/api/quick_update/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify(payload),
+      })
+      .then((r) => {
+        if (!r.ok) throw new Error('Error en el servidor');
+        return r.json();
+      })
       .then((json) => {
         if (json && json.ok) {
-          // update row in-place
-          const row = quickModal._currentRow;
-          if (row) {
-            const data = safeParse(row.dataset.product);
-            if (payload.nombre) {
-              data.nombre = payload.nombre;
-              row.children[1].innerText = payload.nombre;
-            }
-            if (payload.precio_venta) {
-              data.precio_venta = payload.precio_venta;
-              row.children[3].innerText = `$${parseFloat(payload.precio_venta).toFixed(2)}`;
-            }
-            if (payload.stock_minimo) {
-              data.stock_minimo = parseInt(payload.stock_minimo, 10) || data.stock_minimo;
-              row.children[5].innerText = data.stock_minimo;
-            }
-            row.dataset.product = JSON.stringify(data);
-          }
-          closeQuickModal();
+          window.closeQuickModal();
+          window.location.reload(); // Recarga limpia para recalcular los KPIs e insignias
         } else {
-          alert('Error: ' + (json.error || 'No se pudo guardar'));
+          alert('Error: ' + (json.error || 'No se pudo guardar la información'));
         }
       })
-      .catch(() => alert('Error de red al guardar'));
-  });
+      .catch((err) => {
+        console.error(err);
+        alert('Error de comunicación con el servidor.');
+      });
+    });
+  }
 
-  // Aplicar los filtros iniciales al cargar la página (por si hay parámetros en la URL)
-  filterRows();
+  // Autocompletado en tiempo real de búsqueda
+  if (searchBox) {
+    const url = searchBox.dataset.autocompleteUrl;
+    const datalist = document.getElementById('search-suggestions');
+
+    searchBox.addEventListener('input', function () {
+      const q = this.value.trim();
+      if (q.length < 2) {
+        if (datalist) datalist.innerHTML = '';
+        return;
+      }
+
+      fetch(`${url}?q=${encodeURIComponent(q)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (datalist && Array.isArray(data)) {
+            datalist.innerHTML = data
+              .map((item) => `<option value="${item.nombre}"></option>`)
+              .join('');
+          }
+        })
+        .catch((err) => console.error('Error en sugerencias:', err));
+    });
+  }
 })();

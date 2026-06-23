@@ -29,27 +29,7 @@
             </p>
 
         </div>
-
-        <div class="header-actions">
-
-            <button
-                type="button"
-                class="icon-btn"
-                title="Notificaciones"
-            >
-                🔔
-            </button>
-
-            <button
-                type="button"
-                class="icon-btn"
-                title="Configuración"
-            >
-                ⚙️
-            </button>
-
-        </div>
-
+        
     </section>
 
     <section class="stats-grid">
@@ -182,6 +162,7 @@
 
             </div>
 
+            <h3 style="margin: 0 0 10px 0;">Clientes Activos</h3>
             <div class="table-responsive">
 
                 <table class="clientes-table">
@@ -206,7 +187,7 @@
 
                     <tbody>
 
-                        {% for cliente in clientes %}
+                        {% for cliente in clientes_activos_lista %}
 
                         <tr>
 
@@ -262,7 +243,7 @@
 
                             <td>
 
-                                <span class="badge {% if cliente.estado == 'Activo' %}active{% else %}inactive{% endif %}">
+                                <span class="badge active">
                                     {{ cliente.estado }}
                                 </span>
 
@@ -303,14 +284,10 @@
                                     <button
                                         type="submit"
                                         class="status-toggle-btn"
-                                        title="{% if cliente.estado == 'Activo' %}Desactivar Cliente{% else %}Activar Cliente{% endif %}"
+                                        title="Desactivar Cliente"
                                         style="background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 4px 8px;"
                                     >
-                                        {% if cliente.estado == 'Activo' %}
-                                            🚫
-                                        {% else %}
-                                            ✅
-                                        {% endif %}
+                                        🚫
                                     </button>
                                 </form>
 
@@ -323,7 +300,158 @@
                         <tr>
 
                             <td colspan="7" class="text-center">
-                                No hay clientes registrados.
+                                No hay clientes activos.
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            <h3 style="margin: 18px 0 10px 0;">Clientes Inactivos</h3>
+            <div class="table-responsive">
+
+                <table class="clientes-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>ID</th>
+                            <th>Cliente</th>
+                            <th>Teléfono</th>
+                            <th>Dirección</th>
+                            <th>Compras</th>
+                            <th>Estado</th>
+                            <th class="text-center">
+                                Acciones
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for cliente in clientes_inactivos_lista %}
+
+                        <tr>
+
+                            <td>
+                                #CLI-{{ cliente.id_cliente|stringformat:"05d" }}
+                            </td>
+
+                            <td>
+
+                                <div class="client-info">
+
+                                    <div class="client-avatar">
+                                        {{ cliente.nombre|first|upper }}
+                                    </div>
+
+                                    <div>
+
+                                        <strong>
+                                            {{ cliente.nombre }}
+                                        </strong>
+
+                                        <small>
+
+                                            {% if cliente.fecha_registro %}
+
+                                                Registrado el {{ cliente.fecha_registro|date:"d/m/Y" }}
+
+                                            {% else %}
+
+                                                Sin fecha de registro
+
+                                            {% endif %}
+
+                                        </small>
+
+                                    </div>
+
+                                </div>
+
+                            </td>
+
+                            <td>
+                                {{ cliente.telefono|default:"No registrado" }}
+                            </td>
+
+                            <td>
+                                {{ cliente.direccion|default:"No registrada"|truncatechars:35 }}
+                            </td>
+
+                            <td>
+                                C$ {{ cliente.total_compras|default:0|floatformat:2 }}
+                            </td>
+
+                            <td>
+
+                                <span class="badge inactive">
+                                    {{ cliente.estado }}
+                                </span>
+
+                            </td>
+
+                            <td class="actions">
+
+                                <button
+                                    type="button"
+                                    class="action-btn btnVer"
+                                    data-id="{{ cliente.id_cliente }}"
+                                    data-nombre="{{ cliente.nombre }}"
+                                    data-telefono="{{ cliente.telefono }}"
+                                    data-direccion="{{ cliente.direccion }}"
+                                    title="Ver"
+                                >
+                                    👁️
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="action-btn btnEditar"
+                                    data-id="{{ cliente.id_cliente }}"
+                                    data-nombre="{{ cliente.nombre }}"
+                                    data-telefono="{{ cliente.telefono }}"
+                                    data-direccion="{{ cliente.direccion }}"
+                                    title="Editar"
+                                >
+                                    ✏️
+                                </button>
+
+                                <form 
+                                    action="{% url 'cliente:cambiar_estado' cliente.id_cliente %}" 
+                                    method="POST" 
+                                    style="display:inline;"
+                                >
+                                    {% csrf_token %}
+                                    <button
+                                        type="submit"
+                                        class="status-toggle-btn"
+                                        title="Activar Cliente"
+                                        style="background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 4px 8px;"
+                                    >
+                                        ✅
+                                    </button>
+                                </form>
+
+                            </td>
+
+                        </tr>
+
+                        {% empty %}
+
+                        <tr>
+
+                            <td colspan="7" class="text-center">
+                                No hay clientes inactivos.
                             </td>
 
                         </tr>

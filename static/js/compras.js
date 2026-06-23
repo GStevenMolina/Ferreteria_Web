@@ -690,7 +690,7 @@
     });
 
     // Guardar compra (POST)
-    $("btnSave").addEventListener("click", async () => {
+$("btnSave").addEventListener("click", async () => {
       const id_proveedor = $("proveedor").value;
       if (!id_proveedor) return toast("err", "Falta proveedor", "Selecciona un proveedor.");
       if (state.items.length === 0) return toast("err", "Sin items", "Agrega al menos un producto.");
@@ -739,6 +739,11 @@
           `Compra #${j.id_compra}. Factura ${j.numero_factura}. IVA ${j.iva_rate}%. Total C$${j.total}.`
         );
 
+        // NUEVO: Abre automáticamente el PDF de la factura si el backend retornó el ID
+        if (j.id_factura) {
+          window.open(`/compras/factura/${j.id_factura}/pdf/`, '_blank');
+        }
+
         // Reset UI de compra
         state.items = [];
         renderTable();
@@ -748,7 +753,7 @@
         $("cantidad").value = "1";
         $("proveedor").value = "";
 
-        // Volver a NIO visualmente (opcional)
+        // Volver a NIO visualmente
         state.currency = "NIO";
         setCurrencyUI();
       } catch (e) {
@@ -757,7 +762,6 @@
         btn.disabled = false;
       }
     });
-
     // Modal: open/close
     $("btnNuevoProducto").addEventListener("click", openNuevoProducto);
     $("btnCloseModalNP").addEventListener("click", closeNuevoProducto);
@@ -789,24 +793,41 @@
       });
     }
 
-    if ($("np_cat_nombre")) {
-      $("np_cat_nombre").setAttribute("autocomplete", "off");
+const inputCatNombre = $("np_cat_nombre");
+    if (inputCatNombre) {
+      inputCatNombre.setAttribute("autocomplete", "off");
 
-      $("np_cat_nombre").addEventListener("input", () => {
-        const q = $("np_cat_nombre").value.trim();
+      inputCatNombre.addEventListener("input", () => {
+        const q = inputCatNombre.value.trim();
 
         catAcSelected = null;
-        setCategoriaFieldsLocked(false);
+        
+        // Puntos de protección adicionales:
+        // 1. Ejecutar solo si la función existe y no genera errores internos
+        try {
+          if (typeof setCategoriaFieldsLocked === "function") {
+            setCategoriaFieldsLocked(false);
+          }
+        } catch(err) {
+          // Silencia el error interno si faltan componentes del DOM de categoría
+        }
 
         if (!q) {
-          hideCatList();
+          if (typeof hideCatList === "function") hideCatList();
           return;
         }
 
         clearTimeout(catAcTimer);
         catAcTimer = setTimeout(async () => {
-          const items = await searchCategorias(q);
-          showCatList(items);
+          // 2. Ejecutar la búsqueda de forma segura
+          try {
+            if (typeof searchCategorias === "function" && typeof showCatList === "function") {
+              const items = await searchCategorias(q);
+              showCatList(items);
+            }
+          } catch(err) {
+            console.warn("Módulo de categorías incompleto en esta vista.");
+          }
         }, 180);
       });
     }

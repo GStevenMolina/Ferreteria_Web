@@ -17,13 +17,17 @@ from apps.core.models import (
     DetalleVenta,
     Inventario,
     MovimientoInventario,
+    ProductoDanado,  # <--- NUEVO: Importamos tu modelo de productos dañados
 )
+
+# =========================================================================
+# ⚙️ HELPERS / SINCRO DE PRODUCTOS
+# =========================================================================
 
 def obtener_productos(request, id_factura):
     """
     Devuelve en formato JSON los productos pertenecientes
-    a la factura seleccionada, permitiendo devoluciones parciales sucesivas
-    calculando correctamente el saldo disponible sobre la columna 'cantidad'.
+    a la factura seleccionada, permitiendo devoluciones parciales sucesivas.
     """
     productos = []
     try:
@@ -36,30 +40,29 @@ def obtener_productos(request, id_factura):
         for detalle in detalles:
             producto = detalle.id_producto
             
-            # Buscamos cuántas unidades ya se han devuelto sumando el campo real de la BD 'cantidad'
             devoluciones_previas = Devolucion.objects.filter(
                 id_venta_id=id_factura, 
                 id_producto=producto
             )
             
             total_devueltos = sum(d.cantidad for d in devoluciones_previas)
-            
-            # Cantidad que resta por devolver
             disponible = detalle.cantidad - total_devueltos
 
-            # El producto SOLO se listará si aún le quedan unidades disponibles para devolver
             if disponible > 0:
                 productos.append({
                     "id": producto.id_producto,
                     "nombre": producto.nombre,
-                    "max_cantidad": disponible,  # Envía el tope real al JS (ej. 25 si ya devolvió 5 de 30)
+                    "max_cantidad": disponible,
                 })
     except Exception as e:
         print(f"Error en obtener_productos: {str(e)}")
-        pass
 
     return JsonResponse({"productos": productos})
 
+
+# =========================================================================
+# 🏠 VISTA PRINCIPAL: REGISTRO Y VISTA MULTI-PRODUCTO
+# =========================================================================
 
 def index(request):
     buscar = request.GET.get("buscar", "")
@@ -87,112 +90,158 @@ def index(request):
         fecha = request.POST.get("fecha")
         plazo = request.POST.get("plazo")
         condiciones = request.POST.get("condiciones")
-        id_producto = request.POST.get("id_producto")
         id_factura = request.POST.get("id_factura")
-        cantidad_devolver = request.POST.get("cantidad")
+        
+        # ---> SOPORTE MULTI-PRODUCTO: Recibimos listas desde el HTML
+        productos_ids = request.POST.getlist("id_producto")
+        cantidades_devolver = request.POST.getlist("cantidad")
+        # Lista de 'true' o 'false' para saber cuáles vienen defectuosos de fábrica/cliente
+        estados_defectuosos = request.POST.getlist("es_defectuoso") 
 
-        if not all([fecha, plazo, condiciones, id_producto, id_factura, cantidad_devolver]):
+        if not all([fecha, plazo, condiciones, id_factura, productos_ids, cantidades_devolver]):
             return render(request, "devolucion/index.html", {
-                "error": "Todos los campos son obligatorios, incluida la cantidad.",
+                "error": "Todos los campos son obligatorios y debes seleccionar al menos un producto.",
                 "devoluciones": devoluciones,
                 "facturas": facturas,
                 "today": timezone.now().date().isoformat(),
             })
 
-        # Validar enteros
         try:
             plazo = int(plazo)
-            cantidad_devolver = int(cantidad_devolver)
-        except ValueError:
-            return render(request, "devolucion/index.html", {
-                "error": "El plazo y la cantidad deben ser valores numéricos.",
-                "devoluciones": devoluciones,
-                "facturas": facturas,
-                "today": timezone.now().date().isoformat(),
-            })
-
-        if plazo <= 0 or cantidad_devolver <= 0:
-            return render(request, "devolucion/index.html", {
-                "error": "El plazo y la cantidad deben ser mayores a 0.",
-                "devoluciones": devoluciones,
-                "facturas": facturas,
-                "today": timezone.now().date().isoformat(),
-            })
-
-        # Validar fecha
-        try:
             fecha_ingresada = datetime.strptime(fecha, "%Y-%m-%d").date()
             if fecha_ingresada < timezone.now().date():
                 raise ValueError()
         except ValueError:
             return render(request, "devolucion/index.html", {
-                "error": "Fecha inválida o anterior al día actual.",
+                "error": "Plazo inválido o fecha anterior al día actual.",
                 "devoluciones": devoluciones,
                 "facturas": facturas,
                 "today": timezone.now().date().isoformat(),
             })
 
         try:
+            devoluciones_creadas = []
+            id_usuario = request.session.get("id_usuario")
+
             with transaction.atomic():
                 venta = Venta.objects.get(id_venta=id_factura)
-                producto = Producto.objects.get(id_producto=id_producto)
 
-                # 1. Obtener el detalle de la venta original
-                detalle_venta = DetalleVenta.objects.filter(
-                    id_venta=venta, 
-                    id_producto=producto
-                ).first()
+                # Iteramos sobre todos los productos seleccionados en la devolución
+                for idx, prod_id in enumerate(productos_ids):
+                    cantidad_dev = int(cantidades_devolver[idx])
+                    if cantidad_dev <= 0:
+                        continue
 
-                if not detalle_venta:
-                    raise Exception("El producto no pertenece a la factura seleccionada.")
+                    producto = Producto.objects.get(id_producto=prod_id)
 
-                # 2. Calcular cuántas unidades ya se devolvieron previamente de esta factura
-                devoluciones_previas = Devolucion.objects.filter(
-                    id_venta=venta, 
-                    id_producto=producto
-                )
-                
-                total_devuelto_antes = sum(d.cantidad for d in devoluciones_previas)
-                cantidad_comprada = detalle_venta.cantidad
-                disponible_para_devolver = cantidad_comprada - total_devuelto_antes
+                    # 1. Validar existencias originales en la venta
+                    detalle_venta = DetalleVenta.objects.filter(id_venta=venta, id_producto=producto).first()
+                    if not detalle_venta:
+                        raise Exception(f"El producto {producto.nombre} no pertenece a esta factura.")
 
-                # 3. Validar que no intente devolver más de lo que posee en saldo
-                if cantidad_devolver > disponible_para_devolver:
-                    raise Exception(
-                        f"No puedes devolver {cantidad_devolver} unidades. "
-                        f"Compró {cantidad_comprada} y ya devolvió {total_devuelto_antes}. "
-                        f"Máximo disponible: {disponible_para_devolver}."
+                    devoluciones_previas = Devolucion.objects.filter(id_venta=venta, id_producto=producto)
+                    total_devuelto_antes = sum(d.cantidad for d in devoluciones_previas)
+                    disponible_para_devolver = detalle_venta.cantidad - total_devuelto_antes
+
+                    if cantidad_dev > disponible_para_devolver:
+                        raise Exception(f"Cantidad excedida para {producto.nombre}. Máximo disponible: {disponible_para_devolver}")
+
+                    # 2. Crear Registro de Devolución individual en la BD
+                    devolucion = Devolucion.objects.create(
+                        id_venta=venta,
+                        id_producto=producto,
+                        fecha=fecha_ingresada,
+                        plazo=plazo,
+                        condiciones=condiciones,
+                        estado="Aceptada",
+                        cantidad=cantidad_dev
                     )
+                    devoluciones_creadas.append(devolucion)
 
-                # 4. Crear el registro de devolución con la cantidad correspondiente
-                devolucion = Devolucion.objects.create(
-                    id_venta=venta,
-                    id_producto=producto,
-                    fecha=fecha_ingresada,
-                    plazo=plazo,
-                    condiciones=condiciones,
-                    estado="Aceptada",
-                    cantidad=cantidad_devolver
-                )
+                    # 3. Evaluar si el producto está defectuoso/dañado
+                    # Nota: Asegúrate de enviar 'true' o 'false' desde cada fila de tu frontend
+                    es_defectuoso = False
+                    if idx < len(estados_defectuosos):
+                        es_defectuoso = (estados_defectuosos[idx] == "true" or estados_defectuosos[idx] == "si")
 
-                # 5. Actualizar Stock sumando la cantidad exacta devuelta
-                inventario = Inventario.objects.get(id_producto=producto)
-                inventario.stock_actual += cantidad_devolver
-                inventario.save()
+                    inventario = Inventario.objects.get(id_producto=producto)
 
-                # 6. Registrar movimiento de inventario con la cantidad real
-                id_usuario = request.session.get("id_usuario")
-                MovimientoInventario.objects.create(
-                    id_producto=producto,
-                    id_usuario_id=id_usuario,
-                    tipo_movimiento="ENTRADA",
-                    cantidad=cantidad_devolver,
-                    referencia=f"Devolución #{devolucion.id_devolucion}",
-                    fecha_movimiento=timezone.now(),
-                    observaciones=condiciones
-                )
+                    if es_defectuoso:
+                        # --- FLUJO PRODUCTO DAÑADO ---
+                        # Ingrese al inventario por la devolución teórica
+                        inventario.stock_actual += cantidad_dev
+                        # Sale inmediatamente por estar roto/defectuoso
+                        inventario.stock_actual -= cantidad_dev
+                        inventario.save()
 
-                return redirect("devolucion:index")
+                        # Registro en la tabla de productos dañados en PENDIENTE
+                        ProductoDanado.objects.create(
+                            id_devolucion=devolucion,
+                            id_producto=producto,
+                            id_usuario_id=id_usuario,
+                            cantidad=cantidad_dev,
+                            motivo_dano=condiciones,
+                            estado_proceso='PENDIENTE',
+                            observaciones=f"Automático - Ref Dev #{devolucion.id_devolucion}"
+                        )
+
+                        # Doble movimiento en historial para transparencia de auditoría
+                        MovimientoInventario.objects.create(
+                            id_producto=producto, id_usuario_id=id_usuario,
+                            tipo_movimiento="ENTRADA", cantidad=cantidad_dev,
+                            referencia=f"Devolución #{devolucion.id_devolucion}",
+                            fecha_movimiento=timezone.now(), observaciones=condiciones
+                        )
+                        MovimientoInventario.objects.create(
+                            id_producto=producto, id_usuario_id=id_usuario,
+                            tipo_movimiento="SALIDA POR DAÑO", cantidad=cantidad_dev,
+                            referencia=f"Baja por Daño #{devolucion.id_devolucion}",
+                            fecha_movimiento=timezone.now(), observaciones=f"Descarte: {condiciones}"
+                        )
+                    else:
+                        # --- FLUJO NORMAL (Reingresa limpio al Stock) ---
+                        inventario.stock_actual += cantidad_dev
+                        inventario.save()
+
+                        # Movimiento único de Entrada
+                        MovimientoInventario.objects.create(
+                            id_producto=producto, id_usuario_id=id_usuario,
+                            tipo_movimiento="ENTRADA", cantidad=cantidad_dev,
+                            referencia=f"Devolución #{devolucion.id_devolucion}",
+                            fecha_movimiento=timezone.now(), observaciones=condiciones
+                        )
+
+                # =========================================================================
+                # GENERACIÓN DEL COMPROBANTE UNIFICADO (PDF MULTI-PRODUCTO)
+                # =========================================================================
+                response = HttpResponse(content_type='application/pdf')
+                primera_dev = devoluciones_creadas[0]
+                response['Content-Disposition'] = f'inline; filename="Comprobante_Devolucion_{primera_dev.id_devolucion}.pdf"'
+
+                pdf = canvas.Canvas(response, pagesize=A4)
+                width, height = A4
+                azul = colors.HexColor("#0B4EA2")
+                logo = os.path.join(settings.BASE_DIR, "static", "assets", "Ferreteria.png")
+
+                _dibujar_comprobante_individual_pdf(pdf, devoluciones_creadas, venta, width, height, azul, logo)
+                pdf.showPage()
+                pdf.save()
+
+                # Respaldo físico en disco duro
+                try:
+                    ruta_devoluciones = settings.SUBCARPETAS_FERRETERIA.get("Devoluciones")
+                    if ruta_devoluciones:
+                        nombre_archivo_local = f"Comprobante_Devolucion_{primera_dev.id_devolucion}.pdf"
+                        ruta_completa_archivo = os.path.join(ruta_devoluciones, nombre_archivo_local)
+                        
+                        pdf_local = canvas.Canvas(ruta_completa_archivo, pagesize=A4)
+                        _dibujar_comprobante_individual_pdf(pdf_local, devoluciones_creadas, venta, width, height, azul, logo)
+                        pdf_local.showPage()
+                        pdf_local.save()
+                except Exception as e:
+                    print(f"[ALERTA RESPALDO] Copia local fallida: {e}")
+
+                return response
 
         except Exception as e:
             return render(request, "devolucion/index.html", {
@@ -210,137 +259,182 @@ def index(request):
     return render(request, "devolucion/index.html", context)
 
 
-# ===============================
-# REPORTE PDF DE DEVOLUCIONES
-# ===============================
+# =========================================================================
+# 📊 REPORTE GENERAL (Mantiene su flujo masivo original)
+# =========================================================================
 def reporte_devoluciones_pdf(request):
-
-    devoluciones = (
-        Devolucion.objects
-        .select_related(
-            "id_producto",
-            "id_venta",
-            "id_venta__id_cliente"
-        )
-        .order_by("-id_devolucion")
-    )
-
+    devoluciones = Devolucion.objects.select_related("id_producto", "id_venta", "id_venta__id_cliente").order_by("-id_devolucion")
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="Reporte_Devoluciones.pdf"'
-
+    response['Content-Disposition'] = 'inline; filename="Reporte_Devoluciones.pdf"'
     pdf = canvas.Canvas(response, pagesize=A4)
     width, height = A4
     azul = colors.HexColor("#0B4EA2")
-
-    # ==================================
-    # LOGO
-    # ==================================
     logo = os.path.join(settings.BASE_DIR, "static", "assets", "Ferreteria.png")
+    _dibujar_contenido_devoluciones_pdf(pdf, devoluciones, width, height, azul, logo)
+    pdf.showPage()
+    pdf.save()
+    return response
 
+
+# =========================================================================
+# 🎨 FUNCIONES AUXILIARES GRÁFICAS (MUESTRA PRECIOS Y REEMBOLSOS)
+# =========================================================================
+
+def _dibujar_comprobante_individual_pdf(pdf, devoluciones_creadas, venta, width, height, azul, logo):
+    primera_dev = devoluciones_creadas[0]
+    
     if os.path.exists(logo):
-        pdf.drawImage(
-            logo,
-            20,
-            height - 180,
-            width=290,
-            height=180,
-            preserveAspectRatio=True
-        )
+        pdf.drawImage(logo, 20, height - 140, width=220, height=140, preserveAspectRatio=True)
 
-    # ==================================
-    # TÍTULO Y FECHA
-    # ==================================
     pdf.setLineWidth(1)
+    pdf.setStrokeColor(azul)
+    pdf.rect(360, height - 90, 195, 30)
+    pdf.rect(360, height - 120, 195, 30)
+
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.setFillColor(colors.black)
+    pdf.drawString(365, height - 72, f"COMPROBANTE GRUPO DEV N°: {primera_dev.id_devolucion}")
+    pdf.drawString(365, height - 102, f"FECHA DEV: {primera_dev.fecha.strftime('%d/%m/%Y')}")
+
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawString(40, height - 160, "DATOS DE LA EMPRESA")
+    pdf.setFont("Helvetica", 9)
+    pdf.drawString(40, height - 175, "Dirección: Granada Diriomo, de la entrada principal de Diriomo 1c al Norte")
+    pdf.drawString(40, height - 190, "Teléfono: +505 8765-4321  |  RUC: J-12345678-9")
+
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawString(40, height - 220, "REFERENCIA DE VENTA ORIGINAL")
+    pdf.setFont("Helvetica", 10)
+    pdf.drawString(40, height - 235, f"Código de Factura Afectada: #{venta.id_venta}")
+    if hasattr(venta, 'id_cliente') and venta.id_cliente:
+        pdf.drawString(40, height - 250, f"Cliente: {venta.id_cliente.nombre}")
+
+    # --- ENCABEZADOS DE LA TABLA ---
+    tabla_y = height - 290
+    pdf.setFillColor(azul)
+    pdf.rect(40, tabla_y, 515, 22, fill=True, stroke=False)
+    
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 9)
+    pdf.drawString(45, tabla_y + 6, "ID")
+    pdf.drawString(85, tabla_y + 6, "Descripción del Producto Retornado")
+    pdf.drawRightString(370, tabla_y + 6, "Precio Unit.")
+    pdf.drawRightString(440, tabla_y + 6, "Cant.")
+    pdf.drawRightString(540, tabla_y + 6, "Total Reembolso")
+
+    pdf.setFillColor(colors.black)
+    pdf.setFont("Helvetica", 9)
+    y = tabla_y - 22
+    
+    gran_total_dinero = 0
+
+    # --- FILAS DINÁMICAS (Para soportar múltiples artículos en la misma hoja) ---
+    for d in devoluciones_creadas:
+        producto = d.id_producto
+        
+        # Consultamos el precio real al que se le vendió en su momento
+        detalle_v = DetalleVenta.objects.filter(id_venta=venta, id_producto=producto).first()
+        precio_original = detalle_v.precio_unitario if detalle_v else producto.precio_venta
+        subtotal_reembolso = precio_original * d.cantidad
+        gran_total_dinero += subtotal_reembolso
+
+        pdf.setStrokeColor(colors.lightgrey)
+        pdf.rect(40, y, 515, 22)
+        
+        pdf.drawString(45, y + 6, str(producto.id_producto))
+        pdf.drawString(85, y + 6, producto.nombre[:40])
+        pdf.drawRightString(370, y + 6, f"C$ {precio_original:,.2f}")
+        pdf.drawRightString(440, y + 6, str(d.cantidad))
+        pdf.drawRightString(540, y + 6, f"C$ {subtotal_reembolso:,.2f}")
+        
+        y -= 22
+
+    # --- CUADRO DE TOTALES (REEMBOLSO EN EFECTIVO / CRÉDITO) ---
+    y -= 10
+    pdf.setStrokeColor(azul)
+    pdf.setFillColor(colors.HexColor("#F0F4F8"))
+    pdf.rect(340, y - 25, 215, 25, fill=True, stroke=True)
+    pdf.setFillColor(colors.black)
+    pdf.setFont("Helvetica-Bold", 11)
+    pdf.drawString(345, y - 18, "TOTAL A REEMBOLSAR:")
+    pdf.drawRightString(540, y - 18, f"C$ {gran_total_dinero:,.2f}")
+
+    # Sección de observaciones estructurada de forma relativa a la tabla
+    y_obs = y - 60
+    pdf.setFont("Helvetica-Bold", 11)
+    pdf.drawString(40, y_obs, "Motivo y Condiciones de Aceptación:")
+    
+    pdf.setFont("Helvetica", 10)
+    pdf.setStrokeColor(colors.lightgrey)
+    pdf.rect(40, y_obs - 45, 515, 35)
+    
+    observacion = primera_dev.condiciones if primera_dev.condiciones else "Sin observaciones."
+    pdf.drawString(45, y_obs - 25, observacion[:90])
+
+    pdf.setFont("Helvetica-Oblique", 9)
+    pdf.drawString(40, y_obs - 65, f"* Plazo estipulado para seguimiento de reclamos: {primera_dev.plazo} días.")
+    pdf.drawString(40, y_obs - 78, "* El dinero equivalente ha sido calculado en base a los precios de venta originales.")
+
+    # Footer fijo
+    pdf.setFillColor(azul)
+    pdf.rect(0, 0, width, 35, fill=1)
+    pdf.setFillColor(colors.white)
+    pdf.setFont("Helvetica-Bold", 11)
+    pdf.drawString(40, 12, "Ferretería Mi Casa - Control Interno")
+    pdf.drawRightString(width - 40, 12, "COMPROBANTE DE REEMBOLSO / DEVOLUCIÓN")
+
+
+def _dibujar_contenido_devoluciones_pdf(pdf, devoluciones, width, height, azul, logo):
+    # (Se mantiene intacto tu reporte masivo original...)
+    if os.path.exists(logo):
+        pdf.drawImage(logo, 20, height - 180, width=290, height=180, preserveAspectRatio=True)
+    pdf.setLineWidth(1)
+    pdf.setStrokeColor(azul)
     pdf.rect(400, height - 90, 150, 30)
     pdf.rect(400, height - 120, 150, 30)
-
     pdf.setFont("Helvetica-Bold", 11)
+    pdf.setFillColor(colors.black)
     pdf.drawString(410, height - 72, "REPORTE DEVOLUCIONES")
     pdf.drawString(410, height - 102, f"FECHA: {timezone.now().strftime('%d/%m/%Y')}")
-
-    # ==================================
-    # DATOS EMPRESA
-    # ==================================
     pdf.setFont("Helvetica-Bold", 14)
     pdf.drawString(40, height - 180, "DATOS DE LA EMPRESA")
-
     pdf.setFont("Helvetica", 11)
-    pdf.drawString(40, height - 205, "Dirección: Granada Diriomo, de la entrada principal")
-    pdf.drawString(40, height - 220, " de Diriomo una cuadra al Norte a mano izquierda")
-    pdf.drawString(40, height - 245, "Teléfono: +505 8765-4321")
-    pdf.drawString(40, height - 265, "RUC/NIT: J-12345678-9")
-    pdf.drawString(40, height - 280, "Email: info@ferreteriamicasa.com")
-
-    # ==================================
-    # CABECERA TABLA (Ajuste de coordenadas para Cantidad)
-    # ==================================
+    pdf.drawString(40, height - 205, "Dirección: Granada Diriomo")
     tabla_y = height - 340
     pdf.setFillColor(azul)
     pdf.rect(40, tabla_y, 510, 25, fill=1)
-
     pdf.setFillColor(colors.white)
     pdf.setFont("Helvetica-Bold", 9)
-
     pdf.drawString(45, tabla_y + 8, "FECHA")
     pdf.drawString(105, tabla_y + 8, "CLIENTE")
     pdf.drawString(195, tabla_y + 8, "PRODUCTO")
-    pdf.drawString(285, tabla_y + 8, "CANT.")  # ← Nueva columna
+    pdf.drawString(285, tabla_y + 8, "CANT.")
     pdf.drawString(325, tabla_y + 8, "CONDICIONES")
     pdf.drawString(440, tabla_y + 8, "PLAZO")
     pdf.drawString(490, tabla_y + 8, "FACTURA")
-
-    # ==================================
-    # DETALLES
-    # ==================================
     y = tabla_y - 25
     pdf.setFillColor(colors.black)
     pdf.setFont("Helvetica", 8)
-
     for d in devoluciones:
         if y < 80:
             pdf.showPage()
             y = height - 50
-
-            # Repetir encabezado en nueva página
             pdf.setFillColor(azul)
             pdf.rect(40, y, 510, 25, fill=1)
-
-            pdf.setFillColor(colors.white)
-            pdf.setFont("Helvetica-Bold", 9)
-            pdf.drawString(45, y + 8, "FECHA")
-            pdf.drawString(105, y + 8, "CLIENTE")
-            pdf.drawString(195, y + 8, "PRODUCTO")
-            pdf.drawString(285, y + 8, "CANT.")
-            pdf.drawString(325, y + 8, "CONDICIONES")
-            pdf.drawString(440, y + 8, "PLAZO")
-            pdf.drawString(490, y + 8, "FACTURA")
-
             y -= 25
-            pdf.setFillColor(colors.black)
-            pdf.setFont("Helvetica", 8)
-
+        pdf.setStrokeColor(colors.black)
         pdf.rect(40, y, 510, 25)
-
         pdf.drawString(45, y + 8, d.fecha.strftime("%d/%m/%Y"))
-        pdf.drawString(105, y + 8, d.id_venta.id_cliente.nombre[:15])
+        pdf.drawString(105, y + 8, d.id_venta.id_cliente.nombre[:15] if d.id_venta.id_cliente else "Anónimo")
         pdf.drawString(195, y + 8, d.id_producto.nombre[:15])
-        pdf.drawString(285, y + 8, str(d.cantidad))  # ← Renderizado de cantidad real
+        pdf.drawString(285, y + 8, str(d.cantidad))
         pdf.drawString(325, y + 8, d.condiciones[:20] if d.condiciones else "N/A")
         pdf.drawString(440, y + 8, str(d.plazo))
         pdf.drawString(490, y + 8, str(d.id_venta.id_venta))
-
         y -= 25
-
-    # ==================================
-    # PIE DE PÁGINA
-    # ==================================
     pdf.setFillColor(azul)
     pdf.rect(0, 0, width, 35, fill=1)
-
     pdf.setFillColor(colors.white)
     pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(40, 12, "www.ferreteriamicasa.NotenemosDominio.XD")
+    pdf.drawString(40, 12, "www.ferreteriamicasa.com")
     pdf.drawRightString(width - 40, 12, "REPORTE DE DEVOLUCIONES")
-
-    pdf.save()
-    return response

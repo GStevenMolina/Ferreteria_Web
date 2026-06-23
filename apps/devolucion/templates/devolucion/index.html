@@ -5,13 +5,90 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/devolucion.css' %}">
+<style>
+    /* =========================================================================
+       🎨 CORRECCIÓN DE COLORES - MODO OSCURO (UI FIX)
+       ========================================================================= */
+    
+    /* Contenedor del selector (Antes se veía blanco) */
+    .seccion-selector-producto {
+        background-color: #202b3e !important;
+        border: 1px dashed #3d4d6c !important;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 15px;
+        margin-bottom: 15px;
+    }
+    .seccion-selector-producto h4 { color: #ffffff !important; margin-top: 0; }
+    .seccion-selector-producto label { color: #cbd5e1 !important; }
+    .seccion-selector-producto .helper-text { color: #94a3b8 !important; }
+
+    /* Botón verde para añadir elementos a la lista */
+    .btn-agregar-lista {
+        background-color: #21a34a !important; 
+        color: #ffffff !important;
+        width: 100% !important;
+        padding: 12px !important;
+        font-size: 0.95rem !important;
+        font-weight: bold !important;
+        border: none !important;
+        border-radius: 6px !important;
+        margin-top: 15px !important;
+        cursor: pointer !important;
+        display: block !important;
+        transition: background-color 0.2s ease !important;
+    }
+    .btn-agregar-lista:hover {
+        background-color: #166534 !important; 
+    }
+
+    /* Tabla "Artículos a Devolver" (Antes se veía blanca) */
+    .sub-tabla-preparacion {
+        background-color: #1d2839 !important;
+        border: 1px solid #3d4d6c !important;
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+    .sub-tabla-preparacion th {
+        background-color: #2a364f !important;
+        color: #ffffff !important;
+        padding: 10px !important;
+        text-align: left;
+        border-bottom: 2px solid #3d4d6c !important;
+    }
+    .sub-tabla-preparacion td {
+        background-color: #1d2839 !important;
+        color: #e2e8f0 !important;
+        padding: 10px !important;
+        border-bottom: 1px solid #2a364f !important;
+    }
+    #fila-vacia-lista td { 
+        color: #94a3b8 !important; 
+        background-color: #1d2839 !important; 
+    }
+
+    /* Botón rojo para quitar filas */
+    .btn-quitar-fila {
+        background-color: #ef4444 !important;
+        color: white !important;
+        border: none !important;
+        padding: 5px 10px !important;
+        border-radius: 4px !important;
+        cursor: pointer !important;
+        font-weight: bold !important;
+    }
+    .btn-quitar-fila:hover {
+        background-color: #b91c1c !important;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container-devolucion">
 
     <section class="form-card">
-        <h3>Devolución</h3>
+        <h3>Registrar Devolución Completa</h3>
 
         {% if error %}
         <div class="error-message">
@@ -28,14 +105,14 @@
             <label for="plazo">Plazo (días)</label>
             <input type="number" name="plazo" id="plazo" placeholder="Ej: 5" min="1" required>
 
-            <label for="condiciones">Condiciones</label>
-            <textarea name="condiciones" id="condiciones" placeholder="Describa el estado del producto" required></textarea>
+            <label for="condiciones">Condiciones / Motivo General</label>
+            <textarea name="condiciones" id="condiciones" placeholder="Describa el estado o motivo de la devolución general" required></textarea>
 
             <label for="id_factura">Número de Factura</label>
             <select name="id_factura" id="id_factura" required>
                 <option value="">Seleccione una factura</option>
                 {% for factura in facturas %}
-                <option value="{{ factura.id_venta }}" {% if factura_seleccionada and factura.id_venta == factura_seleccionada.id_venta %}selected{% endif %}>
+                <option value="{{ factura.id_venta }}">
                     Factura #{{ factura.id_venta }} - {{ factura.id_cliente.nombre }}
                 </option>
                 {% endfor %}
@@ -46,26 +123,49 @@
                 <input type="text" id="cliente_factura" readonly>
             </div>
 
-            <label for="id_producto">Producto a devolver</label>
-            <select name="id_producto" id="id_producto" required>
-                <option value="">Seleccione un producto</option>
-                {% for producto in productos %}
-                <option value="{{ producto.id_producto }}">{{ producto.nombre }}</option>
-                {% empty %}
-                <option value="">Primero seleccione una factura</option>
-                {% endfor %}
-            </select>
+            <div class="seccion-selector-producto">
+                <h4>Añadir Artículo a la Lista</h4>
+                
+                <label for="id_producto">Producto</label>
+                <select name="temp_producto" id="id_producto">
+                    <option value="">Primero seleccione una factura</option>
+                </select>
 
-            <label for="cantidad">Cantidad a devolver</label>
-            <input type="number" name="cantidad" id="cantidad" min="1" placeholder="Seleccione un producto primero" disabled required>
-            <small id="helper-cantidad" class="helper-text"></small>
+                <label for="cantidad">Cantidad a devolver</label>
+                <input type="number" name="temp_cantidad" id="cantidad" min="1" placeholder="0" disabled>
+                <small id="helper-cantidad" class="helper-text"></small>
 
-            <button type="submit" class="btn-orange">Registrar devolución</button>
+                <label for="estado_selector">¿Viene Defectuoso / Quebrado?</label>
+                <select id="estado_selector">
+                    <option value="false">No (Reingresa limpio a Stock)</option>
+                    <option value="true">Sí (Enviar a Productos Dañados y dar de Baja)</option>
+                </select>
+
+                <button type="button" id="btnAñadirProducto" class="btn-agregar-lista">＋ Añadir a la lista de devolución</button>
+            </div>
+
+            <h4>Artículos a Devolver:</h4>
+            <table class="sub-tabla-preparacion" id="tablaPreparacionDevolucion">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cant.</th>
+                        <th>¿Defectuoso?</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoListaDevolucion">
+                    <tr id="fila-vacia-lista">
+                        <td colspan="4" style="text-align: center; color: #999;">Ningún producto añadido todavía.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <button type="submit" class="btn-orange">Registrar devolución y generar PDF</button>
         </form>
     </section>
 
     <section class="tabla-card">
-        
         <div class="table-toolbar">
             <div class="search-form">
                 <input type="text" id="buscador" placeholder="🔍 Buscar por producto..." autocomplete="off">
@@ -114,15 +214,4 @@
 
 {% block extra_js %}
 <script src="{% static 'js/devolucion.js' %}"></script>
-
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const fecha = document.getElementById("fecha");
-    if (fecha && !fecha.value) { // Solo asigna hoy si no hay valor previo
-        const hoy = new Date().toISOString().split("T")[0];
-        fecha.min = hoy;
-        fecha.value = hoy;
-    }
-});
-</script>
 {% endblock %}

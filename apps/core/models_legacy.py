@@ -98,6 +98,31 @@ class Devolucion(models.Model):
         managed = False
         db_table = 'devolucion'
 
+        # --- PROPIEDADES VIRTUALES (No tocan la Base de Datos) ---
+
+    @property
+    def precio_unitario_venta(self):
+        """
+        Busca el precio exacto al que se le vendió el producto al cliente
+        revisando la tabla DetalleVenta.
+        """
+        if self.id_venta and self.id_producto:
+            # Buscamos el detalle de la venta que coincida con esta venta y producto
+            detalle = DetalleVenta.objects.filter(
+                id_venta=self.id_venta, 
+                id_producto=self.id_producto
+            ).first()
+            if detalle:
+                return detalle.precio_unitario
+        
+        # Si por alguna razón no encuentra el detalle, usamos el precio actual del producto
+        return self.id_producto.precio_venta if self.id_producto else 0
+
+    @property
+    def total_reembolso_linea(self):
+        """Calcula automáticamente el dinero a devolver por este producto"""
+        return self.cantidad * self.precio_unitario_venta
+
 
 class FacturaCliente(models.Model):
     id_factura = models.AutoField(primary_key=True)

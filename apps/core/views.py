@@ -6,7 +6,71 @@ from django.shortcuts import render
 from django.utils import timezone
 
 from apps.accounts.auth import login_required_custom
-from apps.core.models import Categoria, Compra, Devolucion, Inventario, MovimientoInventario, Producto, Venta
+from apps.core.models import Categoria, Compra, Devolucion, Inventario, MovimientoInventario, Producto, Venta,ProductoDanado
+from django.db import transaction
+
+def procesar_devolucion_defectuosa(id_venta_obj, id_producto_obj, id_factura_obj, cantidad, usuario_obj, motivo):
+    """
+    Ejecuta el flujo completo de devolución de producto dañado de forma segura.
+    """
+    try:
+        # transaction.atomic asegura que si algo falla, no se guarde NADA en la BD
+        with transaction.atomic():
+            
+            # --- PASO 1: Registrar la Devolución ---
+            devolucion = Devolucion.objects.create(
+                id_venta=id_venta_obj,
+                id_producto=id_producto_obj,
+                id_factura=id_factura_obj,
+                fecha=timezone.now(),
+                cantidad=cantidad,
+                estado='PROCESADO'
+            )
+            
+            # --- PASO 2: Registrar en Producto Dañado ---
+            # Vinculamos la devolución que acabamos de crear arriba
+            ProductoDanado.objects.create(
+                id_devolucion=devolucion,
+                id_producto=id_producto_obj,
+                id_usuario=usuario_obj,
+                cantidad=cantidad,
+                motivo_dano=motivo,
+                estado_proceso='PENDIENTE',  # <-- Tal como lo solicitaste
+                observaciones=f"Registrado automáticamente desde la devolución #{devolucion.id_devolucion}"
+            )
+            
+            # --- PASO 3: Registrar Movimiento de Inventario ---
+            MovimientoInventario.objects.create(
+                id_producto=id_producto_obj,
+                id_usuario=usuario_obj,
+                tipo_movimiento='SALIDA_POR_DAÑO',  # <-- Tu identificador de movimiento
+                cantidad=cantidad,
+                referencia=f"DEV-{devolucion.id_devolucion}",
+                fecha_movimiento=timezone.now(),
+                observaciones=f"Salida automática por martillo/producto defectuoso: {motivo}"
+            )
+            
+            # --- PASO 4: Restar del Stock Actual ---
+            # Buscamos el registro de inventario de ese producto específico
+            inventario = Inventario.objects.filter(id_producto=id_producto_obj).first()
+            
+            if inventario:
+                # Restamos las unidades dañadas del stock actual
+                inventario.stock_actual -= cantidad
+                
+                # OJO: Aunque tus modelos tengan managed=False, Django SÍ puede hacer .save() 
+                # para actualizar filas que YA EXISTEN en la base de datos.
+                inventario.save()
+            else:
+                # Nota de seguridad por si el producto no tiene registro de inventario previo
+                raise Exception(f"No se encontró un registro en Inventario para el producto ID: {id_producto_obj.id_producto}")
+            
+            return devolucion  # Todo salió perfecto
+
+    except Exception as e:
+        # Aquí puedes manejar el error (guardarlo en logs, etc.)
+        print(f"Error crítico en el flujo de devolución: {str(e)}")
+        return None
 
 
 def _money_total(queryset, field_name):

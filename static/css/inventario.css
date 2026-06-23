@@ -438,7 +438,7 @@
   background: rgba(30, 41, 59, 0.2) !important;
 }
 
-/* ¡Aquí está el secreto para hacerla delgada! Reducimos el padding vertical al mínimo */
+/* Reducción del padding vertical al mínimo */
 .inventory-table--reports td {
   padding: 6px 10px !important; 
   font-size: 0.82rem !important;
@@ -467,6 +467,7 @@
   border-radius: 4px !important;
 }
 
+/* Estilo unificado para Entradas */
 .inventory-page--reports .status-badge--entrada,
 .inventory-page--reports .status-badge--ajuste_entrada {
   background: rgba(34, 197, 94, 0.12) !important;
@@ -474,11 +475,19 @@
   border: 1px solid rgba(34, 197, 94, 0.25) !important;
 }
 
+/* Estilo unificado para Salidas estándar y ajustes */
 .inventory-page--reports .status-badge--salida,
 .inventory-page--reports .status-badge--ajuste_salida {
   background: rgba(239, 68, 68, 0.12) !important;
   color: var(--danger) !important;
   border: 1px solid rgba(239, 68, 68, 0.25) !important;
+}
+
+/* 🌟 CORRECCIÓN SIN GUIONES: ETIQUETA EN AMARILLO/ÁMBAR PARA SALIDA POR DAÑO */
+.inventory-page--reports [class*="salida por daño"] {
+  background: rgba(245, 158, 11, 0.15) !important; /* Fondo ámbar translúcido */
+  color: var(--warning) !important;                /* Texto en amarillo warning claro */
+  border: 1px solid rgba(245, 158, 11, 0.35) !important; /* Borde sutil */
 }
 
 /* --- Grid Principal Inferior (Tabla + Sidebar) --- */

@@ -256,3 +256,21 @@ class Venta(models.Model):
     class Meta:
         managed = False
         db_table = 'venta'
+        
+class ProductoDanado(models.Model):
+    id_producto_danado = models.AutoField(primary_key=True)
+    id_devolucion = models.ForeignKey('Devolucion', models.DO_NOTHING, db_column='id_devolucion')
+    id_producto = models.ForeignKey('Producto', models.DO_NOTHING, db_column='id_producto')
+    id_usuario = models.ForeignKey('Usuario', models.DO_NOTHING, db_column='id_usuario', blank=True, null=True)
+    cantidad = models.IntegerField(default=1)
+    motivo_dano = models.TextField(db_collation='Modern_Spanish_CI_AS', blank=True, null=True)
+    estado_proceso = models.CharField(max_length=30, default='PENDIENTE', db_collation='Modern_Spanish_CI_AS')
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    observaciones = models.TextField(db_collation='Modern_Spanish_CI_AS', blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'producto_danado'
+
+    def __str__(self):
+        return f"Dañado: {self.id_producto.nombre} ({self.cantidad}) - Estado: {self.estado_proceso}"

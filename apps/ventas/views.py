@@ -22,7 +22,7 @@ from apps.core.models import (
     FacturaCliente,
 )
 
-#  CONFIG MONEDA
+# CONFIG MONEDA
 TIPO_CAMBIO = 36.5  # 1 USD = 36.5 C$
 
 
@@ -126,6 +126,7 @@ def crear_cliente(request):
 
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
+
 # ===============================
 # 🧾 GENERAR NÚMERO DE FACTURA
 # ===============================
@@ -267,19 +268,23 @@ def guardar_venta(request):
                 observaciones=f'Salida por venta al cliente {cliente.nombre}'
             )
 
-                # Calcular IVA ANTES de convertir moneda
-        subtotal_sin_iva_original = round(subtotal_general / 1.15, 2)
-        impuesto_original = round(subtotal_general - subtotal_sin_iva_original, 2)
+        # =========================================================
+        # 🔥 CORRECCIÓN AQUÍ: Calcular IVA sumándolo al subtotal (15%)
+        # =========================================================
+        subtotal_sin_iva_original = round(subtotal_general, 2)
+        impuesto_original = round(subtotal_general * 0.15, 2)
+        total_general_con_iva = round(subtotal_sin_iva_original + impuesto_original, 2)
 
         # Convertir a córdobas si es necesario
         if moneda == 'USD':
             subtotal_sin_iva = round(subtotal_sin_iva_original * TIPO_CAMBIO, 2)
             impuesto = round(impuesto_original * TIPO_CAMBIO, 2)
-            total_final = round(subtotal_general * TIPO_CAMBIO, 2)
+            total_final = round(total_general_con_iva * TIPO_CAMBIO, 2)
         else:
             subtotal_sin_iva = subtotal_sin_iva_original
             impuesto = impuesto_original
-            total_final = round(subtotal_general, 2)
+            total_final = total_general_con_iva
+        # =========================================================
 
         # Crear factura
         factura = FacturaCliente.objects.create(
@@ -309,7 +314,6 @@ def guardar_venta(request):
         })
 
 
-# 📄 GENERAR FACTURA PDF
 # 📄 GENERAR FACTURA PDF DE VENTAS
 def generar_factura_pdf(request, factura_id):
     # Buscamos la factura del cliente cargando la relación con el cliente
@@ -505,6 +509,5 @@ def _dibujar_contenido_venta_pdf(pdf, factura, cliente, detalles, width, height,
 
     pdf.setFillColor(colors.white)
     pdf.setFont("Helvetica-Bold", 12)
-    # Una pequeña broma del pie de página que conservé intacta de tu código original:
     pdf.drawString(40, 12, "www.ferreteriamicasa.NotenemosDominio.XD")
     pdf.drawRightString(width - 40, 12, "GRACIAS POR SU COMPRA")

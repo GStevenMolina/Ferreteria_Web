@@ -186,29 +186,34 @@ def index(request):
                         )
 
                         # Doble movimiento en historial para transparencia de auditoría
+                        # 1. Entrada técnica justificada
                         MovimientoInventario.objects.create(
                             id_producto=producto, id_usuario_id=id_usuario,
                             tipo_movimiento="ENTRADA", cantidad=cantidad_dev,
                             referencia=f"Devolución #{devolucion.id_devolucion}",
-                            fecha_movimiento=timezone.now(), observaciones=condiciones
+                            fecha_movimiento=timezone.now(), 
+                            observaciones=f"Reingreso por devolución (Factura #{venta.id_venta})."
                         )
+                        # 2. Salida por daño detallada
                         MovimientoInventario.objects.create(
                             id_producto=producto, id_usuario_id=id_usuario,
                             tipo_movimiento="SALIDA POR DAÑO", cantidad=cantidad_dev,
                             referencia=f"Baja por Daño #{devolucion.id_devolucion}",
-                            fecha_movimiento=timezone.now(), observaciones=f"Descarte: {condiciones}"
+                            fecha_movimiento=timezone.now(), 
+                            observaciones=f"Baja automática por daño. Motivo del cliente: {condiciones}"
                         )
                     else:
                         # --- FLUJO NORMAL (Reingresa limpio al Stock) ---
                         inventario.stock_actual += cantidad_dev
                         inventario.save()
 
-                        # Movimiento único de Entrada
+                        # Movimiento único de Entrada con motivo explícito
                         MovimientoInventario.objects.create(
                             id_producto=producto, id_usuario_id=id_usuario,
                             tipo_movimiento="ENTRADA", cantidad=cantidad_dev,
                             referencia=f"Devolución #{devolucion.id_devolucion}",
-                            fecha_movimiento=timezone.now(), observaciones=condiciones
+                            fecha_movimiento=timezone.now(), 
+                            observaciones=f"Reingreso a stock (Devolución Factura #{venta.id_venta}). Motivo: {condiciones}"
                         )
 
                 # =========================================================================

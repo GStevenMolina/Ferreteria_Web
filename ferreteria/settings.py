@@ -77,9 +77,9 @@ TEMPLATES = [
 WSGI_APPLICATION = 'ferreteria.wsgi.application'
 
 # DB_HOST debe incluir servidor e instancia, por ejemplo: MSI\SQLEXPRESS o .\SQLEXPRESS.
-db_host = os.getenv("DB_HOST", r"MARCEL-TM\SQLEXPRESS")
-if db_host == "MARCEL-TM\SQLEXPRESS":
-    db_host = r"MARCEL-TM\SQLEXPRESS"
+db_host = os.getenv("DB_HOST", r"MSI")
+if db_host == "MSI":
+    db_host = r"MSI"
 
 # DATABASE (SQL Server)
 DATABASES = {

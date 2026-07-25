@@ -303,7 +303,6 @@ def nueva_compra(request):
         DetalleCompra(
             id_compra=compra,
             id_producto=x["producto"],
-            content_type=None,
             cantidad=x["cantidad"],
             precio_unitario=money(x["precio_unitario"]),
         )

@@ -196,13 +196,14 @@ def forgot_password_code(request):
 
 @require_http_methods(["GET", "POST"])
 def password_reset_code_verify(request):
-    if request.method == "GET":
-        return render(request, "accounts/password_reset_code_verify.html")
-
     email = request.session.get("password_reset_email")
     if not email:
         messages.error(request, "Primero solicita un código de recuperación.")
         return redirect(reverse("password_forgot"))
+
+    if request.method == "GET":
+        # PASAMOS EL EMAIL AL TEMPLATE EN GET
+        return render(request, "accounts/password_reset_code_verify.html", {"email": email})
 
     code = (request.POST.get("code") or "").strip()
     new_password = request.POST.get("new_password") or ""
@@ -210,21 +211,21 @@ def password_reset_code_verify(request):
 
     if not code or not new_password or not new_password2:
         messages.error(request, "Completa el código y la nueva contraseña.")
-        return render(request, "accounts/password_reset_code_verify.html")
+        return render(request, "accounts/password_reset_code_verify.html", {"email": email})
 
     if new_password != new_password2:
         messages.error(request, "Las contraseñas no coinciden.")
-        return render(request, "accounts/password_reset_code_verify.html")
+        return render(request, "accounts/password_reset_code_verify.html", {"email": email})
 
     if not _password_meets_policy(new_password):
         messages.error(request, PASSWORD_POLICY_MESSAGE)
-        return render(request, "accounts/password_reset_code_verify.html")
+        return render(request, "accounts/password_reset_code_verify.html", {"email": email})
 
     cache_key = f"password_reset_code_{email.lower()}"
     expected_code = cache.get(cache_key)
     if not expected_code or expected_code != code:
         messages.error(request, "El código es inválido o expiró.")
-        return render(request, "accounts/password_reset_code_verify.html")
+        return render(request, "accounts/password_reset_code_verify.html", {"email": email})
 
     usuario = Usuario.objects.filter(email=email).first()
     if not usuario:
@@ -393,8 +394,7 @@ def auditoria_list_view(request):
     # resumen básico
     resumen = {
         'total': AuditoriaEvento.objects.count(),
-        'con_modulo': AuditoriaEvento.objects.exclude(modulo__isnull=True).exclude(modulo="").count(),
-    }
+        'con_modulo': AuditoriaEvento.objects.exclude(modulo__isnull=True).exclude(modulo="").count(),    }
 
     return render(request, "accounts/auditoria_list.html", {
         "logs": logs,

@@ -1,0 +1,47 @@
+:root{
+  --dash-panel: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.94));
+  --dash-border: rgba(255, 255, 255, 0.08);
+  --dash-text: #e5e7eb;
+  --dash-muted: #94a3b8;
+}
+
+.dashboard-page{display:flex;flex-direction:column;gap:16px;}
+.dashboard-hero,.panel,.kpi-card{background:var(--dash-panel);border:1px solid var(--dash-border);box-shadow:0 20px 50px rgba(2, 6, 23, .25);}
+.dashboard-hero{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;position:relative;overflow:hidden;}
+.dashboard-hero__meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.hero-chip{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:999px;background:rgba(56, 189, 248, 0.12);border:1px solid rgba(56, 189, 248, 0.18);color:var(--dash-text);font-weight:700;}
+.hero-chip--soft{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.08);color:var(--dash-muted);}
+.hero-chip__icon{width:20px;text-align:center;}
+.kpi-grid{display:grid;grid-template-columns:repeat(6, minmax(0, 1fr));gap:14px;}
+.kpi-card{display:flex;align-items:center;gap:14px;min-height:102px;}
+.kpi-card__icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(56, 189, 248, 0.16);font-size:22px;}
+.kpi-card__icon--warning{background:rgba(245, 158, 11, 0.16);} .kpi-card__icon--danger{background:rgba(239, 68, 68, 0.16);} .kpi-card__icon--success{background:rgba(34, 197, 94, 0.16);} .kpi-card__icon--info{background:rgba(14, 165, 233, 0.16);} .kpi-card__icon--accent{background:rgba(168, 85, 247, 0.16);} 
+.kpi-card__body p{margin:0 0 6px;color:var(--dash-muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;}
+.kpi-card__body strong{font-size:clamp(20px, 2vw, 28px);line-height:1;}
+.dashboard-grid{display:grid;gap:14px;}
+.dashboard-grid--charts{grid-template-columns:repeat(3, minmax(0, 1fr));}
+.dashboard-grid--below{grid-template-columns:1fr 1.1fr;}
+.panel{padding:16px;}
+.panel-heading h2{margin:0;font-size:18px;}
+.panel-heading p{margin:6px 0 0;color:var(--dash-muted);}
+.chart-box{position:relative;min-height:300px;margin-top:14px;}
+.chart-box--small{min-height:320px;}
+.chart-box canvas{width:100% !important;height:100% !important;}
+.alert-group{display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:12px;margin-top:16px;}
+.alert-block{border-radius:16px;padding:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);}
+.alert-block h3,.activity-list h3{margin:0 0 10px;font-size:15px;}
+.alert-block--danger{border-color:rgba(239, 68, 68, .18);} .alert-block--warning{border-color:rgba(245, 158, 11, .18);} .alert-block--soft{border-color:rgba(56, 189, 248, .18);} 
+.simple-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;}
+.simple-list li{display:flex;justify-content:space-between;gap:10px;color:var(--dash-text);font-size:14px;}
+.simple-list span{color:var(--dash-muted);white-space:nowrap;}
+.simple-list__empty,.activity-empty{color:var(--dash-muted);}
+.activity-columns{display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:12px;margin-top:16px;}
+.activity-list{border-radius:16px;padding:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);}
+.activity-item{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid rgba(255,255,255,.06);}
+.activity-item:first-of-type{border-top:0;padding-top:0;}
+.activity-item strong{display:block;margin-bottom:4px;}
+.activity-item p{margin:0;color:var(--dash-muted);font-size:12px;}
+.activity-item span{color:#d8f4ff;white-space:nowrap;font-weight:700;}
+@media (max-width: 1400px){.kpi-grid{grid-template-columns:repeat(3, minmax(0, 1fr));}.dashboard-grid--charts,.dashboard-grid--below,.alert-group,.activity-columns{grid-template-columns:1fr;}}
+@media (max-width: 900px){.dashboard-hero{flex-direction:column;}.kpi-grid{grid-template-columns:repeat(2, minmax(0, 1fr));}}
+@media (max-width: 640px){.kpi-grid{grid-template-columns:1fr;}}

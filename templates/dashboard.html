@@ -1,10 +1,73 @@
 {% extends "base.html" %}
+{% load static %}
+
 {% block title %}Dashboard - Ferretería Mi Casa{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
 {% block content %}
-  <div class="card">
-    <h1 class="page-title">Bienvenido a Ferretería Mi Casa</h1>
-    <p class="page-subtitle">Selecciona una opción del menú para comenzar.</p>
-    <img src="{% load static %}{% static 'assets/Ferreteria.png' %}" alt="" style="width:140px;opacity:.95" />
-  </div>
+{% now "d/m/Y" as today_label %}
+<div class="dashboard-page">
+  <section class="dashboard-hero card">
+    <div>
+      <p class="eyebrow">Centro de control operativo</p>
+      <h1 class="page-title">Dashboard de Ferretería Mi Casa</h1>
+      <p class="page-subtitle">Resumen de inventario, ventas, compras, devoluciones y alertas, sin tocar la lógica existente.</p>
+    </div>
+    <div class="dashboard-hero__meta">
+      <div class="hero-chip"><span class="hero-chip__icon">👤</span><span>{{ request.session.usuario_nombre }}</span></div>
+      <div class="hero-chip hero-chip--soft"><span class="hero-chip__icon">📅</span><span>{{ today_label }}</span></div>
+    </div>
+  </section>
+
+  <section class="kpi-grid">
+    <article class="kpi-card card"><div class="kpi-card__icon">📦</div><div class="kpi-card__body"><p>Total productos</p><strong>{{ total_productos }}</strong></div></article>
+    <article class="kpi-card card"><div class="kpi-card__icon kpi-card__icon--warning">⚠️</div><div class="kpi-card__body"><p>Stock bajo</p><strong>{{ productos_stock_bajo }}</strong></div></article>
+    <article class="kpi-card card"><div class="kpi-card__icon kpi-card__icon--danger">⛔</div><div class="kpi-card__body"><p>Productos agotados</p><strong>{{ productos_agotados }}</strong></div></article>
+    <article class="kpi-card card"><div class="kpi-card__icon kpi-card__icon--success">💵</div><div class="kpi-card__body"><p>Ventas del día</p><strong>C$ {{ ventas_del_dia|floatformat:2 }}</strong></div></article>
+    <article class="kpi-card card"><div class="kpi-card__icon kpi-card__icon--info">🛒</div><div class="kpi-card__body"><p>Compras del día</p><strong>C$ {{ compras_del_dia|floatformat:2 }}</strong></div></article>
+    <article class="kpi-card card"><div class="kpi-card__icon kpi-card__icon--accent">📈</div><div class="kpi-card__body"><p>Movimientos recientes</p><strong>{{ movimientos_recientes }}</strong></div></article>
+  </section>
+
+  <section class="dashboard-grid dashboard-grid--charts">
+    <article class="panel card"><div class="panel-heading"><h2>Productos más vendidos</h2><p>Top 10 por unidades vendidas.</p></div><div class="chart-box"><canvas id="topProductsChart"></canvas></div></article>
+    <article class="panel card"><div class="panel-heading"><h2>Compras vs ventas</h2><p>Últimos 7 días.</p></div><div class="chart-box"><canvas id="flowChart"></canvas></div></article>
+    <article class="panel card"><div class="panel-heading"><h2>Distribución por categorías</h2><p>Productos por categoría.</p></div><div class="chart-box chart-box--small"><canvas id="categoryChart"></canvas></div></article>
+  </section>
+
+  <section class="dashboard-grid dashboard-grid--below">
+    <article class="panel card panel--alerts">
+      <div class="panel-heading"><h2>Alertas rápidas</h2><p>Sin stock, stock crítico y mínimo alcanzado.</p></div>
+      <div class="alert-group">
+        <div class="alert-block alert-block--danger"><h3>Sin stock</h3><ul class="simple-list">{% for row in alert_zero_stock %}<li>{{ row.id_producto.nombre }} <span>{{ row.stock_actual|default:0 }}</span></li>{% empty %}<li class="simple-list__empty">Sin alertas en este bloque.</li>{% endfor %}</ul></div>
+        <div class="alert-block alert-block--warning"><h3>Stock crítico</h3><ul class="simple-list">{% for row in alert_low_stock %}<li>{{ row.id_producto.nombre }} <span>{{ row.stock_actual }}/{{ row.stock_minimo }}</span></li>{% empty %}<li class="simple-list__empty">Sin alertas en este bloque.</li>{% endfor %}</ul></div>
+        <div class="alert-block alert-block--soft"><h3>Mínimo alcanzado</h3><ul class="simple-list">{% for row in alert_min_stock %}<li>{{ row.id_producto.nombre }} <span>{{ row.stock_actual }}/{{ row.stock_minimo }}</span></li>{% empty %}<li class="simple-list__empty">Sin alertas en este bloque.</li>{% endfor %}</ul></div>
+      </div>
+    </article>
+
+    <article class="panel card panel--activity">
+      <div class="panel-heading"><h2>Movimientos recientes</h2><p>Últimas compras, ventas y devoluciones.</p></div>
+      <div class="activity-columns">
+        <section class="activity-list"><h3>Compras</h3>{% for item in recent_purchases %}<div class="activity-item"><div><strong>{{ item.id_proveedor.nombre|default:"Proveedor" }}</strong><p>{{ item.fecha|date:"d/m/Y H:i" }}</p></div><span>C$ {{ item.total|floatformat:2 }}</span></div>{% empty %}<div class="activity-empty">Sin compras recientes.</div>{% endfor %}</section>
+        <section class="activity-list"><h3>Ventas</h3>{% for item in recent_sales %}<div class="activity-item"><div><strong>{{ item.id_cliente.nombre|default:"Cliente" }}</strong><p>{{ item.fecha|date:"d/m/Y H:i" }}</p></div><span>C$ {{ item.total|floatformat:2 }}</span></div>{% empty %}<div class="activity-empty">Sin ventas recientes.</div>{% endfor %}</section>
+        <section class="activity-list"><h3>Devoluciones</h3>{% for item in recent_returns %}<div class="activity-item"><div><strong>{{ item.id_producto.nombre|default:"Producto" }}</strong><p>{{ item.fecha|date:"d/m/Y H:i" }}</p></div><span>{{ item.estado|default:"Pendiente" }}</span></div>{% empty %}<div class="activity-empty">Sin devoluciones recientes.</div>{% endfor %}</section>
+      </div>
+    </article>
+  </section>
+</div>
+
+{{ top_products_labels|json_script:"dashboard-top-products-labels" }}
+{{ top_products_values|json_script:"dashboard-top-products-values" }}
+{{ flow_labels|json_script:"dashboard-flow-labels" }}
+{{ flow_purchase_values|json_script:"dashboard-flow-purchases" }}
+{{ flow_sale_values|json_script:"dashboard-flow-sales" }}
+{{ category_labels|json_script:"dashboard-category-labels" }}
+{{ category_values|json_script:"dashboard-category-values" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/dashboard.js' %}"></script>
 {% endblock %}

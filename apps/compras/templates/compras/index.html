@@ -1,8 +1,201 @@
 {% extends "base.html" %}
-{% block title %}Compras{% endblock %}
+{% load static %}
+
 {% block content %}
-  <div class="card">
-    <h1 class="page-title">Compras</h1>
-    <p class="page-subtitle">Página de compras funcionando.</p>
+<link rel="stylesheet" href="{% static 'css/compras.css' %}">
+
+<div class="compras-wrap">
+  <div class="toolbar">
+    <h1 class="compras-title">=Area de Compras=</h1>
+
+    <!-- Toggle moneda (solo visual por ahora) -->
+    <div class="currency-toggle" title="Cambiar moneda de la compra (visual)">
+      <span class="currency-toggle__label">Moneda:</span>
+      <span class="currency-pill" id="currencyPill">C$ NIO</span>
+      <button class="currency-toggle__btn" id="btnToggleCurrency" type="button">Cambiar</button>
+
+        <!-- NUEVO: tipo de cambio -->
+      <span class="currency-toggle__label" style="margin-left:10px;">TC (USD→NIO):</span>
+      <input id="fx_rate" class="currency-toggle__btn" type="number" step="0.0001" min="0" value="36.60"
+         style="width:90px; text-align:left;" title="Tipo de cambio manual (1 USD = X NIO)">
+
+    </div>
   </div>
+
+  <div class="card">
+    <!-- Encabezado: proveedor + IVA -->
+    <div class="grid2">
+      <div>
+        <label class="label">Proveedor</label>
+        <select id="proveedor" class="sel" required>
+          <option value="">Cargando proveedores...</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="label">IVA %</label>
+        <input id="iva_rate" class="inp" type="number" min="0" max="100" step="0.01" value="15">
+      </div>
+    </div>
+
+    <!-- Agregar items -->
+    <div class="gridAdd">
+      <div>
+        <label class="label">Productos</label>
+
+        <div style="display:flex; gap:10px; align-items:center;">
+          <select id="producto" class="sel" style="flex:1;">
+            <option value="">— Selecciona proveedor primero —</option>
+          </select>
+
+          <!-- Botón pequeño Nuevo Producto -->
+          <button class="currency-toggle__btn" type="button" id="btnNuevoProducto" title="Crear producto nuevo">
+            + Nuevo
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label class="label">Cantidad</label>
+        <input id="cantidad" class="inp" type="number" min="1" value="1">
+      </div>
+
+      <div>
+        <label class="label">Precio compra</label>
+        <input id="precio_compra" class="inp" type="number" min="0" step="0.01" value="0.00">
+      </div>
+
+      <div>
+        <label class="label">Precio venta</label>
+        <input id="precio_venta" class="inp" type="number" min="0" step="0.01" value="0.00">
+      </div>
+
+      <button class="btn" id="btnAdd" type="button">Agregar</button>
+    </div>
+
+    <!-- Tabla items -->
+    <table>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th class="right" style="width:120px;">Cantidad</th>
+          <th class="right" style="width:160px;">Precio compra</th>
+          <th class="right" style="width:160px;">Subtotal</th>
+          <th style="width:90px;"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr><td colspan="5" class="note">No hay items todavía.</td></tr>
+      </tbody>
+    </table>
+
+    <!-- Totales -->
+    <div class="footerRow">
+      <div class="note"></div>
+
+      <div class="totbox">
+        <div class="totline"><span>Subtotal</span><b id="sub">C$0.00</b></div>
+        <div class="totline"><span>Impuesto (IVA)</span><b id="tax">C$0.00</b></div>
+        <div class="totline"><span>Total</span><b id="tot">C$0.00</b></div>
+        <button class="btn saveBtn" id="btnSave" type="button">Guardar compra</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast">
+  <div class="toast-title" id="toastTitle"></div>
+  <div class="toast-body" id="toastBody"></div>
+</div>
+
+<!-- CSRF -->
+<form id="csrfForm">{% csrf_token %}</form>
+
+<!--  Ventana Flotante Nuevo Producto  -->
+<div id="modalNuevoProducto" class="modal" style="display:none;">
+  <div class="modal__backdrop" id="modalBackdrop"></div>
+
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Nuevo producto">
+    <div class="modal__header">
+      <div>
+        <div class="modal__title">Nuevo producto</div>
+        <div class="  modal__subtitle">Proveedor + Producto + Categoría</div>
+      </div>
+      <button class="modal__close" type="button" id="btnCloseModalNP">✕</button>
+    </div>
+
+    <div class="modal__grid">
+      <!-- PROVEEDOR -->
+      <div class="modal__card card-blue">
+        <div class="modal__cardTitle">Proveedor</div>
+
+        <label class="label">Nombre</label>
+        <input id="np_prov_nombre" class="inp" placeholder="Ej: Proveedor ABC" />
+        <div class="ac" id="provAcWrap">
+          <div class="ac__list" id="provAcList" style="display:none;"></div>
+        </div>
+
+        <label class="label">Teléfono</label>
+        <input id="np_prov_telefono" class="inp" placeholder="Ej: 8888-8888" />
+
+        <label class="label">Email</label>
+        <input id="np_prov_email" class="inp" placeholder="Ej: proveedor@correo.com" />
+
+        <label class="label">Contacto</label>
+        <input id="np_prov_contacto" class="inp" placeholder="Nombre de la persona" />
+
+        <label class="label">Dirección</label>
+        <input id="np_prov_direccion" class="inp" placeholder="Dirección" />
+
+        <label class="label">Tipo proveedor</label>
+        <input id="np_prov_tipo" class="inp" placeholder="Ej: Mayorista" />
+
+      </div>
+
+      <!-- PRODUCTO -->
+      <div class="modal__card card-orange">
+        <div class="modal__cardTitle">Producto</div>
+
+        <label class="label">Nombre</label>
+        <input id="np_prod_nombre" class="inp" placeholder="Ej: Bombillo LED 9W" />
+
+        <label class="label">Descripción</label>
+        <input id="np_prod_desc" class="inp" placeholder="Descripción" />
+
+        <label class="label">Precio compra</label>
+        <input id="np_prod_pc" class="inp" type="number" step="0.01" min="0" value="0.00" />
+
+        <label class="label">Precio venta</label>
+        <input id="np_prod_pv" class="inp" type="number" step="0.01" min="0" value="0.00" />
+
+        <label class="label">Stock máximo</label>
+        <input id="np_prod_stock_max" class="inp" type="number" min="0" step="1" value="60" placeholder="Ej: 60" />
+
+        <label class="label">Unidad medidas</label>
+        <input id="np_prod_um" class="inp" placeholder="Ej: unidad, metro, caja" />
+
+        <button class="btn" type="button" id="btnGuardarNuevoProducto">Guardar</button>
+      </div>
+
+      <!-- CATEGORIA -->
+      <div class="modal__card card-blue2">
+        <div class="modal__cardTitle">Categoría</div>
+
+        <label class="label">Nombre</label>
+        <input id="np_cat_nombre" class="inp" placeholder="Ej: Iluminación" />
+        <div class="ac" id="catAcWrap">
+          <div class="ac__list" id="catAcList" style="display:none;"></div>
+        </div>
+
+        <label class="label">Descripción</label>
+        <input id="np_cat_desc" class="inp" placeholder="Descripción" />
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JS externo -->
+<script src="{% static 'js/compras.js' %}"></script>
 {% endblock %}

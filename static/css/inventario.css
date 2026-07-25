@@ -1,0 +1,499 @@
+/* =====================================================
+   Variables globales de diseño del módulo de inventario
+   ===================================================== */
+:root {
+  --page-bg: #0f172a;          /* Fondo principal de la página */
+  --card-bg: rgba(15, 23, 42, 0.94);   /* Fondo de las tarjetas/paneles */
+  --card-border: rgba(255, 255, 255, 0.08); /* Borde sutil de tarjetas */
+  --text: #e5e7eb;             /* Color de texto principal */
+  --muted: #94a3b8;            /* Color de texto secundario/apagado */
+  --accent: #38bdf8;           /* Color de acento (azul claro) */
+  --accent-strong: #0ea5e9;    /* Variante más intensa del acento */
+  --success: #22c55e;          /* Color para estado "Normal" */
+  --warning: #f59e0b;          /* Color para stock bajo */
+  --danger: #ef4444;           /* Color para stock agotado o acciones destructivas */
+  --radius: 18px;              /* Radio de borde global */
+}
+
+/* Reset básico: usar box-sizing border-box en todos los elementos */
+* { box-sizing: border-box; }
+
+/* =====================================================
+   Estructura principal de la página de inventario
+   ===================================================== */
+.inventory-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 10px;
+  min-height: 80vh;
+}
+
+/* Estilo base de contenedores tipo panel/tarjeta */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Encabezado superior de la página */
+.inventory-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.inventory-topbar .eyebrow {
+  color: var(--accent);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  margin: 0 0 4px 0;
+}
+.inventory-topbar .page-title {
+  margin: 0;
+  font-size: 1.75rem;
+  color: var(--text);
+  font-weight: 800;
+}
+
+/* =====================================================
+   Ajuste de Anchos de Columnas (Estructura Exacta de 10 Columnas)
+   ===================================================== */
+.inventory-table th:nth-child(1), .inventory-table td:nth-child(1) { width: 7%; }  /* Código */
+.inventory-table th:nth-child(2), .inventory-table td:nth-child(2) { width: 20%; } /* Descripción / Producto */
+.inventory-table th:nth-child(3), .inventory-table td:nth-child(3) { width: 11%; } /* Categoría */
+.inventory-table th:nth-child(4), .inventory-table td:nth-child(4) { width: 8%; }  /* U. Medida */
+.inventory-table th:nth-child(5), .inventory-table td:nth-child(5) { width: 9%; }  /* P. Compra */
+.inventory-table th:nth-child(6), .inventory-table td:nth-child(6) { width: 9%; }  /* P. Venta */
+.inventory-table th:nth-child(7), .inventory-table td:nth-child(7) { width: 8%; }  /* Stock Actual */
+.inventory-table th:nth-child(8), .inventory-table td:nth-child(8) { width: 10%; } /* Proveedor */
+.inventory-table th:nth-child(9), .inventory-table td:nth-child(9) { width: 10%; } /* Estado */
+.inventory-table th:nth-child(10), .inventory-table td:nth-child(10) { width: 8%; } /* Acciones (¡Fijado!) */
+
+/* Asegurar que el contenedor de los botones de acción no rompa su celda */
+.table-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.table-actions .edit-product-btn {
+  padding: 6px 12px; /* Reducimos levemente el relleno para que encaje estéticamente */
+  white-space: nowrap;
+}
+
+/* Columna de Acciones Unificada */
+.inventory-table th:last-child, .inventory-table td:last-child {
+  width: auto;
+  min-width: 110px;
+}
+
+/* =====================================================
+   Diseño de Tabla de Inventario y Celdas Blindadas
+   ===================================================== */
+.inventory-display {
+  padding: 0;
+  overflow: hidden;
+}
+.inventory-table-container {
+  overflow-x: auto;
+  width: 100%;
+}
+.inventory-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* Fuerza a la tabla a respetar estrictamente los % de las columnas */
+}
+.inventory-table th {
+  background: rgba(30, 41, 59, 0.5);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.inventory-table th,
+.inventory-table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--card-border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Pone puntos suspensivos (...) si el contenido se desborda */
+}
+.inventory-table td:nth-child(2) {
+  white-space: normal;      /* Permite al nombre del producto romper en 2 líneas si es largo */
+  word-break: break-word;
+}
+.inventory-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Elemento de alineación central */
+.text-center { text-align: center !important; }
+
+/* =====================================================
+   Campos de Texto, Filtros e Insumos de la Toolbar
+   ===================================================== */
+.toolbar-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 150px;
+}
+.toolbar-field label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.toolbar-field input,
+.toolbar-field select {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--card-border);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.toolbar-field input:focus,
+.toolbar-field select:focus {
+  border-color: var(--accent);
+}
+
+/* =====================================================
+   Botones de Acción Globales e Interfaces
+   ===================================================== */
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+.action-btn--primary {
+  background: var(--accent);
+  color: #0f172a;
+}
+.action-btn--primary:hover {
+  background: var(--accent-strong);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+}
+.action-btn--soft {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-color: var(--card-border);
+}
+.action-btn--soft:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.action-btn--danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+.action-btn--danger:hover {
+  background: var(--danger);
+  color: white;
+}
+.action-btn--disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.table-actions {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* insignias de categoría */
+.category-badge {
+  background: rgba(56, 189, 248, 0.1);
+  color: var(--accent);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* =====================================================
+   Etiquetas de Estado Dinámico (Activo/Inactivo/Stock)
+   ===================================================== */
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+  border: 1px solid transparent;
+}
+.status-badge--success {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--success);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+.status-badge--warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.status-badge--danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.status-badge--inactive {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--muted);
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+/* empty state */
+.empty-state {
+  padding: 40px text-align center;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* =========================================================================
+   🪐 VENTANA FLOTANTE MODAL (ESTILO EXACTO Y SINCRONIZADO CON CLIENTES)
+   ========================================================================= */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+/* Clase inyectada por JS para activar la apertura de la ventana flotante */
+.modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal__content {
+  width: min(500px, calc(100% - 32px));
+  padding: 24px;
+  position: relative;
+  background: linear-gradient(180deg, #1e293b, #0f172a);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.modal__close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.modal__close:hover {
+  color: var(--danger);
+}
+
+.modal__header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* Estructura vertical del bloque de formulario idéntico a Clientes */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.form-group label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.form-group input {
+  padding: 11px 14px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--card-border);
+  color: var(--text);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.form-group input:focus {
+  border-color: var(--accent);
+}
+
+/* =========================================================================
+   ⚡ OPTIMIZACIÓN COMPACTA Y DELGADA PARA LA VENTANA DE REPORTES
+   ========================================================================= */
+
+/* --- Contenedor de KPIs Superior (4 Columnas Estilizadas y Delgadas) --- */
+.inventory-page--reports .report-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 12px !important;
+  margin-bottom: 5px;
+}
+
+.inventory-page--reports .report-card {
+  padding: 10px 14px !important; /* Relleno mínimo */
+  min-height: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+}
+
+.inventory-page--reports .report-card__label {
+  font-size: 0.75rem !important;
+  margin: 0 !important;
+}
+
+.inventory-page--reports .report-card__value {
+  font-size: 1.4rem !important; /* Texto más balanceado */
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  margin: 2px 0 !important;
+}
+
+.inventory-page--reports .report-card__hint {
+  font-size: 0.7rem !important;
+}
+
+/* --- Barra de Filtros en Una Sola Fila Compacta --- */
+.inventory-toolbar--reports .report-filters {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important; /* Evita saltos de línea */
+  gap: 10px !important;
+  align-items: flex-end !important;
+  width: 100% !important;
+}
+
+.inventory-toolbar--reports .toolbar-field {
+  flex: 1 1 auto !important;
+  min-width: 110px !important;
+  gap: 4px !important; /* Reduce espacio entre label e input */
+}
+
+.inventory-toolbar--reports .toolbar-field--wide {
+  flex: 2 1 auto !important; /* El buscador de productos toma más espacio */
+}
+
+.inventory-toolbar--reports .toolbar-field--actions {
+  flex: 0 0 auto !important;
+}
+
+/* Reducción estricta de la altura de los controles de filtrado */
+.inventory-toolbar--reports .toolbar-field input,
+.inventory-toolbar--reports .toolbar-field select,
+.inventory-toolbar--reports .action-btn {
+  height: 36px !important; /* Altura delgada estándar */
+  padding: 6px 12px !important;
+  font-size: 0.85rem !important;
+}
+
+/* --- Tabla de Movimientos Ultra Delgada --- */
+.inventory-table--reports {
+  table-layout: auto !important; /* Deja que el navegador distribuya las columnas inteligentemente */
+  border-collapse: separate !important;
+  border-spacing: 0 4px !important; /* Reduce separación entre filas */
+  width: 100% !important;
+}
+
+.inventory-table--reports th {
+  padding: 6px 10px !important; /* Encabezado más compacto */
+  font-size: 0.75rem !important;
+}
+
+.inventory-table--reports tbody tr {
+  background: rgba(30, 41, 59, 0.2) !important;
+}
+
+/* Reducción del padding vertical al mínimo */
+.inventory-table--reports td {
+  padding: 6px 10px !important; 
+  font-size: 0.82rem !important;
+  white-space: normal !important;
+  vertical-align: middle !important;
+  border-top: 1px solid var(--card-border) !important;
+  border-bottom: 1px solid var(--card-border) !important;
+}
+
+/* Conservar bordes redondeados en las filas flotantes compactas */
+.inventory-table--reports td:first-child {
+  border-left: 1px solid var(--card-border) !important;
+  border-radius: 6px 0 0 6px !important;
+  color: #cbd5e1 !important;
+}
+
+.inventory-table--reports td:last-child {
+  border-right: 1px solid var(--card-border) !important;
+  border-radius: 0 6px 6px 0 !important;
+}
+
+/* Badges estilizados y delgados */
+.inventory-page--reports .status-badge {
+  padding: 2px 8px !important;
+  font-size: 0.7rem !important;
+  border-radius: 4px !important;
+}
+
+/* Estilo unificado para Entradas */
+.inventory-page--reports .status-badge--entrada,
+.inventory-page--reports .status-badge--ajuste_entrada {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: var(--success) !important;
+  border: 1px solid rgba(34, 197, 94, 0.25) !important;
+}
+
+/* Estilo unificado para Salidas estándar y ajustes */
+.inventory-page--reports .status-badge--salida,
+.inventory-page--reports .status-badge--ajuste_salida {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: var(--danger) !important;
+  border: 1px solid rgba(239, 68, 68, 0.25) !important;
+}
+
+/* 🌟 CORRECCIÓN SIN GUIONES: ETIQUETA EN AMARILLO/ÁMBAR PARA SALIDA POR DAÑO */
+.inventory-page--reports [class*="salida por daño"] {
+  background: rgba(245, 158, 11, 0.15) !important; /* Fondo ámbar translúcido */
+  color: var(--warning) !important;                /* Texto en amarillo warning claro */
+  border: 1px solid rgba(245, 158, 11, 0.35) !important; /* Borde sutil */
+}
+
+/* --- Grid Principal Inferior (Tabla + Sidebar) --- */
+.inventory-page--reports .report-grid--main {
+  display: grid !important;
+  grid-template-columns: 3.1fr 0.9fr !important;
+  gap: 16px !important;
+  align-items: start !important;
+}

@@ -1,1 +1,1 @@
-from .models_legacy import *  # noqa
+from .models_legacy import *  # noqa: F401,F403

@@ -1,16 +1,38 @@
+/* ============================================
+   VARIABLES DE COLOR Y CONFIGURACIÓN GLOBAL
+   ============================================ */
 :root{
-  --bg: #23245D;
-  --sidebar: #1A1A40;
-  --btn: #2D2F65;
-  --hover: #348FFC;
-  --orange: #F4952F;
-  --gray: #5a5a5a;
-  --text: #ffffff;
-  --radius: 12px;
+  /* Paleta de colores principal (coherencia visual con login.css) */
+  --c0: #053b6e;      /* Azul oscuro principal */
+  --c1: #0ea5e9;      /* Azul claro */
+  --c2: #22d3ee;      /* Cyan claro */
+  --cText: rgba(255,255,255,.92);   /* Texto blanco principal */
+  --cMuted: rgba(255,255,255,.72);  /* Texto atenuado */
+  --cLine: rgba(255,255,255,.34);   /* Líneas/bordes */
+  
+  /* Variables heredadas para compatibilidad */
+  --bg: #053b6e;              /* Fondo de página */
+  --sidebar: #0a4b85;         /* Fondo de barra lateral */
+  --btn: #0ea5e9;             /* Color de botones */
+  --hover: #22d3ee;           /* Color hover */
+  --orange: #F4952F;          /* Color naranja para acentos */
+  --gray: #5a5a5a;            /* Gris para elementos secundarios */
+  --text: rgba(255,255,255,.92);  /* Color de texto */
+  --radius: 12px;             /* Radio de bordes */
 }
 
-*{ box-sizing: border-box; }
+/* ============================================
+   ESTILOS GLOBALES
+   ============================================ */
+/* Box-sizing para todos los elementos */
+*{ box-sizing: border-box; 
+    font-size: 16px;
+}
+
+/* Altura completa en html y body */
 html,body{ height: 100%; }
+
+/* Estilos base del body */
 body{
   margin: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
@@ -18,125 +40,369 @@ body{
   color: var(--text);
 }
 
+/* ============================================
+   CONTENEDOR PRINCIPAL (APP LAYOUT)
+   ============================================ */
+/* Layout de dos columnas: sidebar + main */
 .app{
-  height: 100vh;
+  height: 100vh;              /* Altura completa de la ventana */
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr;  /* Sidebar (auto) + Contenido (flex) */
 }
 
-/* Sidebar */
+/* ============================================
+   BARRA LATERAL (SIDEBAR)
+   ============================================ */
+/* Contenedor principal de la barra lateral */
 .sidebar{
-  width: 220px;
+  width: 220px;               /* Ancho expandido */
   background: var(--sidebar);
   padding: 10px 0;
-  overflow: hidden;
-  transition: width .18s ease;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;           /* El scroll se maneja dentro de .menu-scroll */
+  transition: width .18s ease; /* Animación suave al cambiar ancho */
 }
-.sidebar.is-collapsed{ width: 60px; }
 
+/* Estado colapsado de la barra lateral */
+.sidebar.is-collapsed{ 
+  width: 85px;                /* Ancho cuando está colapsada */
+}
+
+/* ============================================
+   LOGO Y MARCA (BRAND)
+   ============================================ */
+/* Contenedor principal del logo y nombre */
 .brand{
   display:flex;
+  flex-direction: column;     /* Alineación vertical */
+  align-items: center;
+  justify-content: center;
+  gap: 12px;                  /* Espacio entre logo y texto */
+  padding: 16px 12px 24px 12px;
+  text-align: center;
+}
+
+/* Logo de la ferretería */
+.brand__logo{ 
+  width: 80px; 
+  height: 80px; 
+  object-fit: contain;
+  border-radius: 50%;         /* Forma circular */
+  background: rgba(34, 211, 238, 0.15);  /* Fondo semi-transparente */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(34, 211, 238, 0.3);  /* Borde sutil */
+}
+
+/* Contenedor del texto (nombre de la ferretería) */
+.brand__text{
+  width: 100%;
+}
+
+/* Título principal "Ferretería" */
+.brand__title{ 
+  font-weight: 700; 
+  font-size: 18px; 
+  line-height: 1.2;
+  margin: 0;
+}
+
+/* Subtítulo "Mi Casa" */
+.brand__subtitle{ 
+  font-weight: 600; 
+  font-size: 13px; 
+  color: var(--orange);       /* Color naranja destacado */
+  line-height: 1.2;
+  margin: 2px 0 0 0;
+}
+
+/* Ocultar texto cuando sidebar está colapsado */
+.sidebar.is-collapsed .brand__text{ 
+  display:none;
+}
+
+/* Logo más pequeño cuando sidebar está colapsado */
+.sidebar.is-collapsed .brand__logo{ 
+  width: 50px; 
+  height: 50px; 
+}
+
+/* ============================================
+   PERFIL DE USUARIO
+   ============================================ */
+/* Contenedor del perfil del usuario logueado */
+.user-profile{
+  display:flex;
   align-items:center;
-  gap: 10px;
-  padding: 8px 12px 16px 12px;
+  gap: 12px;
+  padding: 12px 12px;
+  margin: 8px 8px 16px 8px;
+  background: rgba(34, 211, 238, 0.08);  /* Fondo sutil */
+  border: 1px solid rgba(34, 211, 238, 0.18);  /* Borde */
+  border-radius: 14px;
 }
-.brand__logo{ width: 35px; height: 35px; object-fit: contain; }
-.brand__title{ font-weight: 700; font-size: 16px; line-height: 1.1; }
-.brand__subtitle{ font-weight: 600; font-size: 14px; color: var(--orange); line-height: 1.1; }
 
-.sidebar.is-collapsed .brand__text{ display:none; }
+/* Avatar circular del usuario (muestra inicial del nombre) */
+.user-avatar{
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;         /* Avatar circular */
+  background: linear-gradient(135deg, #0ea5e9, #22d3ee);  /* Gradiente azul */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+  flex-shrink: 0;             /* No se encoge */
+  color: #001018;             /* Texto oscuro en gradiente claro */
+}
 
+/* Contenedor de información del usuario */
+.user-info{
+  flex: 1;                    /* Ocupa espacio restante */
+  min-width: 0;               /* Permite truncamiento de texto */
+}
+
+/* Nombre del usuario */
+.user-name{
+  font-weight: 700;
+  font-size: 14px; 
+  line-height: 1.2;
+  color: var(--text);
+  white-space: nowrap;        /* Evita saltos de línea */
+  overflow: hidden;           /* Oculta texto que sobresale */
+  text-overflow: ellipsis;    /* Añade "..." */
+}
+
+/* Rol/Cargo del usuario */
+.user-role{
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);  /* Gris claro */
+  line-height: 1.2;
+}
+
+/* Ocultar información cuando sidebar está colapsado */
+.sidebar.is-collapsed .user-info{
+  display: none;              /* Solo muestra el avatar */
+}
+
+/* ============================================
+   DIVISORES
+   ============================================ */
+/* Líneas separadoras entre secciones */
 .divider{
-  height: 1px;
-  background: rgba(255,255,255,.15);
-  margin: 8px 12px;
+  height: 1px;                /* Línea muy fina */
+  background: rgba(255,255,255,.15);  /* Gris sutil */
+  margin: 8px 12px;           /* Espacio alrededor */
 }
 
-/* Toggle */
+/* ============================================
+   BOTÓN TOGGLE (EXPANDIR/CONTRAER SIDEBAR)
+   ============================================ */
+/* Botón para alternar el estado del sidebar */
 .toggle{
   margin: 8px 8px 16px 8px;
-  width: 38px;
-  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;  /* Alinea el contenido a la izquierda */
+  gap: 10px;                  /* Espacio entre icono y texto (igual que menu-link) */
+  height: 44px;               /* Altura fija (igual que menu-link) */
   border: none;
   background: transparent;
   color: white;
-  font-size: 22px;
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: var(--radius);  /* Usar variable de radio */
+  padding: 0 10px;            /* Padding horizontal (igual que menu-link) */
+  transition: all 0.2s ease;  /* Animación suave */
+  border-left: 3px solid transparent;  /* Borde izquierdo indicador */
+  font-size: 16px;
+  font-weight: 600;
 }
-.toggle:hover{ background: rgba(255,255,255,.08); }
 
+/* Efecto hover en el botón toggle */
+.toggle:hover{ 
+  background: rgba(34, 211, 238, 0.16);  /* Fondo sutil (igual que menu-link) */
+  border-left: 3px solid var(--hover);   /* Borde destacado */
+  padding-left: 7px;          /* Pequeña animación de movimiento */
+}
+
+/* Botón toggle cuando sidebar está colapsado */
+.sidebar.is-collapsed .toggle{ 
+  justify-content: center;    /* Centra el icono */
+  padding: 0 10px;            /* Mantener padding para consistencia */
+  text-align: center;         /* Centra el contenido */
+}
+
+/* Icono del botón toggle */
+.toggle__icon{
+  width: 36px;                /* Ancho fijo (igual que menu-link__icon) */
+  text-align: center;         /* Centrado */
+  font-size: 20px;            /* Tamaño del emoji (igual que menu-link__icon) */
+  flex-shrink: 0;             /* No se encoge */
+}
+
+/* Texto del botón toggle */
+.toggle__text{
+  display: none;              /* Oculto por defecto (igual que menu-link__text) */
+}
+
+/* Mostrar texto cuando sidebar está expandido */
+.sidebar:not(.is-collapsed) .toggle__text{
+  display: inline;            /* Visible cuando no está colapsado */
+}
+
+/* ============================================
+   MENÚ PRINCIPAL
+   ============================================ */
+/* Título del menú "Menú principal" */
 .menu-title{
   margin: 0 16px 16px 16px;
   font-weight: 800;
   font-size: 18px;
 }
-.sidebar.is-collapsed .menu-title{ display:none; }
 
-/* Menu buttons (ahora son <a>) */
+/* Ocultar título cuando sidebar está colapsado */
+.sidebar.is-collapsed .menu-title{ 
+  display:none;
+}
+
+/* Contenedor desplazable del menú lateral */
+.menu-scroll{
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  padding-bottom: 10px;
+}
+
+.menu-scroll{
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.45) transparent;
+}
+
+.menu-scroll::-webkit-scrollbar{
+  width: 8px;
+}
+
+.menu-scroll::-webkit-scrollbar-track{
+  background: transparent;
+}
+
+.menu-scroll::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.32);
+  border-radius: 999px;
+}
+
+.menu-scroll::-webkit-scrollbar-thumb:hover{
+  background: rgba(255,255,255,.48);
+}
+
+/* Contenedor del menú */
 .menu{
   display:flex;
-  flex-direction: column;
+  flex-direction: column;     /* Alineación vertical */
   padding: 0;
 }
+
+/* ============================================
+   ENLACES DEL MENÚ
+   Compras, Proveedor, Ventas, Devolución, Registro, Usuarios, Cerrar sesión
+   ============================================ */
+/* Enlace individual del menú */
 .menu-link{
   display:flex;
   align-items:center;
-  gap: 10px;
+  justify-content: flex-start;  /* Alinea el contenido a la izquierda */
+  gap: 10px;                  /* Espacio entre icono y texto */
   margin: 4px 8px 0 8px;
-  height: 44px;
+  height: 44px;               /* Altura fija */
 
   border-radius: var(--radius);
-  background: var(--btn);
+  background: transparent;
   color: var(--text);
   text-decoration: none;
 
   font-size: 16px;
   font-weight: 600;
 
-  padding: 0 10px;
+  padding: 0 10px;            /* Padding horizontal */
+  transition: all 0.2s ease;  /* Animación suave */
+  border-left: 3px solid transparent;  /* Borde izquierdo indicador */
 }
-.menu-link:hover{ background: var(--hover); }
+
+/* Efecto hover en enlaces del menú */
+.menu-link:hover{
+  background: rgba(34, 211, 238, 0.16);  /* Fondo sutil */
+  border-left: 3px solid var(--hover);   /* Borde destacado */
+  padding-left: 7px;          /* Pequeña animación de movimiento */
+}
+
+.menu-link.is-active{
+  background: rgba(14, 165, 233, 0.22);
+  border-left: 3px solid #7dd3fc;
+  padding-left: 7px;
+}
 
 .menu-link[aria-disabled="true"]{
-  opacity: .5;
-  pointer-events: none;
+  opacity: .5;                /* Semi-transparente */
+  pointer-events: none;       /* No clickeable */
 }
 
+/* Icono del enlace de menú (🛒 para compras, 💵 para ventas, etc.) */
 .menu-link__icon{
-  width: 36px;
-  text-align:center;
-  font-size: 20px;
+  width: 36px;                /* Ancho fijo */
+  text-align:center;          /* Centrado */
+  font-size: 20px;            /* Tamaño del emoji */
+  flex-shrink: 0;             /* No se encoge */
 }
 
-.menu-link--orange{ background: var(--orange); }
-.menu-link--gray{ background: var(--gray); }
+/* Estilos especiales para colores */
+.menu-link--orange{ 
+  background: var(--orange);  /* Fondo naranja para ciertos enlaces */
+}
+.menu-link--gray{ 
+  background: var(--gray);    /* Fondo gris para ciertos enlaces */
+}
 
-.sidebar.is-collapsed .menu-link__text{ display:none; }
+/* Enlaces del menú cuando sidebar está colapsado */
+.sidebar.is-collapsed .menu-link{ 
+  justify-content: center;    /* Centra el icono */
+  padding: 0 10px;            /* Mantener padding para consistencia */
+  text-align: center;         /* Centra el contenido */
+}
+
+/* Ocultar texto del enlace cuando sidebar está colapsado (solo muestra icono) */
+.sidebar.is-collapsed .menu-link__text{ 
+  display:none;               /* Solo el icono es visible */
+}
 
 /* Main */
 .main{
-  background: var(--bg);
-  overflow: auto;
+  background: var(--bg);      /* Fondo azul oscuro */
+  overflow: auto;             /* Permite scroll si es necesario */
 }
 .content{
-  padding: 16px;
-  min-height: 100%;
+  padding: 16px;              /* Espaciado alrededor del contenido */
+  min-height: 100%;           /* Altura mínima = altura de la ventana */
 }
 .card{
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 16px;
-  padding: 16px;
+  background: rgba(255,255,255,0.06);    /* Fondo muy sutil */
+  border: 1px solid rgba(255,255,255,0.10);  /* Borde muy tenue */
+  border-radius: 16px;        /* Bordes redondeados */
+  padding: 16px;              /* Padding interno */
 }
 
-/* “breadcrumb/title” simple */
+/* "breadcrumb/title" simple */
 .page-title{
-  margin: 0 0 12px 0;
-  font-size: 26px;
-  font-weight: 800;
+  margin: 0 0 12px 0;         /* Espaciado inferior */
+  font-size: 26px;            /* Tamaño grande */
+  font-weight: 800;           /* Muy bold */
 }
 .page-subtitle{
-  margin: 0 0 16px 0;
-  opacity: .9;
+  margin: 0 0 16px 0;         /* Espaciado inferior */
+  opacity: .9;                /* Ligeramente más transparente */
 }

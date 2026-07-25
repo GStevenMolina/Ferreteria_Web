@@ -1,9 +1,17 @@
 from django.urls import path
-from django.contrib.auth import views as auth_views
-
-app_name = "accounts"
+from . import views
 
 urlpatterns = [
-    path("login/", auth_views.LoginView.as_view(template_name="accounts/login.html"), name="login"),
-    path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("login/", views.login_view, name="login"),
+    path("logout/", views.logout_view, name="logout"),
+
+    path("password/forgot/", views.forgot_password_code, name="password_forgot"),
+    path("password/reset/", views.password_reset_code_verify, name="password_reset_code_verify"),
+    
+    path("usuarios/", views.users_list_view, name="users_list"),
+    path("usuarios/nuevo/", views.create_user_view, name="create_user"),
+    path("usuarios/<int:id_usuario>/toggle-activo/", views.toggle_user_active_view, name="toggle_user_active"),
+    path("usuarios/<int:id_usuario>/editar/", views.edit_user_view, name="edit_user"),
+    path("auditoria/", views.auditoria_list_view, name="auditoria_list"),
+    path("auditoria/eventos/", views.auditoria_evento_list, name="auditoria_evento_list"),
 ]

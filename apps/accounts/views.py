@@ -185,15 +185,21 @@ def forgot_password_code(request):
     )
 
     # --- NUEVA LÓGICA DE SEGUNDO PLANO ---
+# --- NUEVA LÓGICA DE SEGUNDO PLANO ---
     def enviar_correo_google():
-        send_mail(
-            subject="Código de recuperación de contraseña - Ferretería Mi casa",
-            message=f"Tu código de recuperación es: {code}",
-            from_email=None,
-            recipient_list=[email],
-            fail_silently=True,
-            html_message=html_message,
-        )
+        try:
+            print(f"⏳ Intentando enviar correo a {email}...")
+            send_mail(
+                subject="Código de recuperación de contraseña - Ferretería Mi casa",
+                message=f"Tu código de recuperación es: {code}",
+                from_email=None,
+                recipient_list=[email],
+                fail_silently=False,  # <--- CAMBIO CLAVE: Cambiado a False
+                html_message=html_message,
+            )
+            print("✅ ÉXITO: El correo fue enviado y aceptado por Google.")
+        except Exception as e:
+            print(f"❌ ERROR AL ENVIAR EL CORREO: {e}")
 
     # Creamos un hilo que ejecuta la función sin pausar la página web
     hilo_correo = threading.Thread(target=enviar_correo_google)

@@ -1,3 +1,5 @@
+import threading
+
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
 from django.contrib import messages
@@ -181,18 +183,25 @@ def forgot_password_code(request):
         "accounts/password_reset_email.html",
         {"code": code, "business_name": "Ferretería Mi casa"},
     )
-    send_mail(
-        subject="Código de recuperación de contraseña - Ferretería Mi casa",
-        message=f"Tu código de recuperación es: {code}",
-        from_email=None,
-        recipient_list=[email],
-        fail_silently=True,
-        html_message=html_message,
-    )
+
+    # --- NUEVA LÓGICA DE SEGUNDO PLANO ---
+    def enviar_correo_google():
+        send_mail(
+            subject="Código de recuperación de contraseña - Ferretería Mi casa",
+            message=f"Tu código de recuperación es: {code}",
+            from_email=None,
+            recipient_list=[email],
+            fail_silently=True,
+            html_message=html_message,
+        )
+
+    # Creamos un hilo que ejecuta la función sin pausar la página web
+    hilo_correo = threading.Thread(target=enviar_correo_google)
+    hilo_correo.start()
+    # -------------------------------------
 
     messages.success(request, "Si el correo existe, se enviará un código de recuperación.")
     return redirect(reverse("password_reset_code_verify"))
-
 
 @require_http_methods(["GET", "POST"])
 def password_reset_code_verify(request):
@@ -387,7 +396,7 @@ def auditoria_list_view(request):
     if q_desde:
         logs = logs.filter(fecha__date__gte=q_desde)
     if q_hasta:
-        logs = logs.filter(fecha__date__lte=q_hasta)
+        logs = logs.filter(fecha__date__lte=q_hasta)    
 
     logs = logs.order_by('-fecha')[:200]
 

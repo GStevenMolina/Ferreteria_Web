@@ -178,33 +178,34 @@ def forgot_password_code(request):
     cache.set(cache_key, code, timeout=RESET_PASSWORD_CODE_SECONDS)
     request.session["password_reset_email"] = email
 
-    # Render HTML email template and send both plain text and HTML
+    # Render HTML email template
     html_message = render_to_string(
         "accounts/password_reset_email.html",
         {"code": code, "business_name": "Ferretería Mi casa"},
     )
 
-    # --- NUEVA LÓGICA DE SEGUNDO PLANO ---
-# --- NUEVA LÓGICA DE SEGUNDO PLANO ---
-    def enviar_correo_google():
+    # --- LÓGICA DE SEGUNDO PLANO CON RESEND API ---
+    def enviar_correo_resend():
         try:
-            print(f"⏳ Intentando enviar correo a {email}...")
-            send_mail(
-                subject="Código de recuperación de contraseña - Ferretería Mi casa",
-                message=f"Tu código de recuperación es: {code}",
-                from_email=None,
-                recipient_list=[email],
-                fail_silently=False,  # <--- CAMBIO CLAVE: Cambiado a False
-                html_message=html_message,
-            )
-            print("✅ ÉXITO: El correo fue enviado y aceptado por Google.")
+            import resend
+            resend.api_key = os.getenv("RESEND_API_KEY")
+            
+            print(f"⏳ Intentando enviar correo a {email} vía Resend...")
+            params = {
+                "from": "Ferretería <onboarding@resend.dev>",
+                "to": [email],
+                "subject": "Código de recuperación de contraseña - Ferretería Mi casa",
+                "html": html_message,
+            }
+            resend.Emails.send(params)
+            print("✅ ÉXITO: El correo fue enviado a través de Resend.")
         except Exception as e:
-            print(f"❌ ERROR AL ENVIAR EL CORREO: {e}")
+            print(f"❌ ERROR AL ENVIAR EL CORREO CON RESEND: {e}")
 
     # Creamos un hilo que ejecuta la función sin pausar la página web
-    hilo_correo = threading.Thread(target=enviar_correo_google)
+    hilo_correo = threading.Thread(target=enviar_correo_resend)
     hilo_correo.start()
-    # -------------------------------------
+    # ---------------------------------------------
 
     messages.success(request, "Si el correo existe, se enviará un código de recuperación.")
     return redirect(reverse("password_reset_code_verify"))

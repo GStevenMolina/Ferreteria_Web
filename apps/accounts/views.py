@@ -1,4 +1,7 @@
 import threading
+import os
+import resend
+resend.api_key = os.getenv("RESEND_API_KEY")
 
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
@@ -187,7 +190,6 @@ def forgot_password_code(request):
     # --- LÓGICA DE SEGUNDO PLANO CON RESEND API ---
     def enviar_correo_resend():
         try:
-            import resend
             resend.api_key = os.getenv("RESEND_API_KEY")
             
             print(f"⏳ Intentando enviar correo a {email} vía Resend...")

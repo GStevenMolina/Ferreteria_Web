@@ -1,11 +1,14 @@
 import threading
 import os
-import resend
-resend.api_key = os.getenv("RESEND_API_KEY")
+try:
+    import resend
+except ImportError:
+    resend = None
 
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
 from django.contrib import messages
+from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.core.cache import cache
@@ -187,22 +190,35 @@ def forgot_password_code(request):
         {"code": code, "business_name": "Ferretería Mi casa"},
     )
 
-    # --- LÓGICA DE SEGUNDO PLANO CON RESEND API ---
+    # --- LÓGICA DE SEGUNDO PLANO CON RESEND API / SMTP ---
     def enviar_correo_resend():
         try:
-            resend.api_key = os.getenv("RESEND_API_KEY")
-            
-            print(f"⏳ Intentando enviar correo a {email} vía Resend...")
-            params = {
-                "from": "Ferretería <onboarding@resend.dev>",
-                "to": [email],
-                "subject": "Código de recuperación de contraseña - Ferretería Mi casa",
-                "html": html_message,
-            }
-            resend.Emails.send(params)
-            print("✅ ÉXITO: El correo fue enviado a través de Resend.")
+            subject = "Código de recuperación de contraseña - Ferretería Mi casa"
+
+            if resend is not None and os.getenv("RESEND_API_KEY"):
+                resend.api_key = os.getenv("RESEND_API_KEY")
+                print(f"Intentando enviar correo a {email} via Resend...")
+                params = {
+                    "from": "Ferreteria <onboarding@resend.dev>",
+                    "to": [email],
+                    "subject": subject,
+                    "html": html_message,
+                }
+                resend.Emails.send(params)
+                print("Correo enviado a traves de Resend.")
+                return
+
+            print(f"Resend no esta disponible; enviando correo a {email} via SMTP...")
+            send_mail(
+                subject=subject,
+                message=f"Tu codigo de recuperacion es: {code}",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                html_message=html_message,
+            )
+            print("Correo enviado via SMTP.")
         except Exception as e:
-            print(f"❌ ERROR AL ENVIAR EL CORREO CON RESEND: {e}")
+            print(f"Error al enviar el correo de recuperacion: {e}")
 
     # Creamos un hilo que ejecuta la función sin pausar la página web
     hilo_correo = threading.Thread(target=enviar_correo_resend)
